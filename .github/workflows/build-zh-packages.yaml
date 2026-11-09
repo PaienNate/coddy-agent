@@ -9,10 +9,11 @@
 # Triggers:
 #   - push to main
 #   - a SemVer tag (the archives are also attached to that GitHub Release)
-#   - workflow_dispatch, for a build on demand
+#   - workflow_dispatch, for a build on demand (all platforms, or one of them)
 #
-# Every run uploads the archives, their SHA256SUMS and the build notes as a
-# workflow artifact, even when no tag was pushed.
+# Every run uploads one workflow artifact per platform, so the archive you
+# need can be downloaded without unpacking every other platform first. The
+# release still carries every archive as its own asset.
 
 name: Build Chinese packages
 
@@ -23,6 +24,22 @@ on:
       - "[0-9]+.[0-9]+.[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+"
   workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform to build
+        required: false
+        default: all
+        type: choice
+        options:
+          - all
+          - linux-amd64
+          - linux-arm64
+          - darwin-amd64
+          - darwin-arm64
+          - windows-amd64
+          - windows-arm64
+          - android-arm64
+          - android-amd64
 
 defaults:
   run:
@@ -38,6 +55,8 @@ jobs:
   packages:
     name: Build Chinese packages
     runs-on: ubuntu-latest
+    env:
+      ZH_PLATFORM: ${{ github.event.inputs.platform }}
 
     steps:
       - name: Checkout repository
@@ -125,29 +144,109 @@ jobs:
             fi
           }
 
-          build_target linux amd64
-          build_target linux arm64
-          build_target darwin amd64
-          build_target darwin arm64
-          build_target windows amd64
-          build_target windows arm64
-          build_target android arm64
-          build_target android amd64
+          case "${ZH_PLATFORM:-all}" in
+            all)
+              build_target linux amd64
+              build_target linux arm64
+              build_target darwin amd64
+              build_target darwin arm64
+              build_target windows amd64
+              build_target windows arm64
+              build_target android arm64
+              build_target android amd64
+              ;;
+            linux-amd64)   build_target linux amd64 ;;
+            linux-arm64)   build_target linux arm64 ;;
+            darwin-amd64)  build_target darwin amd64 ;;
+            darwin-arm64)  build_target darwin arm64 ;;
+            windows-amd64) build_target windows amd64 ;;
+            windows-arm64) build_target windows arm64 ;;
+            android-arm64) build_target android arm64 ;;
+            android-amd64) build_target android amd64 ;;
+            *)
+              echo "unknown platform: ${ZH_PLATFORM}" >&2
+              exit 2
+              ;;
+          esac
 
           rm -rf "$DIST/_staging"
           (cd "$DIST" && sha256sum coddy-zh_* > SHA256SUMS)
           ls -lh "$DIST"
 
-      - name: Upload build artifact
+      - name: Upload linux amd64 artifact
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux-amd64'
         uses: actions/upload-artifact@v4
         with:
-          name: coddy-zh-${{ steps.version.outputs.value }}
-          path: dist/*
+          name: coddy-zh-${{ steps.version.outputs.value }}-linux-amd64
+          path: dist/coddy-zh_${{ steps.version.outputs.value }}_linux_amd64.tar.gz
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload linux arm64 artifact
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux-arm64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coddy-zh-${{ steps.version.outputs.value }}-linux-arm64
+          path: dist/coddy-zh_${{ steps.version.outputs.value }}_linux_arm64.tar.gz
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload darwin amd64 artifact
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'darwin-amd64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coddy-zh-${{ steps.version.outputs.value }}-darwin-amd64
+          path: dist/coddy-zh_${{ steps.version.outputs.value }}_darwin_amd64.tar.gz
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload darwin arm64 artifact
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'darwin-arm64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coddy-zh-${{ steps.version.outputs.value }}-darwin-arm64
+          path: dist/coddy-zh_${{ steps.version.outputs.value }}_darwin_arm64.tar.gz
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload windows amd64 artifact
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows-amd64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coddy-zh-${{ steps.version.outputs.value }}-windows-amd64
+          path: dist/coddy-zh_${{ steps.version.outputs.value }}_windows_amd64.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload windows arm64 artifact
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows-arm64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coddy-zh-${{ steps.version.outputs.value }}-windows-arm64
+          path: dist/coddy-zh_${{ steps.version.outputs.value }}_windows_arm64.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload android arm64 artifact
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android-arm64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coddy-zh-${{ steps.version.outputs.value }}-android-arm64
+          path: dist/coddy-zh_${{ steps.version.outputs.value }}_android_arm64.tar.gz
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload android amd64 artifact
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android-amd64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coddy-zh-${{ steps.version.outputs.value }}-android-amd64
+          path: dist/coddy-zh_${{ steps.version.outputs.value }}_android_amd64.tar.gz
           if-no-files-found: error
           retention-days: 30
 
       - name: Attach to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') && (github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all')
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.version.outputs.value }}
