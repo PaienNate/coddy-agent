@@ -24,8 +24,8 @@ func TestClientListsAndExports(t *testing.T) {
 			return
 		}
 		switch {
-		case r.URL.Path == "/global/health":
-			_, _ = w.Write([]byte(`{"healthy":true,"version":"2.1.0"}`))
+		case r.URL.Path == "/api/info":
+			_, _ = w.Write([]byte(`{"version":"2.1.0"}`))
 		case r.URL.Path == "/api/project":
 			_, _ = w.Write([]byte(`[{"id":"p1","worktree":"/tmp/project","name":"demo"}]`))
 		case r.URL.Path == "/api/session":

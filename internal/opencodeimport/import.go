@@ -277,17 +277,18 @@ func (c *Client) do(ctx context.Context, method, p string, out any) error {
 	return nil
 }
 
-// Health asks the server for its version.
+// Health asks the server for its version. OpenCode v2 exposes this as
+// /api/info; /global/health belongs to older servers and is not a JSON route on
+// v2 (the SPA fallback answers it with HTML).
 func (c *Client) Health(ctx context.Context) (string, error) {
 	var out struct {
-		Healthy bool   `json:"healthy"`
 		Version string `json:"version"`
 	}
-	if err := c.do(ctx, http.MethodGet, "/global/health", &out); err != nil {
+	if err := c.do(ctx, http.MethodGet, "/api/info", &out); err != nil {
 		return "", err
 	}
-	if !out.Healthy {
-		return "", errors.New("OpenCode server reports unhealthy")
+	if strings.TrimSpace(out.Version) == "" {
+		return "", errors.New("OpenCode server did not report a version")
 	}
 	return out.Version, nil
 }
@@ -331,10 +332,11 @@ func (c *Client) Sessions(ctx context.Context, projectID string, includeArchived
 		if len(out.Cursor.Next) == 0 || string(out.Cursor.Next) == "null" || len(out.Data) == 0 {
 			break
 		}
-		cursor = strings.TrimSpace(string(out.Cursor.Next))
-		if cursor == "" {
+		var next string
+		if err := json.Unmarshal(out.Cursor.Next, &next); err != nil || strings.TrimSpace(next) == "" {
 			break
 		}
+		cursor = next
 	}
 	return all, nil
 }

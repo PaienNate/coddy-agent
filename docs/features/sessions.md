@@ -119,7 +119,7 @@ A subagent run is a child session: a real bundle under `<parent>/subagents/<chil
 
 **Settings → OpenCode** configures a remote OpenCode v2 server: its API URL,
 HTTP basic-auth username (default `opencode`) and password. **Test connection**
-reads `/global/health`, `/api/project` and the project's session pages; **Import
+reads `/api/info`, `/api/project` and the project's session pages; **Import
 all sessions** runs the migration as a background job and reports progress in
 the same panel. The password is write-only, and the connection is kept in
 `${CODDY_HOME}/opencode.json` with owner-only permissions, not in `config.yaml`.

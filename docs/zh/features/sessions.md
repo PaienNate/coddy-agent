@@ -118,7 +118,7 @@ Coddy 为会话打开的 worktree 会放到 `<repo>/.coddy/worktrees/<branch>/` 
 ## 导入 OpenCode v2 会话
 
 **设置 → OpenCode** 用于配置远程 OpenCode v2 服务器：API 地址、HTTP Basic Auth
-用户名（默认 `opencode`）和密码。**测试连接** 会读取 `/global/health`、
+用户名（默认 `opencode`）和密码。**测试连接** 会读取 `/api/info`、
 `/api/project` 和项目的会话页；**导入全部会话** 会作为后台任务执行迁移，并在同一面板
 显示进度。密码是只写的，连接保存在 `${CODDY_HOME}/opencode.json`（仅所有者可读），
 不写入 `config.yaml`。
@@ -157,4 +157,4 @@ coddy sessions export <session-id> [--format md|html|json|jsonl] [--out <path>] 
 - `features/` 中的可执行规格：`print_sessions.feature`（打印运行会被标记并排除在选择器之外，`-c -p` 会继续它，交互式 `-c` 会跳过它，`--ephemeral` 不留下任何内容；框架 `external/cli/bdd_print_sessions_test.go`）、`acp_session_integration.feature`（重新打开的会话包会在 `session/new` 响应之后重放其对话记录；框架 `internal/session/bdd_acp_session_test.go`）、`session_rewind.feature`（对话记录在编辑后的消息处被截断；`external/httpserver/bdd_rewind_test.go`）、`session_rewind_undo.feature`（撤销会带回原始轮次；同一框架）、`session_export.feature` 和 `session_export_cli.feature`（[会话导出](session-export.md)）。
 - 单元测试：`internal/session/filesystem_test.go`（会话包布局和列表）、`internal/session/rewind_test.go`（就地截断和产物清理）、`internal/session/rewind_undo_test.go`（保留的尾部、撤销何时结束、恢复的 UI 日志和工具调用记录）、`external/cli/continue_test.go`（`-c` 解析），以及 SPA 中的 `external/ui/src/ui/messages/userMsgIndices.test.ts`（编辑或回退所指的用户消息索引，一次唤醒也算作一个轮次）。
 
-<!-- docsgen:source sha256=8cfc991940f22154 -->
+<!-- docsgen:source sha256=ab691d6916a06cc0 -->

@@ -119,7 +119,7 @@ Worktree, который Coddy открывает для сессии, созд�
 
 **Настройки → OpenCode** задаёт удалённый сервер OpenCode v2: URL API, имя
 пользователя HTTP Basic Auth (по умолчанию `opencode`) и пароль. **Проверить
-подключение** читает `/global/health`, `/api/project` и страницы сессий проекта;
+подключение** читает `/api/info`, `/api/project` и страницы сессий проекта;
 **Импортировать все сессии** запускает миграцию как фоновую задачу и показывает
 прогресс в той же панели. Пароль доступен только для записи, а подключение
 хранится в `${CODDY_HOME}/opencode.json` с правами только для владельца, не в
@@ -162,4 +162,4 @@ coddy sessions export <session-id> [--format md|html|json|jsonl] [--out <path>] 
 - исполняемые спецификации в `features/` - `print_sessions.feature` (запуск режима печати помечается и не попадает в окно выбора, `-c -p` его продолжает, интерактивный `-c` пропускает, `--ephemeral` ничего не оставляет; харнес `external/cli/bdd_print_sessions_test.go`), `acp_session_integration.feature` (переоткрытый бандл проигрывает свой транскрипт после ответа на `session/new`; харнес `internal/session/bdd_acp_session_test.go`), `session_rewind.feature` (транскрипт обрезается на исправленном сообщении; `external/httpserver/bdd_rewind_test.go`), `session_rewind_undo.feature` (отмена возвращает исходные ходы; тот же харнес), `session_export.feature` и `session_export_cli.feature` ([Экспорт сессии](session-export.md));
 - модульные тесты - `internal/session/filesystem_test.go` (структура бандла и список сессий), `internal/session/rewind_test.go` (обрезка на месте и очистка артефактов), `internal/session/rewind_undo_test.go` (сохранённый хвост, момент, когда отмена становится недоступной, восстановленный журнал UI и записи вызовов инструментов), `external/cli/continue_test.go` (разрешение `-c`), а в SPA - `external/ui/src/ui/messages/userMsgIndices.test.ts` (индекс пользовательского сообщения, который называет правка или откат; пробуждение считается ходом).
 
-<!-- docsgen:source sha256=8cfc991940f22154 -->
+<!-- docsgen:source sha256=ab691d6916a06cc0 -->
