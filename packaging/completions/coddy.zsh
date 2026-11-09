@@ -10,6 +10,7 @@ _coddy() {
         'cli:interactive console TUI'
         'acp:Agent Client Protocol server on stdio'
         'serve:run every subsystem enabled in config.yaml'
+        'open:open a folder in the running coddy serve'
         'desktop:open Coddy as a window on this machine'
         'sessions:list or export stored sessions'
         'skills:manage skills'
@@ -123,6 +124,13 @@ _coddy() {
                         '--log-level[level, or a spec such as info,gateway.telegram=debug]:level:(debug info warn error)' \
                         '--remote[drive a remote coddy serve server]:remote:' \
                         '--remote-token[bearer token for --remote]:token:'
+                    ;;
+                open)
+                    _arguments \
+                        '1:folder:_files -/' \
+                        '--home[agent state directory]:directory:_files -/' \
+                        '--cwd[folder to open as a workspace]:directory:_files -/' \
+                        '(-h --help)'{-h,--help}'[print help]'
                     ;;
                 desktop)
                     _arguments \

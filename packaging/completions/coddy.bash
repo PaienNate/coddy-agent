@@ -7,7 +7,7 @@ _coddy() {
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
-    commands="cli acp serve desktop sessions skills plugin mcp providers rules agents hooks docs update help"
+    commands="cli acp serve open desktop sessions skills plugin mcp providers rules agents hooks docs update help"
     # The one-shot flags of the console, after `coddy` and after `coddy cli`.
     local prompt_flags="-p --prompt -i --prompt-file --no-stdin --ephemeral"
 
@@ -106,6 +106,9 @@ _coddy() {
         -*)
             # `coddy -p ...`: the console's flags.
             COMPREPLY=($(compgen -W "-c --continue ${prompt_flags} --model --mode --permission-mode --session-id --cwd --remote --remote-token" -- "${cur}"))
+            ;;
+        open)
+            COMPREPLY=($(compgen -W "--home --cwd -h --help" -- "${cur}"))
             ;;
         desktop)
             COMPREPLY=($(compgen -W "--window --browser --frame --auth --new-chat -t --test-config --config --home --cwd --log-level" -- "${cur}"))

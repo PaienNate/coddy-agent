@@ -29,6 +29,12 @@ coddy serve
 - **打开项目**：打开 Windows 文件夹选择框，以所选文件夹为工作区创建一个新聊天，并打开该聊天。最近聊天的工作区列在同一项下面，因此这个 home 用过的文件夹只差一次点击。
 - **退出**：通过与 Ctrl+C 相同的 supervisor 关闭流程停止进程。
 
+菜单里还有 **注册右键菜单**，默认不勾选。勾选后会在 `HKCU\Software\Classes` 下给文件夹、
+文件夹背景和驱动器添加 **用 Coddy 打开**，取消勾选会移除它们；不需要管理员权限。该入口
+运行 `coddy open <文件夹>`，通过一个 loopback 控制端点联系正在运行的服务，端点 token 以
+仅所有者可读的权限保存在 `${CODDY_HOME}/serve/open.json`。Windows 11 会把这种经典菜单项
+放在 **显示更多选项** 里。
+
 托盘只属于 `coddy serve`；`coddy desktop` 保留自己的窗口和托盘行为。
 
 ## 在 Linux 上作为 systemd 用户服务
@@ -241,4 +247,4 @@ MCP 服务器不在 `config.yaml` 中：进程以同样方式监视 `~/.coddy/mc
 
 软件包会附带一个不会启用的用户单元，并且不附带系统单元：Coddy 的状态是按用户存放在 `~/.coddy` 下的，因此系统守护进程将需要一个主目录和一个没人能编辑的配置。参见[安装](../getting-started/install.md)。
 
-<!-- docsgen:source sha256=ff8294a12145be5e -->
+<!-- docsgen:source sha256=1ef07bdf45bb3cae -->

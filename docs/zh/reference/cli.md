@@ -44,6 +44,8 @@ Usage:
   coddy serve uninstall (stop and disable that service and remove the unit
         that install wrote; ~/.coddy and ~/Coddy are kept)
   coddy serve status | stop | restart [--home DIR]
+  coddy open [--home DIR] <folder> (open a folder in the running coddy serve;
+        this is what the Explorer context-menu entry runs)
   coddy desktop [flags] (open Coddy as a window on this machine: a tab strip with
         one chat per tab, over an HTTP surface on a loopback port this home
         remembers. --frame keeps the system title bar, --browser names the

@@ -20,6 +20,9 @@ import (
 type Options struct {
 	// URL is the web UI's root, for example http://127.0.0.1:12345/.
 	URL string
+	// Home is the agent home the context-menu command must carry when the
+	// server was started with --home. Empty means the default home.
+	Home string
 	// RecentFolders are the workspaces of this home's recent chats, newest
 	// first. The tray lists the first few under Open project.
 	RecentFolders []string
@@ -49,6 +52,10 @@ func sessionURL(baseURL, sessionID string) string {
 	}
 	return baseURL + "/#/s/" + url.PathEscape(sessionID)
 }
+
+// SessionURL is the page of one chat under the web UI root, for the command
+// the Explorer entry runs.
+func SessionURL(baseURL, sessionID string) string { return sessionURL(baseURL, sessionID) }
 
 // recentFolders filters the rows a tray can offer: absolute paths, each once,
 // cleaned, newest first, bounded to what a menu can carry.

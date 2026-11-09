@@ -56,6 +56,13 @@ Its menu has three rows:
   the same row, so a folder already used in this home is one click away.
 - **Exit** stops the process through the same supervisor shutdown a Ctrl+C uses.
 
+The menu also has **Register Explorer context menu**, unticked until it is used. Ticking it adds
+**Open with Coddy** to folder, folder-background and drive context menus under
+`HKCU\Software\Classes`, and unticking it removes them. No administrator rights are needed. The
+entry runs `coddy open <folder>`, which reaches the running server through a loopback endpoint
+whose token is kept with owner-only permissions under `${CODDY_HOME}/serve/open.json`; Windows 11
+lists the classic verb under **Show more options**.
+
 The tray is only for `coddy serve`; `coddy desktop` keeps its own window and tray behavior.
 
 ## As a systemd user service on Linux

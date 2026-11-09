@@ -319,27 +319,39 @@ func runServe(args []string) error {
 	// through the same context a Ctrl+C cancels. Platforms without a serve
 	// tray answer a no-op, so nothing below is conditional on the icon.
 	if webURL, ok := serveWebURL(httpAddr, enabled); ok && serveui.Available() {
+		newSession := func(folder string) (string, error) {
+			if rt.Mgr == nil {
+				return "", errors.New("this process has no session manager")
+			}
+			sessionCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			created, err := rt.Mgr.HandleSessionNew(sessionCtx, acp.SessionNewParams{CWD: folder})
+			if err != nil {
+				return "", err
+			}
+			if created == nil || strings.TrimSpace(created.SessionID) == "" {
+				return "", errors.New("the session manager created no session id")
+			}
+			return created.SessionID, nil
+		}
+		// The Explorer verb is another process. It reaches this one through a
+		// loopback endpoint whose random token is written under the home, so
+		// the context menu works even when the web UI has a password or a
+		// bearer token of its own.
+		stopControl, controlErr := startOpenControl(ctx, paths.Home, webURL, newSession, log)
+		if controlErr != nil {
+			log.Warn("the Explorer context-menu endpoint could not start", "error", controlErr)
+		} else {
+			defer stopControl()
+		}
 		stopTray := serveui.Start(ctx, serveui.Options{
 			URL:           webURL,
+			Home:          paths.Home,
 			RecentFolders: recentWorkspaces(rt, log),
 			OpenURL:       platform.OpenBrowser,
-			NewSession: func(folder string) (string, error) {
-				if rt.Mgr == nil {
-					return "", errors.New("this process has no session manager")
-				}
-				sessionCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-				defer cancel()
-				created, err := rt.Mgr.HandleSessionNew(sessionCtx, acp.SessionNewParams{CWD: folder})
-				if err != nil {
-					return "", err
-				}
-				if created == nil || strings.TrimSpace(created.SessionID) == "" {
-					return "", errors.New("the session manager created no session id")
-				}
-				return created.SessionID, nil
-			},
-			Log:  log,
-			Quit: stop,
+			NewSession:    newSession,
+			Log:           log,
+			Quit:          stop,
 		})
 		defer stopTray()
 	}

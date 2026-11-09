@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -15,6 +17,7 @@ import (
 	"github.com/fy0/systray"
 	"github.com/lxn/win"
 	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/registry"
 )
 
 // The mark of the serve tray: blue ground, white 派恩.
@@ -78,6 +81,11 @@ func (t *serveTray) ready() {
 		item := openProject.AddSubMenuItem(folderLabel(folder), folder)
 		go t.loopProject(item, folder)
 	}
+	contextMenu := systray.AddMenuItemCheckbox(
+		"注册右键菜单",
+		"在资源管理器中显示“用 Coddy 打开”",
+		contextMenuEnabled(t.opts.Home),
+	)
 	systray.AddSeparator()
 	quit := systray.AddMenuItem("退出", "停止 Coddy 后台服务")
 
@@ -87,6 +95,20 @@ func (t *serveTray) ready() {
 		}
 	}()
 	go t.loopProject(chooseFolder, "")
+	go func() {
+		for range contextMenu.ClickedCh {
+			enable := !contextMenu.Checked()
+			if err := setContextMenu(enable, t.opts.Home); err != nil {
+				t.fail("资源管理器右键菜单设置失败", err)
+				continue
+			}
+			if enable {
+				contextMenu.Check()
+			} else {
+				contextMenu.Uncheck()
+			}
+		}
+	}()
 	go func() {
 		for range quit.ClickedCh {
 			t.quit()
@@ -156,6 +178,117 @@ func (t *serveTray) fail(title string, err error) {
 		return
 	}
 	win.MessageBox(0, text, caption, win.MB_OK|win.MB_ICONERROR)
+}
+
+// contextMenuEntry is one Explorer verb: a folder, the background of a folder,
+// or a drive root. The argument is the one Explorer substitutes for the chosen
+// path in each place.
+type contextMenuEntry struct {
+	key string
+	arg string
+}
+
+var contextMenuEntries = []contextMenuEntry{
+	{key: `Software\Classes\Directory\shell\Coddy`, arg: "%1"},
+	{key: `Software\Classes\Directory\Background\shell\Coddy`, arg: "%V"},
+	{key: `Software\Classes\Drive\shell\Coddy`, arg: "%1"},
+}
+
+const contextMenuLabel = "用 Coddy 打开"
+
+// contextMenuCommand is what Explorer runs: this binary, the open verb, the
+// agent home, and the path Explorer substitutes.
+func contextMenuCommand(home, arg string) (string, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = resolved
+	}
+	exe = filepath.Clean(exe)
+	command := quoteWindowsArg(exe) + " open"
+	if home = strings.TrimSpace(home); home != "" {
+		command += " --home " + quoteWindowsArg(filepath.Clean(home))
+	}
+	return command + " " + quoteWindowsArg(arg), nil
+}
+
+func quoteWindowsArg(s string) string {
+	if s == "%1" || s == "%V" {
+		// Explorer substitutes a path that may contain spaces; the placeholder
+		// itself has none, so it is quoted explicitly.
+		return `"` + s + `"`
+	}
+	return windows.EscapeArg(s)
+}
+
+// contextMenuEnabled reports whether all three verbs are registered for this
+// binary and home. A stale entry from a moved binary reads as off, which is
+// what the checkbox should say.
+func contextMenuEnabled(home string) bool {
+	for _, entry := range contextMenuEntries {
+		want, err := contextMenuCommand(home, entry.arg)
+		if err != nil {
+			return false
+		}
+		key, err := registry.OpenKey(registry.CURRENT_USER, entry.key+`\command`, registry.QUERY_VALUE)
+		if err != nil {
+			return false
+		}
+		got, _, err := key.GetStringValue("")
+		_ = key.Close()
+		if err != nil || !strings.EqualFold(got, want) {
+			return false
+		}
+	}
+	return true
+}
+
+// setContextMenu writes or removes the per-user Explorer verbs. HKCU needs no
+// administrator rights, and Windows 11 shows the classic verbs under Show more
+// options.
+func setContextMenu(enable bool, home string) error {
+	for _, entry := range contextMenuEntries {
+		if !enable {
+			_ = registry.DeleteKey(registry.CURRENT_USER, entry.key+`\command`)
+			if err := registry.DeleteKey(registry.CURRENT_USER, entry.key); err != nil && !errors.Is(err, registry.ErrNotExist) {
+				return err
+			}
+			continue
+		}
+		command, err := contextMenuCommand(home, entry.arg)
+		if err != nil {
+			return err
+		}
+		exe, _ := os.Executable()
+		key, _, err := registry.CreateKey(registry.CURRENT_USER, entry.key, registry.SET_VALUE)
+		if err != nil {
+			return fmt.Errorf("create %s: %w", entry.key, err)
+		}
+		if err := key.SetStringValue("", contextMenuLabel); err != nil {
+			_ = key.Close()
+			return err
+		}
+		if exe != "" {
+			if err := key.SetStringValue("Icon", exe); err != nil {
+				_ = key.Close()
+				return err
+			}
+		}
+		_ = key.Close()
+
+		commandKey, _, err := registry.CreateKey(registry.CURRENT_USER, entry.key+`\command`, registry.SET_VALUE)
+		if err != nil {
+			return fmt.Errorf("create %s\\command: %w", entry.key, err)
+		}
+		err = commandKey.SetStringValue("", command)
+		_ = commandKey.Close()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // pickFolder is the system folder chooser. SHBrowseForFolder is the dialog

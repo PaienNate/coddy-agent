@@ -178,6 +178,21 @@ and
 typically in
 .IR ~/.coddy/.env .
 .TP
+.B open
+Open a folder in the running
+.BR "coddy serve" :
+the command posts the folder to the server's loopback control endpoint, using
+the owner-only token under
+.IR <home>/serve/open.json ,
+then opens the returned chat in the browser. It is what the Explorer
+context-menu entry runs; start
+.B coddy serve
+first.
+.BI \-\-home " DIR"
+names the agent home, and
+.BI \-\-cwd " DIR"
+the folder (also accepted as the single positional argument).
+.TP
 .B desktop
 Open Coddy as a window on this machine: the web interface in a Chromium\-family
 browser in application mode, in a profile of its own, over an HTTP surface
