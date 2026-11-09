@@ -227,6 +227,7 @@ jobs:
           tag_name: ${{ steps.git_tag.outputs.tag }}
           name: ${{ steps.git_tag.outputs.tag }}
           generate_release_notes: true
+          prerelease: true
           files: |
             dist/*
         env:
