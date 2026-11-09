@@ -1,8 +1,8 @@
-# Project onboarding
+# Project onboarding (Coddy workflow)
 
 ## Purpose
 
-Warm up context on a repository: study **code**, read **documentation** and **test code**, **set up the dev environment** the project expects, **run tests**, write a **short report** about the project. No extra brief from the user is required.
+Warm up context on a repository: study **code**, read **documentation** and **test code**, establish an evidence-based baseline, **set up the dev environment** the project expects, **run tests**, and write a **short report**. No extra brief from the user is required.
 
 ## When to use
 
@@ -11,10 +11,11 @@ Warm up context on a repository: study **code**, read **documentation** and **te
 ## What the agent does
 
 1. Optionally `git pull` if the repo is under git and the user has not asked to stay on the current commit.
-2. Read layout, docs, and tests.
-3. Install or configure dev tooling (venv, deps, documented bootstrap).
-4. Run the test suite.
-5. Summarize purpose, behavior implied by tests, gaps, and next steps.
+2. Record branch, commit, dirty state, and the environment it actually used.
+3. Read layout, docs, and tests.
+4. Install or configure dev tooling (venv, deps, documented bootstrap).
+5. Run the test suite and distinguish pass, fail, unavailable, and blocked.
+6. Summarize purpose, behavior implied by tests, gaps, and next steps without fixing code.
 
 ## Contents
 
@@ -25,7 +26,7 @@ Warm up context on a repository: study **code**, read **documentation** and **te
 
 ## Install
 
-This skill is distributed through the **rpa-skills** catalog (a Claude Code plugin marketplace), and also installs as a plain **skill folder** (Cursor, OpenAI Codex, Kimi Code CLI, and others).
+The upstream version of this skill is distributed through the **rpa-skills** catalog (a Claude Code plugin marketplace), and also installs as a plain **skill folder** (Cursor, OpenAI Codex, Kimi Code CLI, and others). This copy is maintained in the Coddy repository and adds Coddy's evidence rules.
 
 **As a plugin (Claude Code)** — add the catalog once, then install this skill from it:
 
@@ -53,8 +54,8 @@ The directory name must match the `name` field in `SKILL.md`.
 
 ## Source & attribution
 
-Part of **[rpa-skills](https://github.com/EvilFreelancer/rpa-skills)** — [Pavel Rykov](https://t.me/evilfreelancer)'s agent-skills collection (see [notes on vibe coding](https://t.me/evilfreelancer/1485)).
+Upstream: **[rpa-skills](https://github.com/EvilFreelancer/rpa-skills)** — [Pavel Rykov](https://t.me/evilfreelancer)'s agent-skills collection (see [notes on vibe coding](https://t.me/evilfreelancer/1485)), packaged from **[cursor-vibe-prompts](https://github.com/EvilFreelancer/cursor-vibe-prompts)**.
 
-Packaged from the prompt collection **[cursor-vibe-prompts](https://github.com/EvilFreelancer/cursor-vibe-prompts)** — the same vibe-coding workflow, turned into a reusable skill.
+This Coddy copy is maintained in the Coddy repository and may diverge from the upstream skill.
 
 Licensed under the MIT License — see [LICENSE](LICENSE).

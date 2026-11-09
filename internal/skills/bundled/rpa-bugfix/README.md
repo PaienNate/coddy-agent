@@ -1,8 +1,15 @@
-# Bugfix with regression tests
+# Bugfix with regression tests (Coddy workflow)
 
 ## Purpose
 
-Fix a bug: **reproduction test** first, then **fix**, then **full test suite**, then a **short report**.
+Fix a bug by **evidence, root cause, reproduction, narrow fix, and proof**:
+
+1. establish expected vs actual behavior and a reproduction;
+2. investigate before editing and name one credible cause;
+3. write a failing reproduction test;
+4. apply the narrowest fix, then run the affected tests and the full suite;
+5. run lint/format/type gates;
+6. report evidence, not just a success claim.
 
 **You must describe the bug** (expected vs actual, how to reproduce, issue text). **`/rpa-bugfix` alone is not enough.**
 
@@ -12,10 +19,13 @@ Fix a bug: **reproduction test** first, then **fix**, then **full test suite**, 
 
 ## Workflow (summary)
 
-1. Write failing test that reproduces the bug.
-2. Fix code; confirm test passes.
-3. Run all tests; run linter or pre-commit when configured.
-4. Short factual report.
+1. Intake: expected, actual, reproduction, environment.
+2. Investigate: trace the failure, rank hypotheses, name one cause.
+3. Add a failing test that reproduces the bug.
+4. Apply the smallest responsible fix.
+5. Run the new test, nearby tests, and the full suite.
+6. Run linter or pre-commit when configured.
+7. Short factual report with evidence.
 
 ## Contents
 
@@ -25,7 +35,7 @@ Fix a bug: **reproduction test** first, then **fix**, then **full test suite**, 
 
 ## Install
 
-This skill is distributed through the **rpa-skills** catalog (a Claude Code plugin marketplace), and also installs as a plain **skill folder** (Cursor, OpenAI Codex, Kimi Code CLI, and others).
+The upstream version of this skill is distributed through the **rpa-skills** catalog (a Claude Code plugin marketplace), and also installs as a plain **skill folder** (Cursor, OpenAI Codex, Kimi Code CLI, and others). This copy is maintained in the Coddy repository and adds Coddy's workflow gates.
 
 **As a plugin (Claude Code)** — add the catalog once, then install this skill from it:
 
@@ -53,8 +63,8 @@ The directory name must match the `name` field in `SKILL.md`.
 
 ## Source & attribution
 
-Part of **[rpa-skills](https://github.com/EvilFreelancer/rpa-skills)** — [Pavel Rykov](https://t.me/evilfreelancer)'s agent-skills collection (see [notes on vibe coding](https://t.me/evilfreelancer/1485)).
+Upstream: **[rpa-skills](https://github.com/EvilFreelancer/rpa-skills)** — [Pavel Rykov](https://t.me/evilfreelancer)'s agent-skills collection (see [notes on vibe coding](https://t.me/evilfreelancer/1485)), packaged from **[cursor-vibe-prompts](https://github.com/EvilFreelancer/cursor-vibe-prompts)**.
 
-Packaged from the prompt collection **[cursor-vibe-prompts](https://github.com/EvilFreelancer/cursor-vibe-prompts)** — the same vibe-coding workflow, turned into a reusable skill.
+This Coddy copy is maintained in the Coddy repository and may diverge from the upstream skill.
 
 Licensed under the MIT License — see [LICENSE](LICENSE).

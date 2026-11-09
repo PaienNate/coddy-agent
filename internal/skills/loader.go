@@ -36,6 +36,12 @@ type Skill struct {
 	// Claude Code's spelling). They last until that turn ends.
 	Model     string
 	Reasoning string
+
+	// Compat names the foreign agent whose tool vocabulary the body uses:
+	// "claude-code", "opencode", "codex", and so on. Empty means the skill is
+	// native, or that its body is inspected for well-known foreign tool names.
+	// "coddy" (or "native") explicitly marks a skill that needs no mapping.
+	Compat string
 }
 
 // Loader discovers and loads skills from the filesystem.
@@ -145,7 +151,7 @@ func BuildSystemPromptSection(skills []*Skill) string {
 			b.WriteString(head)
 			b.WriteString("\n\n")
 		}
-		b.WriteString(s.Content)
+		b.WriteString(WithToolCompat(s, s.Content))
 		b.WriteString("\n\n")
 	}
 	return b.String()
@@ -290,6 +296,7 @@ func parseSkillFile(path string, data []byte) *Skill {
 		if skill.Reasoning == "" {
 			skill.Reasoning = strings.ToLower(strings.TrimSpace(fm.Effort))
 		}
+		skill.Compat = fm.compat()
 	}
 
 	return skill
@@ -306,10 +313,41 @@ type frontmatter struct {
 	Metadata yaml.Node `yaml:"metadata"`
 	// Version is the top-level key skills declared their version with before
 	// the metadata map; still read for the files that carry it.
-	Version   string `yaml:"version"`
-	Model     string `yaml:"model"`
-	Reasoning string `yaml:"reasoning"`
-	Effort    string `yaml:"effort"`
+	Version       string `yaml:"version"`
+	Compatibility string `yaml:"compatibility"`
+	Model         string `yaml:"model"`
+	Reasoning     string `yaml:"reasoning"`
+	Effort        string `yaml:"effort"`
+}
+
+// compat is the foreign tool vocabulary a skill declares. The Agent Skills
+// compatibility field is read first; the metadata map carries the same value
+// for skills that cannot use a top-level key. An empty value leaves detection
+// to the body (see NeedsToolCompat).
+func (fm *frontmatter) compat() string {
+	if v := normalizeCompat(fm.Compatibility); v != "" {
+		return v
+	}
+	if fm.Metadata.Kind != yaml.MappingNode {
+		return ""
+	}
+	for i := 0; i+1 < len(fm.Metadata.Content); i += 2 {
+		key, val := fm.Metadata.Content[i], fm.Metadata.Content[i+1]
+		if key.Value != "compat" && key.Value != "compatibility" {
+			continue
+		}
+		if val.Kind != yaml.ScalarNode {
+			continue
+		}
+		if v := normalizeCompat(val.Value); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func normalizeCompat(v string) string {
+	return strings.ToLower(strings.TrimSpace(v))
 }
 
 // version is the skill's declared version: metadata.version, else the

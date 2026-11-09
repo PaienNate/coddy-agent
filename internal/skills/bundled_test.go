@@ -13,9 +13,14 @@ import (
 )
 
 // The standard delivery: what the binary carries and hands to a home. The
-// system skill configure-coddy is written here; the rpa-* workflow skills are
-// vendored from their own repositories by scripts/vendor-bundled-skills.sh.
+// system skill configure-coddy, the rpa-* workflow skills and the Chinese
+// reference skills are written here; crossreview is vendored from its own
+// repository by scripts/vendor-bundled-skills.sh.
 var deliveredSkills = []string{
+	"chinese-code-review",
+	"chinese-commit-conventions",
+	"chinese-documentation",
+	"chinese-git-workflow",
 	"configure-coddy",
 	"crossreview",
 	"rpa-bugfix",

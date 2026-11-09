@@ -2979,7 +2979,11 @@ func invokedSkillBlocks(text string, allSkills []*skills.Skill, managedDir strin
 // its folder is the one named.
 func skillBodyForModel(sk *skills.Skill, managedDir string) string {
 	body := strings.TrimSpace(sk.Content)
-	if body == "" || !strings.EqualFold(filepath.Base(sk.FilePath), "SKILL.md") {
+	if body == "" {
+		return body
+	}
+	body = skills.WithToolCompat(sk, body)
+	if !strings.EqualFold(filepath.Base(sk.FilePath), "SKILL.md") {
 		return body
 	}
 	dir := filepath.Dir(sk.FilePath)

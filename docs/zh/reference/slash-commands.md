@@ -61,7 +61,7 @@
 
 目录也会到达模型：系统提示词带有一个 `## Slash commands` 块，列出每个 `/name` 及其描述（`skills.BuildSlashCatalogMarkdown`），并且在 `skills.auto_discovery` 开启时，模型可以通过 `load_skill` 工具自行拉取完整正文（[工具](tools.md)）。
 
-其中六个命令在全新安装中无需下载任何内容就已存在，即 `/configure-coddy`、`/crossreview`、`/rpa-init`、`/rpa-feat`、`/rpa-bugfix` 和 `/rpa-gen-rules`，这是二进制写入 `${CODDY_HOME}/skills` 的[标准交付](../features/skills.md#标准交付)。
+其中十个命令在全新安装中无需下载任何内容就已存在，即 `/configure-coddy`、`/crossreview`、`/rpa-init`、`/rpa-feat`、`/rpa-bugfix`、`/rpa-gen-rules`、`/chinese-code-review`、`/chinese-commit-conventions`、`/chinese-documentation` 和 `/chinese-git-workflow`，这是二进制写入 `${CODDY_HOME}/skills` 的[标准交付](../features/skills.md#标准交付)。
 
 ## 提示词中的命令如何解析
 
@@ -93,4 +93,4 @@
 
 控制台的客户端命令会在上述任何处理之前分派：草稿中第一个以空白分隔的字段，去掉开头的 `/` 后，会与固定列表匹配，未知名称会作为普通提示词回退给智能体（`dispatchSlash` 在 `external/cli/slash.go` 中）。
 
-<!-- docsgen:source sha256=e97499dd2b4d4ade -->
+<!-- docsgen:source sha256=d349ac2060b1110d -->

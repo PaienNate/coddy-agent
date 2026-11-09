@@ -61,7 +61,7 @@
 
 Каталог доходит и до модели - системный промпт несёт блок `## Slash commands` со списком всех `/name` и их описаний (`skills.BuildSlashCatalogMarkdown`), а при включённом `skills.auto_discovery` модель может сама подтянуть полное тело через инструмент `load_skill` ([Инструменты](tools.md)).
 
-Шесть из этих команд есть уже на свежей установке, без всякого скачивания, - `/configure-coddy`, `/crossreview`, `/rpa-init`, `/rpa-feat`, `/rpa-bugfix` и `/rpa-gen-rules`, [стандартная поставка](../features/skills.md#стандартная-поставка), которую бинарник записывает в `${CODDY_HOME}/skills`.
+Десять из этих команд есть уже на свежей установке, без всякого скачивания, - `/configure-coddy`, `/crossreview`, `/rpa-init`, `/rpa-feat`, `/rpa-bugfix`, `/rpa-gen-rules`, `/chinese-code-review`, `/chinese-commit-conventions`, `/chinese-documentation` и `/chinese-git-workflow`, [стандартная поставка](../features/skills.md#стандартная-поставка), которую бинарник записывает в `${CODDY_HOME}/skills`.
 
 ## Как разбирается команда в промпте
 
@@ -93,4 +93,4 @@
 
 Клиентские команды консоли разбираются раньше всего этого - первое поле черновика, отделённое пробелом, без ведущего `/` сравнивается с фиксированным списком, а неизвестное имя уходит агенту как обычный промпт (`dispatchSlash` в `external/cli/slash.go`).
 
-<!-- docsgen:source sha256=e97499dd2b4d4ade -->
+<!-- docsgen:source sha256=d349ac2060b1110d -->

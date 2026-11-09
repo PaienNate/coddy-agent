@@ -1,8 +1,16 @@
-# New feature (BDD)
+# New feature (Coddy workflow)
 
 ## Purpose
 
-Add a feature **by BDD**: **plan**, tests (**red**), code (**green**), **full test run**, **docs and examples**, **linter / pre-commit** at the end when the repo uses them.
+Add a feature by **intent, plan, RED-GREEN-REFACTOR, regression, documentation, and proof**:
+
+1. establish the outcome, acceptance criteria, and non-goals;
+2. study code, docs, and tests;
+3. plan small verifiable tasks;
+4. add failing tests, then implementation;
+5. dispatch independent tasks to subagents only when they do not share files or state;
+6. run the full suite, update docs and examples, and run the quality gates;
+7. report commands and actual results before claiming completion.
 
 **You must pass what to build** (for example issue text, acceptance criteria). **`/rpa-feat` alone is not enough.**
 
@@ -12,11 +20,13 @@ Add a feature **by BDD**: **plan**, tests (**red**), code (**green**), **full te
 
 ## Workflow (summary)
 
-1. Study code, docs, tests.
-2. Plan (components, contracts, edge cases).
-3. Add failing tests, then implementation.
-4. Run all tests; update docs and examples.
-5. Run linter or `pre-commit` when configured.
+1. Establish intent, acceptance criteria, and non-goals.
+2. Study code, docs, and tests; find the owning seam.
+3. Plan small tasks with behavior, files, test, and verification.
+4. Write failing tests, then implement the narrowest complete change.
+5. Parallelize only independent tasks; integrate and review them yourself.
+6. Run the full suite, update docs and examples, and run lint/format/type gates.
+7. Verify with evidence and report what was not run.
 
 ## Contents
 
@@ -27,7 +37,7 @@ Add a feature **by BDD**: **plan**, tests (**red**), code (**green**), **full te
 
 ## Install
 
-This skill is distributed through the **rpa-skills** catalog (a Claude Code plugin marketplace), and also installs as a plain **skill folder** (Cursor, OpenAI Codex, Kimi Code CLI, and others).
+The upstream version of this skill is distributed through the **rpa-skills** catalog (a Claude Code plugin marketplace), and also installs as a plain **skill folder** (Cursor, OpenAI Codex, Kimi Code CLI, and others). This copy is maintained in the Coddy repository and adds Coddy's workflow gates.
 
 **As a plugin (Claude Code)** — add the catalog once, then install this skill from it:
 
@@ -55,8 +65,8 @@ The directory name must match the `name` field in `SKILL.md`.
 
 ## Source & attribution
 
-Part of **[rpa-skills](https://github.com/EvilFreelancer/rpa-skills)** — [Pavel Rykov](https://t.me/evilfreelancer)'s agent-skills collection (see [notes on vibe coding](https://t.me/evilfreelancer/1485)).
+Upstream: **[rpa-skills](https://github.com/EvilFreelancer/rpa-skills)** — [Pavel Rykov](https://t.me/evilfreelancer)'s agent-skills collection (see [notes on vibe coding](https://t.me/evilfreelancer/1485)), packaged from **[cursor-vibe-prompts](https://github.com/EvilFreelancer/cursor-vibe-prompts)**.
 
-Packaged from the prompt collection **[cursor-vibe-prompts](https://github.com/EvilFreelancer/cursor-vibe-prompts)** — the same vibe-coding workflow, turned into a reusable skill.
+This Coddy copy is maintained in the Coddy repository and may diverge from the upstream skill.
 
 Licensed under the MIT License — see [LICENSE](LICENSE).

@@ -17,10 +17,18 @@ at a directory that does not exist.
 |-------|--------------|
 | **`/configure-coddy`** | Changes Coddy's own configuration when you ask: settings, providers, models, logging, permissions, MCP servers and skills. Verifies the upstream source, stages uci-style edits with the typed `config_get` / `config_set` tools, and commits only after you confirm, so `config_commit` applies and hot-reloads them in one step; `config_rollback` returns to the pre-commit snapshot. Never echoes secrets. |
 | **`/crossreview`** | Sends one review brief to a quorum of reviewers that stay blind to each other - external console code agents (Claude Code, Codex, Coddy, Cursor Agent, Devin, OpenCode, Gemini CLI, Qwen Code, Kimi, Koda) and internal `explore` children - through the bundled `crossreview` coordinator, which collects every answer, verifies each finding against the code and decides alone what to fix. The first run (and `/crossreview:setup` later) detects the installed CLIs, asks which agents and which of their models to use, and keeps the roster either for the project in `.coddy/crossreview.json` or for all projects in `${CODDY_HOME}/crossreview.json`, where earlier versions kept it too. The same skill installs in other agents from [EvilFreelancer/crossreview](https://github.com/EvilFreelancer/crossreview). |
-| **`/rpa-init`** | Warms up context on a repository: reads the code, the documentation and the test code, sets up the dev environment the project documents, runs the tests, and writes a short report. Needs no brief. |
-| **`/rpa-feat`** | Adds a feature strictly by BDD: plan, failing tests, implementation, green tests, the full suite, documentation and examples, the linter at the end. Needs a description of what to build. |
-| **`/rpa-bugfix`** | Fixes a bug reproduction-test first, then the fix, then the full suite, then a short report. Needs the bug: expected against actual, and how to reproduce it. |
+| **`/rpa-init`** | Warms up context on a repository: records the baseline, reads the code, the documentation and the test code, sets up the dev environment the project documents, runs the tests, distinguishes pass/fail/unavailable/blocked, and writes a short evidence-based report. Needs no brief. |
+| **`/rpa-feat`** | Adds a feature by intent, plan, RED-GREEN-REFACTOR, independent subagents, the full suite, documentation and examples, quality gates, and evidence-based completion. Needs a description of what to build. |
+| **`/rpa-bugfix`** | Fixes a bug by evidence, one credible root cause, a failing reproduction test, the narrowest fix, the full suite, quality gates, and a short report. Needs the bug: expected against actual, and how to reproduce it. |
 | **`/rpa-gen-rules`** | Writes or refreshes the project's agent rules for Cursor, Claude Code and Codex from what the repository actually contains. See [rules.md](rules.md#generating-rules). |
+| **`/chinese-code-review`** | Chinese code-review reference: phrasing that stays direct without being hostile, severity tags (must fix / suggested / optional / question), mixed Chinese-English comments, and common review anti-patterns. Explicit invocation only. |
+| **`/chinese-commit-conventions`** | Chinese Conventional Commits reference: type and scope conventions, subject/body rules, breaking changes, issue links, commitlint, husky and conventional-changelog configuration. Explicit invocation only. |
+| **`/chinese-documentation`** | Chinese technical-writing reference: spacing between Chinese and Latin text, full-width punctuation, terminology, API and README templates, and machine-translation anti-patterns. Explicit invocation only. |
+| **`/chinese-git-workflow`** | Chinese Git workflow reference: Gitee, Coding.net, JiHu GitLab and CNB access, branch models, commit conventions, CI/CD examples and PR/MR templates. Explicit invocation only. |
+
+The four `chinese-*` skills are reference cards, not automatic workflows. Their descriptions tell
+the model to load them only when the operator invokes them, so they do not compete with the
+workflow skills for context.
 
 Once written they are ordinary skills in your home: edit them, `coddy skills disable <name>` them,
 delete them, or update them from the marketplace. What the delivery will and will not do is
@@ -58,14 +66,16 @@ copies inside the binary answer instead, read-only, and only a skill that needs 
 its `SKILL.md` (`references/`, or the `scripts/` of `crossreview`) notices the difference. A delivered skill you deleted is not among them: the receipt says it was
 handed over, so the binary does not offer it again as one you cannot delete.
 
-`crossreview` and the `rpa-*` skills live in their own repositories, so the same skill works in
-Claude Code, Codex or Cursor, and are vendored into `internal/skills/bundled/` (their `SKILL.md`,
-`references/` and `scripts/`) by **`make skills-vendor`**; `scripts/bundled-skills.json` says where
-each one comes from.
+`crossreview` lives in its own repository, so the same skill works in Claude Code, Codex or Cursor,
+and is vendored into `internal/skills/bundled/` (its `SKILL.md`, `references/` and `scripts/`) by
+**`make skills-vendor`**. The `rpa-*` workflows are maintained in this repository, originally
+packaged from their upstream skills, so Coddy can fuse its own intent, planning, TDD, subagent,
+and verification gates into them; `scripts/bundled-skills.json` marks them as local and says where
+`crossreview` comes from.
 
 ### The marketplace that comes with it
 
-**`rpa-skills`** (`EvilFreelancer/rpa-skills`), the catalogue the delivered `rpa-*` skills are
+**`rpa-skills`** (`EvilFreelancer/rpa-skills`), the catalogue the upstream `rpa-*` skills are
 published from, is a **system marketplace**: it is in effect the way the delivered skills are,
 without being declared in any `marketplaces.json` and without any file being written for it, and it
 is trusted in every workspace. It is a catalogue like one you add yourself, so it installs nothing on

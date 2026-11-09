@@ -14,10 +14,16 @@ Coddy 在二进制文件中内置了一组技能，并在首次安装时将它�
 |-------|--------------|
 | **`/configure-coddy`** | 在你要求时更改 Coddy 自身配置：设置、提供商、模型、日志、权限、MCP 服务器和技能。它会验证上游来源，用带类型的 `config_get` / `config_set` 工具暂存 uci 风格编辑，并且只在你确认后提交，因此 `config_commit` 会一步应用并热重载这些更改；`config_rollback` 会回到提交前快照。从不回显密钥。 |
 | **`/crossreview`** | 向一组彼此不可见的评审者发送一份评审简报，包括外部控制台代码智能体（Claude Code、Codex、Coddy、Cursor Agent、Devin、OpenCode、Gemini CLI、Qwen Code、Kimi、Koda）和内部的 `explore` 子智能体；该过程通过随附的 `crossreview` 协调器进行，协调器收集每个答案，针对代码验证每个发现，并独自决定修复什么。首次运行（以及之后的 `/crossreview:setup`）会检测已安装的 CLI，询问要使用哪些智能体及其哪些模型，并将名单保留在项目中的 `.coddy/crossreview.json`，或保留在所有项目中的 `${CODDY_HOME}/crossreview.json`，早期版本也把它保存在那里。同一个技能可从 [EvilFreelancer/crossreview](https://github.com/EvilFreelancer/crossreview) 安装到其他智能体中。 |
-| **`/rpa-init`** | 预热仓库上下文：读取代码、文档和测试代码，按项目文档设置开发环境，运行测试，并写一份简短报告。无需简报。 |
-| **`/rpa-feat`** | 严格按照 BDD 添加功能：计划、失败测试、实现、测试通过、完整测试套件、文档与示例，最后运行 linter。需要描述要构建的内容。 |
-| **`/rpa-bugfix`** | 修复 bug 时先编写复现测试，再修复，然后运行完整测试套件，最后写一份简短报告。需要提供 bug 信息：预期行为与实际行为，以及如何复现。 |
+| **`/rpa-init`** | 预热仓库上下文：记录基线，读取代码、文档和测试代码，按项目文档设置开发环境，运行测试，区分通过/失败/不可用/受阻，并写一份基于证据的简短报告。无需简报。 |
+| **`/rpa-feat`** | 按意图、计划、RED-GREEN-REFACTOR、独立子智能体、完整测试套件、文档与示例、质量门控和证据式完成来添加功能。需要描述要构建的内容。 |
+| **`/rpa-bugfix`** | 按证据、单一可信根因、失败复现测试、最窄修复、完整测试套件、质量门控和简短报告来修复 bug。需要提供 bug 信息：预期行为与实际行为，以及如何复现。 |
 | **`/rpa-gen-rules`** | 根据仓库实际包含的内容，为 Cursor、Claude Code 和 Codex 编写或刷新项目的智能体规则。参见 [rules.md](rules.md#生成规则)。 |
+| **`/chinese-code-review`** | 中文代码审查参考：既不回避问题又不让人下不来台的表达方式、分级标注（必须修复/建议修改/仅供参考/问题）、中英混排注释和常见审查反模式。仅显式调用。 |
+| **`/chinese-commit-conventions`** | 中文 Conventional Commits 参考：类型与范围约定、subject/body 规则、破坏性变更、Issue 关联，以及 commitlint、husky 和 conventional-changelog 配置。仅显式调用。 |
+| **`/chinese-documentation`** | 中文技术文档参考：中英文空格、全半角标点、术语处理、API 与 README 模板，以及机翻味反模式。仅显式调用。 |
+| **`/chinese-git-workflow`** | 国内 Git 工作流参考：Gitee、Coding.net、极狐 GitLab、CNB 的接入方式、分支模型、提交规范、CI/CD 示例和 PR/MR 模板。仅显式调用。 |
+
+四个 `chinese-*` 技能是参考资料，不是自动工作流。它们的描述要求模型只在操作者显式调用时加载，因此不会和工作流技能争夺上下文。
 
 写入后，它们就是你主目录中的普通技能：可以编辑、`coddy skills disable <name>`、删除，或从市场更新。交付机制会做什么、不会做什么，记录在 **`${CODDY_HOME}/skills-delivery.json`** 中；该文件位于技能文件夹旁边，而不是其中，因此删除该文件夹不会让下次启动变成首次安装：
 
@@ -33,11 +39,11 @@ Coddy 在二进制文件中内置了一组技能，并在首次安装时将它�
 
 Coddy 无法写入的主目录（只读镜像、受限账户）不是错误：二进制文件中的副本会以只读方式代为响应，只有需要其 `SKILL.md` 旁边文件的技能（`references/`，或 `crossreview` 的 `scripts/`）才会注意到差异。你删除的交付技能不在其中：回执说明它已被交付，因此二进制文件不会再次把它作为你无法删除的技能提供。
 
-`crossreview` 和 `rpa-*` 技能位于各自的仓库中，因此同一个技能可在 Claude Code、Codex 或 Cursor 中工作，并由 **`make skills-vendor`** 内置到 `internal/skills/bundled/`（它们的 `SKILL.md`、`references/` 和 `scripts/`）；`scripts/bundled-skills.json` 说明每个技能的来源。
+`crossreview` 位于它自己的仓库中，因此同一个技能可在 Claude Code、Codex 或 Cursor 中工作，并由 **`make skills-vendor`** 内置到 `internal/skills/bundled/`（它的 `SKILL.md`、`references/` 和 `scripts/`）。`rpa-*` 工作流则在本仓库中维护，最初从其上游技能打包而来，以便 Coddy 把意图、计划、TDD、子智能体和验证门控融合进去；`scripts/bundled-skills.json` 将它们标记为本地技能，并说明 `crossreview` 的来源。
 
 ### 随附的市场
 
-**`rpa-skills`**（`EvilFreelancer/rpa-skills`）是交付的 `rpa-*` 技能所发布到的目录，它是一个**系统市场**：它在效果上等同于交付技能的存在方式，不需要在任何 `marketplaces.json` 中声明，也不需要为它写入任何文件，并且在每个工作区中受信任。它和你自己添加的市场一样是目录，因此它本身不会安装任何内容；在一台没人配置过的机器上，该集合的其余部分只差一条命令：
+**`rpa-skills`**（`EvilFreelancer/rpa-skills`）是上游 `rpa-*` 技能所发布到的目录，它是一个**系统市场**：它在效果上等同于交付技能的存在方式，不需要在任何 `marketplaces.json` 中声明，也不需要为它写入任何文件，并且在每个工作区中受信任。它和你自己添加的市场一样是目录，因此它本身不会安装任何内容；在一台没人配置过的机器上，该集合的其余部分只差一条命令：
 
 ```bash
 coddy plugin marketplace update rpa-skills   # read its list, report newer versions of what is installed
@@ -428,4 +434,4 @@ ACP 客户端会收到 `available_commands_update`，其时机在 `session/new` 
 - 规则（独立机制）：[rules.md](rules.md)
 - Web 界面：设置 → 技能（需要 `coddy serve`）
 
-<!-- docsgen:source sha256=e94b86e1c03e46c2 -->
+<!-- docsgen:source sha256=74a9d358757305a7 -->

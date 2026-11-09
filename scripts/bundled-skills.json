@@ -12,24 +12,37 @@
       "origin": "local"
     },
     {
+      "name": "chinese-code-review",
+      "origin": "local"
+    },
+    {
+      "name": "chinese-commit-conventions",
+      "origin": "local"
+    },
+    {
+      "name": "chinese-documentation",
+      "origin": "local"
+    },
+    {
+      "name": "chinese-git-workflow",
+      "origin": "local"
+    },
+    {
       "name": "crossreview",
       "repo": "https://github.com/EvilFreelancer/crossreview.git",
       "ref": "main"
     },
     {
       "name": "rpa-init",
-      "repo": "https://github.com/EvilFreelancer/rpa-init.git",
-      "ref": "main"
+      "origin": "local"
     },
     {
       "name": "rpa-feat",
-      "repo": "https://github.com/EvilFreelancer/rpa-feat.git",
-      "ref": "main"
+      "origin": "local"
     },
     {
       "name": "rpa-bugfix",
-      "repo": "https://github.com/EvilFreelancer/rpa-bugfix.git",
-      "ref": "main"
+      "origin": "local"
     },
     {
       "name": "rpa-gen-rules",
