@@ -1,0 +1,159 @@
+# Build the Chinese edition of Coddy for every supported platform, with the
+# localized web UI embedded into each binary.
+#
+# The UI is built once on the runner and the Go binaries are cross-compiled
+# with the same full tag set as the upstream release binaries, so a package
+# from this workflow is the complete program: HTTP API, web UI, console,
+# scheduler, memory, gateways, swarm, metrics, browser bridge and desktop.
+#
+# Triggers:
+#   - push to main
+#   - a SemVer tag (the archives are also attached to that GitHub Release)
+#   - workflow_dispatch, for a build on demand
+#
+# Every run uploads the archives, their SHA256SUMS and the build notes as a
+# workflow artifact, even when no tag was pushed.
+
+name: Build Chinese packages
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: write
+
+env:
+  GO_BUILD_TAGS: "http,ui,scheduler,memory,cli,gateway,swarm,metrics,browser,desktop"
+
+jobs:
+  packages:
+    name: Build Chinese packages
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "26"
+          cache: npm
+          cache-dependency-path: external/ui/package-lock.json
+
+      - name: Build the localized web UI for go:embed
+        run: make ui-build
+
+      - name: Resolve version
+        id: version
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          else
+            VERSION="$(git describe --tags --always --dirty 2>/dev/null || echo dev)"
+          fi
+          VERSION="${VERSION//\//-}"
+          echo "value=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Building Chinese edition ${VERSION} from $(git rev-parse --short HEAD)"
+
+      # Linux and macOS are tar.gz with the man page and shell completions
+      # beside the binary; Windows is a zip with coddy.exe. Android is the
+      # Termux build: GOOS=android with cgo against Bionic, which is why it
+      # uses scripts/android-cc.sh and CGO_ENABLED=1.
+      - name: Compile and package
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+          GO_BUILD_TAGS: ${{ env.GO_BUILD_TAGS }}
+        run: |
+          set -euo pipefail
+          DIST="${GITHUB_WORKSPACE}/dist"
+          LDFLAGS="-s -w -X github.com/EvilFreelancer/coddy-agent/internal/version.Version=${VERSION}"
+          rm -rf "$DIST"
+          mkdir -p "$DIST"
+
+          build_target() {
+            local goos="$1"
+            local goarch="$2"
+            local stem="coddy-zh_${VERSION}_${goos}_${goarch}"
+            local bindir="$DIST/_staging/${stem}"
+            local binname="coddy"
+            if [ "$goos" = "windows" ]; then
+              binname="coddy.exe"
+            fi
+            mkdir -p "$bindir"
+
+            local cgo=0 cc=""
+            if [ "$goos" = "android" ]; then
+              cgo=1
+              cc="$(scripts/android-cc.sh "$goarch")"
+            fi
+
+            echo "==> ${goos}/${goarch}"
+            GOOS="$goos" GOARCH="$goarch" CGO_ENABLED="$cgo" CC="$cc" \
+              go build \
+              -tags="${GO_BUILD_TAGS}" \
+              -trimpath \
+              -ldflags "$LDFLAGS" \
+              -o "$bindir/$binname" \
+              ./cmd/coddy/
+
+            if [ "$goos" = "windows" ]; then
+              (cd "$bindir" && zip -q "$DIST/${stem}.zip" "$binname")
+            else
+              cp packaging/man/coddy.1 "$bindir/coddy.1"
+              cp packaging/completions/coddy.bash "$bindir/coddy.bash"
+              cp packaging/completions/coddy.zsh "$bindir/coddy.zsh"
+              tar -C "$bindir" -czf "$DIST/${stem}.tar.gz" coddy coddy.1 coddy.bash coddy.zsh
+            fi
+          }
+
+          build_target linux amd64
+          build_target linux arm64
+          build_target darwin amd64
+          build_target darwin arm64
+          build_target windows amd64
+          build_target windows arm64
+          build_target android arm64
+          build_target android amd64
+
+          rm -rf "$DIST/_staging"
+          (cd "$DIST" && sha256sum coddy-zh_* > SHA256SUMS)
+          ls -lh "$DIST"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coddy-zh-${{ steps.version.outputs.value }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.version.outputs.value }}
+          name: ${{ steps.version.outputs.value }}
+          generate_release_notes: true
+          files: |
+            dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
