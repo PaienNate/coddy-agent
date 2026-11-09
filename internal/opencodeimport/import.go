@@ -20,6 +20,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -567,6 +568,168 @@ func importOne(ctx context.Context, client *Client, store *session.FileStore, pr
 
 var errSkip = errors.New("already imported")
 
+// openCodeToolAliases maps OpenCode's tool vocabulary onto the Coddy tools
+// that do the same job. An imported transcript is replayed as conversation
+// history, so keeping OpenCode's names would teach a resumed session to call
+// tools Coddy does not have - most visibly "bash", which is OpenCode's shell
+// tool but is "run_command" here.
+var openCodeToolAliases = map[string]string{
+	"bash":      "run_command",
+	"shell":     "run_command",
+	"read":      "read",
+	"write":     "write",
+	"edit":      "edit",
+	"glob":      "glob",
+	"grep":      "grep",
+	"list":      "print_tree",
+	"webfetch":  "webfetch",
+	"websearch": "websearch",
+	"task":      "spawn_agent",
+	"subagent":  "spawn_agent",
+	"skill":     "load_skill",
+	"question":  "question",
+	"todowrite": "coddy_todo_plan_replace",
+	"todoread":  "coddy_todo_plan_read",
+	"patch":     "apply_patch",
+}
+
+// normalizeToolCall translates one OpenCode tool part. The boolean is false
+// for a tool Coddy cannot offer: dropping both the call and its result is
+// preferable to preserving a name the model would imitate and then fail on.
+func normalizeToolCall(name, input string) (string, string, bool) {
+	key := strings.ToLower(strings.TrimSpace(name))
+	target, ok := openCodeToolAliases[key]
+	if !ok {
+		return "", "", false
+	}
+	return target, normalizeToolInput(key, input), true
+}
+
+// normalizeToolInput rewrites the argument names whose OpenCode spelling
+// differs from Coddy's schema. The values stay raw JSON so numbers, booleans
+// and nested objects survive unchanged.
+func normalizeToolInput(tool, input string) string {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(input), &fields); err != nil {
+		return input
+	}
+	move := func(from, to string) {
+		v, ok := fields[from]
+		if !ok {
+			return
+		}
+		if _, exists := fields[to]; !exists {
+			fields[to] = v
+		}
+		delete(fields, from)
+	}
+	drop := func(name string) { delete(fields, name) }
+
+	switch tool {
+	case "bash", "shell":
+		move("workdir", "cwd")
+		// OpenCode measures a shell timeout in milliseconds; Coddy's
+		// run_command measures it in seconds.
+		moveTimeoutMillis("timeout", "timeout_seconds", fields)
+		move("description", "permission_rationale")
+	case "read", "write", "edit":
+		move("filePath", "path")
+	case "grep":
+		move("include", "glob")
+	case "webfetch":
+		move("timeout", "timeout_seconds")
+		drop("format")
+	case "task", "subagent":
+		move("subagent_type", "agent")
+		drop("command")
+		if _, ok := fields["agent"]; !ok {
+			fields["agent"] = json.RawMessage(`"general"`)
+		}
+	case "patch":
+		move("filePath", "path")
+		move("patchText", "patch")
+		move("diff", "patch")
+	case "todowrite":
+		if markdown := todosAsMarkdown(fields["todos"]); markdown != "" {
+			b, _ := json.Marshal(map[string]string{"markdown": markdown})
+			return string(b)
+		}
+	case "todoread":
+		return "{}"
+	}
+
+	if len(fields) == 0 {
+		return "{}"
+	}
+	b, err := json.Marshal(fields)
+	if err != nil {
+		return input
+	}
+	return string(b)
+}
+
+// moveTimeoutMillis converts an OpenCode millisecond timeout to Coddy's
+// second-based timeout. OpenCode's schema says milliseconds, but some models
+// send the value as a JSON string; both shapes are accepted.
+func moveTimeoutMillis(from, to string, fields map[string]json.RawMessage) {
+	raw, ok := fields[from]
+	if !ok {
+		return
+	}
+	var ms int64
+	if err := json.Unmarshal(raw, &ms); err != nil {
+		var f float64
+		if json.Unmarshal(raw, &f) == nil {
+			ms = int64(f)
+		} else {
+			var text string
+			if json.Unmarshal(raw, &text) != nil {
+				delete(fields, from)
+				return
+			}
+			ms, _ = strconv.ParseInt(text, 10, 64)
+		}
+	}
+	if ms < 0 {
+		ms = 0
+	}
+	seconds := (ms + 999) / 1000
+	if _, exists := fields[to]; !exists {
+		b, _ := json.Marshal(seconds)
+		fields[to] = b
+	}
+	delete(fields, from)
+}
+
+// todosAsMarkdown renders OpenCode's structured todo list as the checklist
+// coddy_todo_plan_replace expects.
+func todosAsMarkdown(raw json.RawMessage) string {
+	var todos []struct {
+		Content string `json:"content"`
+		Status  string `json:"status"`
+	}
+	if err := json.Unmarshal(raw, &todos); err != nil {
+		return ""
+	}
+	var b strings.Builder
+	for _, todo := range todos {
+		content := strings.TrimSpace(todo.Content)
+		if content == "" {
+			continue
+		}
+		mark := " "
+		if strings.EqualFold(todo.Status, "completed") {
+			mark = "x"
+		}
+		b.WriteString("- [")
+		b.WriteString(mark)
+		b.WriteString("] ")
+		b.WriteString(content)
+		b.WriteByte('\n')
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
 func convertMessages(in []Message) ([]llm.Message, bool) {
 	var out []llm.Message
 	readOnly := false
@@ -615,7 +778,11 @@ func convertMessages(in []Message) ([]llm.Message, bool) {
 					if input == "" || input == "null" {
 						input = "{}"
 					}
-					calls = append(calls, llm.ToolCall{ID: p.ID, Name: p.Name, InputJSON: input})
+					name, normalizedInput, keep := normalizeToolCall(p.Name, input)
+					if !keep {
+						continue
+					}
+					calls = append(calls, llm.ToolCall{ID: p.ID, Name: name, InputJSON: normalizedInput})
 					result := toolResult(state, p)
 					results = append(results, llm.Message{
 						Role:       llm.RoleTool,

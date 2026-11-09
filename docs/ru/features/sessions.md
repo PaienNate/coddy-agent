@@ -146,7 +146,11 @@ Coddy. Сессия, чья рабочая папка больше не суще
 сообщается как прерванная, а не теряется молча. Существующие бандлы
 пропускаются, если не указан `--replace`. Импортёр не копирует API-ключи, права,
 плагины или снимки, а старые вызовы инструментов остаются историей и никогда не
-выполняются повторно.
+выполняются повторно. Импортированные вызовы инструментов OpenCode переписываются в
+имена и формы аргументов Coddy (`bash` становится `run_command`, `filePath` - `path`,
+миллисекундный таймаут shell переводится в секунды); вызов без аналога в Coddy
+отбрасывается вместе с результатом, чтобы продолженная сессия не имитировала
+несуществующий инструмент.
 
 ## CLI для сессий
 
@@ -162,4 +166,4 @@ coddy sessions export <session-id> [--format md|html|json|jsonl] [--out <path>] 
 - исполняемые спецификации в `features/` - `print_sessions.feature` (запуск режима печати помечается и не попадает в окно выбора, `-c -p` его продолжает, интерактивный `-c` пропускает, `--ephemeral` ничего не оставляет; харнес `external/cli/bdd_print_sessions_test.go`), `acp_session_integration.feature` (переоткрытый бандл проигрывает свой транскрипт после ответа на `session/new`; харнес `internal/session/bdd_acp_session_test.go`), `session_rewind.feature` (транскрипт обрезается на исправленном сообщении; `external/httpserver/bdd_rewind_test.go`), `session_rewind_undo.feature` (отмена возвращает исходные ходы; тот же харнес), `session_export.feature` и `session_export_cli.feature` ([Экспорт сессии](session-export.md));
 - модульные тесты - `internal/session/filesystem_test.go` (структура бандла и список сессий), `internal/session/rewind_test.go` (обрезка на месте и очистка артефактов), `internal/session/rewind_undo_test.go` (сохранённый хвост, момент, когда отмена становится недоступной, восстановленный журнал UI и записи вызовов инструментов), `external/cli/continue_test.go` (разрешение `-c`), а в SPA - `external/ui/src/ui/messages/userMsgIndices.test.ts` (индекс пользовательского сообщения, который называет правка или откат; пробуждение считается ходом).
 
-<!-- docsgen:source sha256=ab691d6916a06cc0 -->
+<!-- docsgen:source sha256=32744aaffa72cbe4 -->

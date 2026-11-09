@@ -145,6 +145,11 @@ the session `assets/`, and the latest job snapshot is kept under
 interrupted instead of silently losing it. Existing bundles are skipped
 unless `--replace` is given. The importer never copies API keys, permissions,
 plugins or snapshots, and old tool calls are history, never re-executed.
+Imported OpenCode tool calls are rewritten to Coddy's tool vocabulary and
+argument shapes (`bash` becomes `run_command`, `filePath` becomes `path`, and
+OpenCode's millisecond shell timeout becomes seconds); a tool with no Coddy
+equivalent is dropped with its result, so a resumed session does not imitate a
+tool that does not exist.
 
 ## The sessions CLI
 

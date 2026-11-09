@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -117,8 +118,11 @@ func TestImportAllWritesCoddyBundle(t *testing.T) {
 	if snap.Messages[0].Content != "你好" || snap.Messages[1].Content == "" {
 		t.Fatalf("messages = %+v", snap.Messages)
 	}
-	if len(snap.Messages[1].ToolCalls) != 1 || snap.Messages[1].ToolCalls[0].Name != "bash" {
+	if len(snap.Messages[1].ToolCalls) != 1 || snap.Messages[1].ToolCalls[0].Name != "run_command" {
 		t.Fatalf("tool calls = %+v", snap.Messages[1].ToolCalls)
+	}
+	if snap.Messages[1].ToolCalls[0].InputJSON != `{"command":"echo hi"}` {
+		t.Fatalf("tool input = %s", snap.Messages[1].ToolCalls[0].InputJSON)
 	}
 	if snap.Messages[2].Role != "tool" || snap.Messages[2].Content != "hi" {
 		t.Fatalf("tool result = %+v", snap.Messages[2])
@@ -187,6 +191,109 @@ func TestImportAllDryRunWritesNothing(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, "ses_dry")); !os.IsNotExist(err) {
 		t.Fatalf("dry run wrote a bundle: %v", err)
 	}
+}
+
+func TestImportAllNormalizesOpenCodeToolNames(t *testing.T) {
+	workspace := t.TempDir()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/session":
+			_, _ = w.Write([]byte(`{"data":[{"id":"ses_tools","projectID":"p1","title":"tools","location":{"directory":"` + workspace + `"},"time":{"created":1}}],"cursor":{}}`))
+		case "/api/experimental/session/ses_tools/export":
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{
+				"info": map[string]any{"id": "ses_tools", "projectID": "p1", "title": "tools", "location": map[string]any{"directory": workspace}},
+				"messages": []any{
+					map[string]any{"type": "user", "text": "run", "time": map[string]any{"created": 1}},
+					map[string]any{"type": "assistant", "time": map[string]any{"created": 2}, "content": []any{
+						map[string]any{"type": "text", "text": "working"},
+						toolPart("t_bash", "bash", map[string]any{"command": "ls", "workdir": "/tmp/project", "timeout": 12500, "description": "list"}),
+						toolPart("t_read", "read", map[string]any{"filePath": "a.go", "offset": 2, "limit": 3}),
+						toolPart("t_edit", "edit", map[string]any{"filePath": "a.go", "oldString": "a", "newString": "b", "replaceAll": true}),
+						toolPart("t_grep", "grep", map[string]any{"pattern": "x", "path": "/tmp", "include": "*.go"}),
+						toolPart("t_webfetch", "webfetch", map[string]any{"url": "https://example.com", "format": "text", "timeout": 9}),
+						toolPart("t_task", "task", map[string]any{"command": "run", "description": "explore", "prompt": "look", "subagent_type": "explore"}),
+						toolPart("t_todo", "todowrite", map[string]any{"todos": []any{
+							map[string]any{"content": "one", "status": "completed"},
+							map[string]any{"content": "two", "status": "in_progress"},
+						}}),
+						toolPart("t_skill", "skill", map[string]any{"name": "brainstorming"}),
+						toolPart("t_unknown", "lsp", map[string]any{"foo": "bar"}),
+					}},
+				},
+			}})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	root := filepath.Join(t.TempDir(), "sessions")
+	client := opencodeimport.NewClient(opencodeimport.Config{URL: srv.URL})
+	res, err := opencodeimport.ImportAll(context.Background(), client, opencodeimport.ImportOptions{
+		Projects:     []opencodeimport.Project{{ID: "p1", Worktree: workspace}},
+		SessionsRoot: root,
+		Concurrency:  1,
+	})
+	if err != nil || res.Imported != 1 {
+		t.Fatalf("result = %+v, %v", res, err)
+	}
+	store := &session.FileStore{Root: root}
+	snap, err := store.ReadSnapshot("ses_tools")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snap.Messages) != 10 {
+		t.Fatalf("messages = %d, want 10", len(snap.Messages))
+	}
+	calls := snap.Messages[1].ToolCalls
+	want := map[string]struct {
+		name  string
+		input string
+	}{
+		"t_bash":     {"run_command", `{"command":"ls","cwd":"/tmp/project","timeout_seconds":13,"permission_rationale":"list"}`},
+		"t_read":     {"read", `{"path":"a.go","offset":2,"limit":3}`},
+		"t_edit":     {"edit", `{"path":"a.go","oldString":"a","newString":"b","replaceAll":true}`},
+		"t_grep":     {"grep", `{"pattern":"x","path":"/tmp","glob":"*.go"}`},
+		"t_webfetch": {"webfetch", `{"url":"https://example.com","timeout_seconds":9}`},
+		"t_task":     {"spawn_agent", `{"description":"explore","prompt":"look","agent":"explore"}`},
+		"t_todo":     {"coddy_todo_plan_replace", `{"markdown":"- [x] one\n- [ ] two"}`},
+		"t_skill":    {"load_skill", `{"name":"brainstorming"}`},
+	}
+	if len(calls) != len(want) {
+		t.Fatalf("tool calls = %+v", calls)
+	}
+	for _, call := range calls {
+		expected, ok := want[call.ID]
+		if !ok {
+			t.Fatalf("unexpected tool call %s (%s)", call.ID, call.Name)
+		}
+		if call.Name != expected.name {
+			t.Errorf("%s name = %q, want %q", call.ID, call.Name, expected.name)
+		}
+		var got, wantInput any
+		if err := json.Unmarshal([]byte(call.InputJSON), &got); err != nil {
+			t.Errorf("%s input is not JSON: %v", call.ID, err)
+			continue
+		}
+		if err := json.Unmarshal([]byte(expected.input), &wantInput); err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(got, wantInput) {
+			t.Errorf("%s input = %s, want %s", call.ID, call.InputJSON, expected.input)
+		}
+	}
+	for _, msg := range snap.Messages[2:] {
+		if msg.ToolCallID == "t_unknown" {
+			t.Fatalf("unknown tool result was preserved: %+v", msg)
+		}
+	}
+}
+
+func toolPart(id, name string, input map[string]any) map[string]any {
+	return map[string]any{"type": "tool", "id": id, "name": name, "state": map[string]any{
+		"status": "completed", "input": input,
+		"content": []any{map[string]any{"type": "text", "text": "ok"}},
+	}}
 }
 
 func TestImportAllPreservesChildSessionsAndAttachments(t *testing.T) {
