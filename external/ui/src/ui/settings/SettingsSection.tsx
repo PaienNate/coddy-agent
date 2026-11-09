@@ -9,6 +9,7 @@ import { ContextWindowField } from "./ContextWindowField";
 import { NeuralDeepAuthField } from "./NeuralDeepAuthField";
 import { KimiAuthField } from "./KimiAuthField";
 import { OpenCodeAuthField } from "./OpenCodeAuthField";
+import { OpenCodeImportSection } from "./OpenCodeImportSection";
 import { ModelField } from "./ModelField";
 import { ModelPicker } from "./ModelPicker";
 import { ProviderModelList } from "./ProviderModelList";
@@ -755,6 +756,10 @@ export function SettingsSection(props: {
     return (
       <AppearanceThemePicker onRestartOnboarding={props.onRestartOnboarding} />
     );
+  }
+
+  if (section.kind === "opencode") {
+    return <OpenCodeImportSection />;
   }
 
   // The session table is API-driven (/coddy/sessions): it reads and removes

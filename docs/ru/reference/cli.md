@@ -54,6 +54,8 @@ Usage:
         terminal, or from stdin when it is a pipe)
   coddy sessions list [--cwd DIR] [--origin local|gateway|print] [--sessions-dir DIR]
   coddy sessions export <id> [--format md|html|json|jsonl] [--out PATH] [--no-tools] [--no-thinking]
+  coddy sessions import --from opencode [--url URL] [--username NAME] [--password-stdin]
+        [--all-projects] [--project ID] [--skip-archived] [--dry-run] [--save]
   coddy skills list
   coddy skills enable <name>
   coddy skills disable <name>

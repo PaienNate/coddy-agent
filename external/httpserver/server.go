@@ -110,6 +110,11 @@ type Server struct {
 	// PUT is measured against what its client read (config_revisions.go).
 	served *configapi.Revisions
 
+	// opencodeJobs holds the background OpenCode migration jobs started from
+	// Settings, keyed by their batch id.
+	opencodeMu   sync.Mutex
+	opencodeJobs map[string]*opencodeImportJob
+
 	slashMu    sync.Mutex
 	slashCache map[string]slashListCacheEntry
 
@@ -231,6 +236,7 @@ func New(cfg *config.Config, mgr *session.Manager, log *slog.Logger, defaultCWD 
 		devinAuthLogins:      make(map[string]*codexAuthLoginAttempt),
 		events:               newServerEventsHub(),
 		served:               configapi.NewRevisions(),
+		opencodeJobs:         make(map[string]*opencodeImportJob),
 		sessions:             webauth.NewSessionStore(),
 		tgSessions:           webauth.NewSessionStore(),
 		browserSessions:      webauth.NewSessionStore(),

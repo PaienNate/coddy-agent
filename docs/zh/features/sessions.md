@@ -115,6 +115,34 @@ Coddy 为会话打开的 worktree 会放到 `<repo>/.coddy/worktrees/<branch>/` 
 
 在 History 行的 ⋮ 菜单中选择 **Delete**，经过一次确认后，以及 `DELETE /coddy/sessions/{id}`，都会移除会话树：该会话及其派生的每个子会话，先停止它们的后台任务，最深的会话包最先移除。正在运行的轮次会被取消并等待完成，然后才移除任何内容。一次删除多个（包括归档）可从 **Settings → Sessions** 进行。命令行上没有删除动词；对于没有进程持有的会话，手动删除目录是等效的。
 
+## 导入 OpenCode v2 会话
+
+**设置 → OpenCode** 用于配置远程 OpenCode v2 服务器：API 地址、HTTP Basic Auth
+用户名（默认 `opencode`）和密码。**测试连接** 会读取 `/global/health`、
+`/api/project` 和项目的会话页；**导入全部会话** 会作为后台任务执行迁移，并在同一面板
+显示进度。密码是只写的，连接保存在 `${CODDY_HOME}/opencode.json`（仅所有者可读），
+不写入 `config.yaml`。
+
+导入是单向的，且只使用 API：读取 `/api/project`、`/api/session` 和
+`/api/experimental/session/:id/export`，绝不打开 OpenCode 数据库。同样的迁移也可以
+不用 Web 界面执行：
+
+```bash
+coddy sessions import --from opencode \
+  --url https://opencode.example.com:4096 \
+  --username opencode --password-stdin \
+  --all-projects --dry-run
+```
+
+去掉 `--dry-run` 才会写入会话包；`--save` 会保存连接供以后使用。服务器必须是
+OpenCode v2，且能从此 Coddy 进程访问。如果会话记录的工作区已不存在，它会作为只读归档
+导入，并带有 `opencode-missing-workspace` 标签。子会话保留 `subagents/` 下的父子布局，
+提示词文件和图片写入会话的 `assets/`，最新任务快照保存在
+`${CODDY_HOME}/opencode-import/jobs/`，因此重启后会把任务报告为中断，而不是静默丢失。
+已存在的会话包默认跳过，除非给出
+`--replace`。导入器不会复制 API key、权限、插件或快照，旧工具调用只是历史，绝不会
+重新执行。
+
 ## sessions CLI
 
 ```bash
@@ -129,4 +157,4 @@ coddy sessions export <session-id> [--format md|html|json|jsonl] [--out <path>] 
 - `features/` 中的可执行规格：`print_sessions.feature`（打印运行会被标记并排除在选择器之外，`-c -p` 会继续它，交互式 `-c` 会跳过它，`--ephemeral` 不留下任何内容；框架 `external/cli/bdd_print_sessions_test.go`）、`acp_session_integration.feature`（重新打开的会话包会在 `session/new` 响应之后重放其对话记录；框架 `internal/session/bdd_acp_session_test.go`）、`session_rewind.feature`（对话记录在编辑后的消息处被截断；`external/httpserver/bdd_rewind_test.go`）、`session_rewind_undo.feature`（撤销会带回原始轮次；同一框架）、`session_export.feature` 和 `session_export_cli.feature`（[会话导出](session-export.md)）。
 - 单元测试：`internal/session/filesystem_test.go`（会话包布局和列表）、`internal/session/rewind_test.go`（就地截断和产物清理）、`internal/session/rewind_undo_test.go`（保留的尾部、撤销何时结束、恢复的 UI 日志和工具调用记录）、`external/cli/continue_test.go`（`-c` 解析），以及 SPA 中的 `external/ui/src/ui/messages/userMsgIndices.test.ts`（编辑或回退所指的用户消息索引，一次唤醒也算作一个轮次）。
 
-<!-- docsgen:source sha256=403cc43f5936a14c -->
+<!-- docsgen:source sha256=8cfc991940f22154 -->

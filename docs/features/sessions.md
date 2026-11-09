@@ -115,6 +115,37 @@ A subagent run is a child session: a real bundle under `<parent>/subagents/<chil
 
 **Delete** in the ⋮ menu of a History row, after one confirmation, and `DELETE /coddy/sessions/{id}` remove the session tree: the session plus every child it spawned, their background tasks stopped first, the bundles removed deepest first. A running turn is cancelled and awaited before anything is removed. Several at once, the archive included, go from **Settings → Sessions**. There is no delete verb on the command line; deleting the directory by hand is equivalent for a session no process holds.
 
+## Importing OpenCode v2 sessions
+
+**Settings → OpenCode** configures a remote OpenCode v2 server: its API URL,
+HTTP basic-auth username (default `opencode`) and password. **Test connection**
+reads `/global/health`, `/api/project` and the project's session pages; **Import
+all sessions** runs the migration as a background job and reports progress in
+the same panel. The password is write-only, and the connection is kept in
+`${CODDY_HOME}/opencode.json` with owner-only permissions, not in `config.yaml`.
+
+The import is one-way and API-only. It reads `/api/project`, `/api/session` and
+`/api/experimental/session/:id/export`; it never opens the OpenCode database.
+The same migration is available without the web UI:
+
+```bash
+coddy sessions import --from opencode \
+  --url https://opencode.example.com:4096 \
+  --username opencode --password-stdin \
+  --all-projects --dry-run
+```
+
+Drop `--dry-run` to write the bundles; `--save` keeps the connection for later
+runs. The server must be OpenCode v2 and reachable from this Coddy process. A
+session whose recorded workspace no longer exists is imported as a read-only
+archive with the `opencode-missing-workspace` tag. Child sessions keep their
+parent/child layout under `subagents/`, prompt files and pictures are written to
+the session `assets/`, and the latest job snapshot is kept under
+`${CODDY_HOME}/opencode-import/jobs/`, so a restart reports the job as
+interrupted instead of silently losing it. Existing bundles are skipped
+unless `--replace` is given. The importer never copies API keys, permissions,
+plugins or snapshots, and old tool calls are history, never re-executed.
+
 ## The sessions CLI
 
 ```bash

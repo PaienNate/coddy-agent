@@ -801,6 +801,11 @@ type ListOptions struct {
 	// IncludeSubagents descends into the sessions spawned by spawn_agent,
 	// which are stored inside the bundle of the session that spawned them.
 	IncludeSubagents bool
+	// IncludeImportedSubagents admits nested sessions tagged "opencode" even
+	// when IncludeSubagents is off. A migrated OpenCode child is a complete
+	// transcript its owner still expects to find in History, while a live
+	// spawn_agent child is working state the History deliberately hides.
+	IncludeImportedSubagents bool
 	// Archived selects which side of the archive is listed. The zero value is
 	// ArchiveExclude, so every caller written before the archive existed keeps
 	// getting the working list.
@@ -865,7 +870,7 @@ func (f *FileStore) ListSnapshotsWith(opts ListOptions) ([]SessionListEntry, err
 		dir := filepath.Join(f.Root, ent.Name())
 		var descend bool
 		out, descend = f.appendBundleRow(out, dir, ent.Name(), cwdFilter, opts, false)
-		if opts.IncludeSubagents && descend {
+		if (opts.IncludeSubagents || opts.IncludeImportedSubagents) && descend {
 			out = f.appendChildRows(out, dir, cwdFilter, opts, 0)
 		}
 	}
@@ -915,7 +920,7 @@ func (f *FileStore) appendBundleRow(out []SessionListEntry, dir, id, cwdFilter s
 	if !opts.IncludeSchedulerRuns && meta.ExcludedFromComposerSessionList(id) {
 		return out, false
 	}
-	if !opts.IncludeSubagents && meta.IsSubagentRun() {
+	if !opts.IncludeSubagents && meta.IsSubagentRun() && !(opts.IncludeImportedSubagents && hasTag(meta.Tags, "opencode")) {
 		return out, true
 	}
 	if cwdFilter != "" && !matchesWorkspace(cwdFilter, meta.CWD) {
@@ -1085,6 +1090,15 @@ func (f *FileStore) FirstUserMessageContent(sessionID string) (content string, f
 		}
 	}
 	return "", false, nil
+}
+
+func hasTag(tags []string, want string) bool {
+	for _, tag := range tags {
+		if strings.EqualFold(tag, want) {
+			return true
+		}
+	}
+	return false
 }
 
 // matchesAnyTagSubstring reports whether one of the session's tags contains the

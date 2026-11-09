@@ -241,6 +241,8 @@ func printUsage(w io.Writer) {
         terminal, or from stdin when it is a pipe)
   %[1]s sessions list [--cwd DIR] [--origin local|gateway|print] [--sessions-dir DIR]
   %[1]s sessions export <id> [--format md|html|json|jsonl] [--out PATH] [--no-tools] [--no-thinking]
+  %[1]s sessions import --from opencode [--url URL] [--username NAME] [--password-stdin]
+        [--all-projects] [--project ID] [--skip-archived] [--dry-run] [--save]
   %[1]s skills list
   %[1]s skills enable <name>
   %[1]s skills disable <name>
@@ -499,7 +501,7 @@ func openSessionStore(flagValue string, cfg *config.Config) (*session.FileStore,
 
 // sessionsUsage is the one usage line of `coddy sessions`.
 func sessionsUsage() string {
-	return fmt.Sprintf("usage: %s sessions list [--sessions-dir <path>] [--cwd <filter>] [--origin local|gateway|print] | sessions export <session-id> [flags]", os.Args[0])
+	return fmt.Sprintf("usage: %s sessions list [--sessions-dir <path>] [--cwd <filter>] [--origin local|gateway|print] | sessions export <session-id> [flags] | sessions import --from opencode [flags]", os.Args[0])
 }
 
 func runSessions(args []string) error {
@@ -513,6 +515,12 @@ func runSessions(args []string) error {
 		return fmt.Errorf("%s", sessionsUsage())
 	}
 	switch strings.TrimSpace(args[0]) {
+	case "import":
+		cfg, err := config.LoadFromCLI(config.CLIPaths{})
+		if err != nil {
+			return fmt.Errorf("load config: %w", err)
+		}
+		return sessionsImport(os.Stdout, cfg, args[1:])
 	case "export":
 		if len(args) < 2 {
 			return errors.New(sessionsExportUsage())

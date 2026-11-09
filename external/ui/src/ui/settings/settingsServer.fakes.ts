@@ -257,6 +257,13 @@ export function stubServer(source: ServerState | (() => ServerState)) {
     if (route === "/coddy/sessions") {
       return reply(200, { sessions: [], hasMore: false });
     }
+    if (route === "/coddy/opencode" && method === "GET") {
+      return reply(200, {
+        url: "",
+        username: "opencode",
+        password_configured: false,
+      });
+    }
     if (route === "/coddy/wallpapers" && method === "GET") {
       return reply(200, { wallpapers: [] });
     }

@@ -10,7 +10,8 @@ export type SectionKind =
   | "subagents"
   | "appearance"
   | "sessions"
-  | "status";
+  | "status"
+  | "opencode";
 
 /** The MCP servers tab: its id stays the old key's, the address #/settings/mcp_servers. */
 export const MCP_SECTION_ID = "mcp_servers";
@@ -39,6 +40,7 @@ const SECTION_LABEL_KEYS = {
   appearance: "settings.section.appearance.label",
   sessions_manager: "settings.section.sessions_manager.label",
   status: "settings.section.status.label",
+  opencode_import: "settings.section.opencode_import.label",
   providers: "settings.section.providers.label",
   models: "settings.section.models.label",
   toolsets: "settings.section.toolsets.label",
@@ -72,6 +74,7 @@ const SECTION_DESC_KEYS = {
   appearance: "settings.section.appearance.desc",
   sessions_manager: "settings.section.sessions_manager.desc",
   status: "settings.section.status.desc",
+  opencode_import: "settings.section.opencode_import.desc",
   providers: "settings.section.providers.desc",
   models: "settings.section.models.desc",
   toolsets: "settings.section.toolsets.desc",
@@ -181,11 +184,20 @@ export function deriveSettingsSections(
     kind: "status",
   };
 
+  const opencodeImport: SectionDescriptor = {
+    id: "opencode_import",
+    label: labelFor("opencode_import"),
+    description: translate(SECTION_DESC_KEYS.opencode_import),
+    kind: "opencode",
+  };
+
   // A relay's form (config.RelayUISchemaMap) says it is one; the stored
   // sessions the Sessions tab manages and the status route exist only on an
   // agent.
   const relay = opts.relay === true || schema?.["x-coddy-relay"] === true;
-  const head = relay ? [appearance] : [appearance, sessionsManager, status];
+  const head = relay
+    ? [appearance]
+    : [appearance, sessionsManager, status, opencodeImport];
   if (!schema || schema.type !== "object" || !schema.properties) {
     return head;
   }

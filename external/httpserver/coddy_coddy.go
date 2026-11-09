@@ -215,6 +215,7 @@ func describeIsAnswerLine(line string) bool {
 }
 
 func (s *Server) registerCoddyRoutes() {
+	s.registerOpenCodeImportRoutes()
 	s.mux.HandleFunc("GET /coddy/info", s.coddyInfoGet)
 	s.mux.HandleFunc("GET /coddy/workspace/files", s.coddyWorkspaceFilesGet)
 	s.mux.HandleFunc("GET /coddy/workspace/context", s.coddyWorkspaceContextGet)
@@ -1144,13 +1145,14 @@ func (s *Server) coddySessionsList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	listOpts := session.ListOptions{
-		CWD:                  strings.TrimSpace(r.URL.Query().Get("cwd")),
-		IncludeSchedulerRuns: includeScheduler,
-		IncludeSubagents:     includeSubagents,
-		Archived:             archived,
-		Tags:                 session.ParseTagList(r.URL.Query().Get("tags")),
-		Origin:               origin,
-		IncludePrintRuns:     includePrint,
+		CWD:                      strings.TrimSpace(r.URL.Query().Get("cwd")),
+		IncludeSchedulerRuns:     includeScheduler,
+		IncludeSubagents:         includeSubagents,
+		IncludeImportedSubagents: true,
+		Archived:                 archived,
+		Tags:                     session.ParseTagList(r.URL.Query().Get("tags")),
+		Origin:                   origin,
+		IncludePrintRuns:         includePrint,
 		// A conversation nobody wrote in stays out of History (issue #357),
 		// except while its first turn runs: that turn appends the prompt only
 		// once its MCP servers and its model's context window are in, and
