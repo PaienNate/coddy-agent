@@ -1,9 +1,13 @@
 import cronstrue from "cronstrue";
 import "cronstrue/locales/ru";
+import "cronstrue/locales/zh_CN";
 import { getLocale, t } from "../i18n/i18n";
 
-function cronLocale(): "en" | "ru" {
-  return getLocale() === "ru" ? "ru" : "en";
+function cronLocale(): "en" | "ru" | "zh_CN" {
+  const locale = getLocale();
+  if (locale === "ru") return "ru";
+  if (locale === "zh") return "zh_CN";
+  return "en";
 }
 
 /**

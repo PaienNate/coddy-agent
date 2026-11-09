@@ -15,6 +15,7 @@ export const messagesRu: Record<string, string> = {
   "appearance.locale.auto": "Авто",
   "appearance.locale.en": "English",
   "appearance.locale.ru": "Русский",
+  "appearance.locale.zh": "Китайский",
   "appearance.toggleLabel": "Оформление",
   "appearance.theme.dark": "Coddy",
   "appearance.theme.light": "Light",

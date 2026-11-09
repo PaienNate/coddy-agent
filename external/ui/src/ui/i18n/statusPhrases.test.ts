@@ -25,11 +25,27 @@ function statusEntries(
   return Object.entries(dict).filter(([key]) => key.startsWith("status."));
 }
 
+const HAS_CJK = /[\u3400-\u9fff]/;
+const CJK = /[\u3400-\u9fff]/g;
+
+/**
+ * Chinese has no spaces between words, so a phrase is counted by its Han
+ * characters plus any word left outside them ("{shown} 个 token" is three).
+ * Other dictionaries keep the whitespace count.
+ */
 function wordCount(phrase: string): number {
-  return phrase
-    .trim()
-    .split(/\s+/)
-    .filter((word) => word !== "").length;
+  const trimmed = phrase.trim();
+  const han = trimmed.match(CJK)?.length ?? 0;
+  if (han === 0) {
+    return trimmed.split(/\s+/).filter((word) => word !== "").length;
+  }
+  const rest = trimmed.replace(CJK, " ").trim();
+  return han + (rest === "" ? 0 : rest.split(/\s+/).filter(Boolean).length);
+}
+
+/** A single CJK run is one word for the exclusion-list check. */
+function singleWordWeight(phrase: string): number {
+  return HAS_CJK.test(phrase) ? 1 : wordCount(phrase);
 }
 
 describe("live status phrases stand on their own", () => {
@@ -54,7 +70,11 @@ describe("live status phrases stand on their own", () => {
           key,
           value: expect.any(String),
         });
-        expect({ locale, key, words: wordCount(dict[key] || "") }).toEqual({
+        expect({
+          locale,
+          key,
+          words: singleWordWeight(dict[key] || ""),
+        }).toEqual({
           locale,
           key,
           words: 1,

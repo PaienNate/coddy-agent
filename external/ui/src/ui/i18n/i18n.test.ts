@@ -121,6 +121,18 @@ test("themeLabel returns the id itself for unknown themes", () => {
   expect(themeLabel("nope")).toBe("nope");
 });
 
+test("translate switches to chinese after setLocale", () => {
+  setLocale("zh");
+  expect(getLocale()).toBe("zh");
+  expect(translate("settings.title")).toBe("设置");
+});
+
+test("translatePlural uses the only Chinese category", () => {
+  setLocale("zh");
+  expect(translatePlural("permission.meta.lines", 1)).toBe("1 行");
+  expect(translatePlural("permission.meta.lines", 21)).toBe("21 行");
+});
+
 test("Russian transcript rows name what the agent is doing, in the first person", () => {
   setLocale("ru");
   // The tool rows were written this way in #239; the thinking row is the same

@@ -1,5 +1,6 @@
 import { messagesEn } from "./messages/en";
 import { messagesRu } from "./messages/ru";
+import { messagesZh } from "./messages/zh";
 
 type UiLocaleDefinition = {
   id: string;
@@ -22,6 +23,11 @@ export const UI_LOCALES = {
     id: "ru",
     labelKey: "appearance.locale.ru",
     messages: messagesRu,
+  },
+  zh: {
+    id: "zh",
+    labelKey: "appearance.locale.zh",
+    messages: messagesZh,
   },
 } as const satisfies Record<string, UiLocaleDefinition>;
 
