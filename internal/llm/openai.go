@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
 
@@ -26,6 +27,10 @@ type openAIProvider struct {
 	tempSet         bool
 	topP            *float64
 	reasoningEffort string
+	// deepseek marks the official DeepSeek wire shape: thinking.type plus
+	// reasoning_effort, max_tokens rather than max_completion_tokens, and its
+	// top-level prompt-cache counters.
+	deepseek bool
 	// modelParams is what the provider's model listing says the model takes
 	// (ProviderInput.SupportedParameters); nil when nothing is known.
 	modelParams []string
@@ -41,6 +46,12 @@ func newOpenAIProvider(model, apiKey, baseURL string, httpClient *http.Client, m
 	}
 	if baseURL != "" {
 		opts = append(opts, option.WithBaseURL(baseURL))
+	}
+	if isDeepSeekAPIBase(baseURL) {
+		// DeepSeek's edge acknowledges an eagerly sent body with WINDOW_UPDATE
+		// before its own SETTINGS, which Go's HTTP/2 client rejects. Holding
+		// the body for 100-continue lets the server preface arrive first.
+		opts = append(opts, option.WithHeader("Expect", "100-continue"))
 	}
 	if httpClient != nil {
 		opts = append(opts, option.WithHTTPClient(httpClient))
@@ -160,7 +171,7 @@ func (p *openAIProvider) buildParams(messages []Message, tools []ToolDefinition,
 	// An OpenRouter-style aggregator lists the unified reasoning object for a
 	// model that does not take OpenAI's reasoning_effort: the level goes there,
 	// and the request is otherwise an ordinary chat request (issue #258).
-	if p.reasoningEffort != "" && p.takesReasoningObjectOnly() {
+	if p.reasoningEffort != "" && p.takesReasoningObjectOnly() && !p.deepseek {
 		reasoning := map[string]any{"effort": p.reasoningEffort}
 		if p.reasoningEffort == reasoningOff {
 			reasoning = map[string]any{"enabled": false}
@@ -187,8 +198,11 @@ func (p *openAIProvider) buildParams(messages []Message, tools []ToolDefinition,
 	qwenTemplate := p.sendsQwenTemplateSwitch()
 	effort := p.reasoningEffort
 	qwenOff := false
-	if effort == reasoningOff {
-		if qwenTemplate {
+	deepseekOff := false
+	if effort == reasoningOff || effort == "disabled" {
+		if p.deepseek {
+			effort, deepseekOff = "", true
+		} else if qwenTemplate {
 			effort, qwenOff = "", true
 		} else {
 			effort = "none"
@@ -201,7 +215,12 @@ func (p *openAIProvider) buildParams(messages []Message, tools []ToolDefinition,
 	if effort != "" {
 		params.ReasoningEffort = openai.ReasoningEffort(effort)
 		if p.maxTokens > 0 {
-			params.MaxCompletionTokens = openai.Int(int64(p.maxTokens))
+			if p.deepseek {
+				// DeepSeek keeps the OpenAI Chat Completions spelling.
+				params.MaxTokens = openai.Int(int64(p.maxTokens))
+			} else {
+				params.MaxCompletionTokens = openai.Int(int64(p.maxTokens))
+			}
 		}
 		// Qwen3-family thinking is a chat-template switch (vLLM/SGLang convention for
 		// open-weight Qwen), not an effort tier: pin it on so the selected effort is
@@ -229,6 +248,18 @@ func (p *openAIProvider) buildParams(messages []Message, tools []ToolDefinition,
 				"chat_template_kwargs": map[string]any{"enable_thinking": false},
 			})
 		}
+	}
+
+	if p.deepseek {
+		// DeepSeek's CoT is controlled by thinking.type; reasoning_effort is the
+		// depth hint. An explicit off turns thinking off without a depth hint.
+		thinking := "enabled"
+		if deepseekOff {
+			thinking = "disabled"
+		}
+		params.SetExtraFields(map[string]any{
+			"thinking": map[string]any{"type": thinking},
+		})
 	}
 
 	return p.finishParams(params, tools, streaming)
@@ -426,7 +457,7 @@ func (p *openAIProvider) parseCompletion(resp *openai.ChatCompletion) (*Response
 		StopReason:        mapOpenAIStopReason(string(choice.FinishReason)),
 		InputTokens:       int(resp.Usage.PromptTokens),
 		OutputTokens:      int(resp.Usage.CompletionTokens),
-		CachedInputTokens: int(resp.Usage.PromptTokensDetails.CachedTokens),
+		CachedInputTokens: openAICachedInputTokens(resp.RawJSON(), resp.Usage.PromptTokensDetails.CachedTokens),
 		ReasoningTokens:   int(resp.Usage.CompletionTokensDetails.ReasoningTokens),
 	}
 
@@ -444,6 +475,30 @@ func (p *openAIProvider) parseCompletion(resp *openai.ChatCompletion) (*Response
 func openAIUsageKnown(raw string) bool {
 	u := gjson.Get(raw, "usage")
 	return u.IsObject() && u.Get("prompt_tokens").Type == gjson.Number && u.Get("completion_tokens").Type == gjson.Number
+}
+
+// openAICachedInputTokens reads the cache read count of an OpenAI-shaped
+// usage object. DeepSeek reports it at the top level (prompt_cache_hit_tokens)
+// instead of prompt_tokens_details.cached_tokens; the first shape that names a
+// number wins, so a gateway that sends both is not double counted.
+func openAICachedInputTokens(raw string, nested int64) int {
+	if raw != "" {
+		if n := gjson.Get(raw, "usage.prompt_cache_hit_tokens"); n.Type == gjson.Number {
+			return int(n.Int())
+		}
+	}
+	return int(nested)
+}
+
+// isDeepSeekAPIBase reports the official DeepSeek hosts, including a
+// subdomain, but not the bare apex (a misconfiguration the endpoint rejects).
+func isDeepSeekAPIBase(raw string) bool {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || u.Hostname() == "" {
+		return false
+	}
+	host := strings.ToLower(u.Hostname())
+	return host == "api.deepseek.com" || strings.HasSuffix(host, ".deepseek.com")
 }
 
 // openAIReasoningText pulls the thinking text out of a non-streamed assistant

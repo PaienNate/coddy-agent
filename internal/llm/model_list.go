@@ -71,6 +71,8 @@ func defaultModelListBaseURL(providerType string) string {
 		return neuralDeepBaseURL
 	case "opencode":
 		return opencodeGoBaseURL
+	case "deepseek":
+		return "https://api.deepseek.com/v1"
 	default: // openai and openai-compatible
 		return "https://api.openai.com/v1"
 	}
@@ -106,7 +108,7 @@ func ListModels(ctx context.Context, in ProviderInput) ([]ModelEntry, error) {
 	}
 	var url string
 	switch in.Type {
-	case "openai", "anthropic", "neuraldeep", "opencode":
+	case "openai", "deepseek", "anthropic", "neuraldeep", "opencode":
 		if in.Type == "neuraldeep" {
 			// Same credential order as completions: explicit key wins, the
 			// stored hub login fills in when the key is absent.

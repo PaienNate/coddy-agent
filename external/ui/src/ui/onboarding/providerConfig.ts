@@ -10,6 +10,7 @@ export type ProviderPresetId =
   | "neuraldeep"
   | "codex"
   | "opencode"
+  | "deepseek"
   | "devin"
   | "kimi"
   | "acp";
@@ -25,6 +26,7 @@ export type ProviderPreset = {
     | "neuraldeep"
     | "codex"
     | "opencode"
+    | "deepseek"
     | "devin"
     | "kimi"
     | "acp";
@@ -40,6 +42,10 @@ export type ProviderPreset = {
   multimodal: boolean;
   defaultModel: string;
   maxContextTokens?: number;
+  maxTokens?: number;
+  reasoningLevels?: string[];
+  reasoningDefault?: string;
+  allowReasoningOff?: boolean;
   envKey?: string;
 };
 
@@ -92,6 +98,22 @@ export const PROVIDER_PRESETS: [ProviderPreset, ...ProviderPreset[]] = [
     multimodal: false,
     defaultModel: "opencode/gpt-5.5",
     envKey: "${OPENCODE_API_KEY}",
+  },
+  {
+    id: "deepseek",
+    label: "DeepSeek",
+    descriptionKey: "onboarding.provider.deepseek.description",
+    providerName: "deepseek",
+    providerType: "deepseek",
+    apiBase: "https://api.deepseek.com/v1",
+    multimodal: true,
+    defaultModel: "deepseek/deepseek-flash",
+    maxContextTokens: 1000000,
+    maxTokens: 65536,
+    reasoningLevels: ["low", "high", "max"],
+    reasoningDefault: "high",
+    allowReasoningOff: true,
+    envKey: "${DEEPSEEK_API_KEY}",
   },
   {
     id: "openai",
@@ -350,12 +372,17 @@ export function buildOnboardingConfig(input: {
         listed.context_window === listed.catalog.context_window)
         ? listed.catalog
         : undefined;
-    modelRow.max_tokens = catalog?.max_tokens ?? 8192;
+    modelRow.max_tokens = catalog?.max_tokens ?? preset.maxTokens ?? 8192;
     const contextWindow =
       listed?.context_window ||
       listed?.catalog?.context_window ||
       preset.maxContextTokens;
     if (contextWindow) modelRow.max_context_tokens = contextWindow;
+    if (preset.reasoningLevels?.length)
+      modelRow.reasoning_levels = [...preset.reasoningLevels];
+    if (preset.reasoningDefault)
+      modelRow.reasoning_default = preset.reasoningDefault;
+    if (preset.allowReasoningOff) modelRow.allow_reasoning_off = true;
     if (
       preset.providerType !== "kimi" ||
       listed?.kimi_image_input !== undefined
@@ -377,7 +404,7 @@ export function buildOnboardingConfig(input: {
       modelRow.reasoning_default = listed.kimi_default_reasoning;
     if (["openai", "codex", "devin"].includes(preset.id))
       modelRow.reasoning_default ??= "medium";
-    else modelRow.temperature = 0.2;
+    else if (preset.id !== "deepseek") modelRow.temperature = 0.2;
     models.push(modelRow);
   }
 

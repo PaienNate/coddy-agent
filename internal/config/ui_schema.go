@@ -279,8 +279,8 @@ func UISchemaMap() map[string]interface{} {
 		"type": map[string]interface{}{
 			"type":        "string",
 			"title":       "Provider type",
-			"description": "Wire protocol for this provider entry.",
-			"enum":        []string{"openai", "anthropic", "neuraldeep", "opencode", "codex", "devin", "kimi", "acp"},
+			"description": "Wire protocol for this provider entry. Use deepseek for the official DeepSeek API, with its thinking controls, prompt-cache accounting and V4 Flash/Pro presets; openai for any other OpenAI-compatible endpoint.",
+			"enum":        []string{"openai", "deepseek", "anthropic", "neuraldeep", "opencode", "codex", "devin", "kimi", "acp"},
 		},
 		"mode":          map[string]interface{}{"type": "string", "title": "Kimi mode", "description": "Kimi credential mode; empty selects subscription.", "enum": []string{"", "subscription", "platform"}},
 		"kimi_identity": strProp("Kimi identity", "Stable random identity of this Kimi provider row."),

@@ -35,7 +35,7 @@ type RequestOptions struct {
 // provider instead of the value being dropped on the way.
 func (o RequestOptions) Validate(providerType, model string) error {
 	if o.TopP != nil {
-		if providerType != "openai" {
+		if providerType != "openai" && providerType != "deepseek" {
 			return fmt.Errorf("top_p is not supported by provider type %s", providerType)
 		}
 		if *o.TopP < 0 || *o.TopP > 1 {

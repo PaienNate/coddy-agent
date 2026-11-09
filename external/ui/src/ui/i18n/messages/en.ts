@@ -476,7 +476,7 @@ export const messagesEn: Record<string, string> = {
     "Prefix of this provider's model ids, as in provider/model-id. Letters, digits, hyphen and underscore, starting with a letter.",
   "settings.schema.providers.type.label": "Provider type",
   "settings.schema.providers.type.desc":
-    "Wire protocol for this provider entry.",
+    "Wire protocol for this provider entry. Use deepseek for the official DeepSeek API, with its thinking controls, prompt-cache accounting and V4 Flash/Pro presets; openai for any other OpenAI-compatible endpoint.",
   "settings.schema.providers.api_base.label": "API base URL",
   "settings.schema.providers.api_base.ph": "https://api.openai.com/v1",
   "settings.schema.providers.api_base.desc":
@@ -1099,6 +1099,8 @@ export const messagesEn: Record<string, string> = {
     "Your ChatGPT subscription through OAuth",
   "onboarding.provider.opencode.description":
     "OpenCode Go or Console with account sign-in",
+  "onboarding.provider.deepseek.description":
+    "DeepSeek V4 Flash and Pro with thinking and prompt cache",
   "onboarding.provider.devin.description": "Devin models with browser sign-in",
   "onboarding.apiKey": "API key",
   "onboarding.showKey": "Show",

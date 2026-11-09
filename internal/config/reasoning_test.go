@@ -38,6 +38,10 @@ func TestResolvedReasoningLevelsAutoDetect(t *testing.T) {
 		// model, not the vendor (issue #258).
 		{"routerai/qwen/qwen3.8-flash", []string{"low", "medium", "high"}},
 		{"vllm/Qwen/Qwen3-32B", []string{"low", "medium", "high"}},
+		{"deepseek/deepseek-flash", []string{"low", "high", "max"}},
+		{"deepseek/deepseek-v4-flash", []string{"low", "high", "max"}},
+		{"deepseek/deepseek-v4-pro", []string{"high", "max"}},
+		{"deepseek/deepseek-v4.1-flash", []string{"low", "high", "max"}},
 		{"openrouter/openai/o3-mini", []string{"low", "medium", "high"}},
 		{"openrouter/openai/gpt-5", []string{"minimal", "low", "medium", "high"}},
 		{"openrouter/anthropic/claude-sonnet-4-5", []string{"low", "medium", "high"}},

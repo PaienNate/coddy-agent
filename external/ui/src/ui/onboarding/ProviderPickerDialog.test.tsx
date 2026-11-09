@@ -577,6 +577,7 @@ describe("ProviderPickerDialog", () => {
     expect(drawn()).toEqual([
       "provider-card-neuraldeep",
       "provider-card-opencode",
+      "provider-card-deepseek",
       "provider-card-openai",
       "provider-card-anthropic",
       "provider-card-codex",
@@ -646,7 +647,7 @@ describe("ProviderPickerDialog", () => {
     const grid = screen.getByTestId("provider-grid");
     // Every provider is in the page; the window over them is the grid's own,
     // so nothing is hidden behind a word.
-    expect(grid.querySelectorAll(".provider-picker-card")).toHaveLength(9);
+    expect(grid.querySelectorAll(".provider-picker-card")).toHaveLength(10);
     expect(screen.queryByTestId("provider-more-toggle")).toBeNull();
     // A card lower down is reachable without opening anything.
     fireEvent.click(screen.getByTestId("provider-card-acp"));

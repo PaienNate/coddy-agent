@@ -393,6 +393,15 @@ func providerBaseURL(providerType, configured string) string {
 		// process as a whole for tests and stands.
 		return opencodeAPIBase(configured)
 	}
+	if providerType == "deepseek" {
+		// One official host, and the /v1 prefix the OpenAI-shaped API lives
+		// under. A custom gateway of the deepseek type may still be named, but
+		// the official default needs no api_base in config.yaml.
+		if base := strings.TrimSpace(configured); base != "" {
+			return base
+		}
+		return "https://api.deepseek.com/v1"
+	}
 	return strings.TrimSpace(configured)
 }
 
@@ -427,6 +436,13 @@ func NewProvider(p ProviderInput) (Provider, error) {
 		op.tempSet = p.TemperatureSet
 		op.topP = p.TopP
 		op.modelParams = p.SupportedParameters
+		inner = op
+	case "deepseek":
+		op := newOpenAIProvider(p.Model, p.APIKey, providerBaseURL(p.Type, p.BaseURL), hc, p.MaxTokens, p.Temperature, p.ReasoningEffort, p.UserAgent)
+		op.tempSet = p.TemperatureSet
+		op.topP = p.TopP
+		op.modelParams = p.SupportedParameters
+		op.deepseek = true
 		inner = op
 	case "anthropic":
 		ap := newAnthropicProvider(p.Model, p.APIKey, providerBaseURL(p.Type, p.BaseURL), hc, p.MaxTokens, p.Temperature, p.ReasoningEffort, p.UserAgent)

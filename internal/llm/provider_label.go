@@ -28,6 +28,11 @@ func ProviderEndpoint(providerType, configured string) string {
 	switch providerType {
 	case "neuraldeep":
 		return neuralDeepAPIBase(configured)
+	case "deepseek":
+		if base := strings.TrimSpace(configured); base != "" {
+			return base
+		}
+		return "https://api.deepseek.com/v1"
 	case "opencode":
 		return opencodeAPIBase(configured)
 	case "codex":

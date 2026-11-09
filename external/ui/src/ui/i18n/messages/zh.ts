@@ -423,7 +423,8 @@ export const messagesZh: Record<string, string> = {
   "settings.schema.providers.name.desc":
     "此提供商模型 id 的前缀，例如 provider/model-id。允许字母、数字、连字符和下划线，并以字母开头。",
   "settings.schema.providers.type.label": "提供商类型",
-  "settings.schema.providers.type.desc": "此提供商条目的通信协议。",
+  "settings.schema.providers.type.desc":
+    "此提供商条目的通信协议。官方 DeepSeek API 使用 deepseek，以获得思考控制、提示词缓存统计和 V4 Flash/Pro 预设；其他 OpenAI 兼容端点使用 openai。",
   "settings.schema.providers.api_base.label": "API 基础 URL",
   "settings.schema.providers.api_base.ph": "https://api.openai.com/v1",
   "settings.schema.providers.api_base.desc":
@@ -1010,6 +1011,8 @@ export const messagesZh: Record<string, string> = {
   "onboarding.provider.codex.description": "通过 OAuth 使用你的 ChatGPT 订阅",
   "onboarding.provider.opencode.description":
     "使用账户登录的 OpenCode Go 或 Console",
+  "onboarding.provider.deepseek.description":
+    "DeepSeek V4 Flash 和 Pro，支持思考与提示词缓存",
   "onboarding.provider.devin.description": "使用浏览器登录的 Devin 模型",
   "onboarding.apiKey": "API 密钥",
   "onboarding.showKey": "显示",

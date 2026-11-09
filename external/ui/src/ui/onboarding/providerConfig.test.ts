@@ -17,6 +17,7 @@ describe("PROVIDER_PRESETS", () => {
     expect(PROVIDER_PRESETS.map((item) => item.id)).toEqual([
       "neuraldeep",
       "opencode",
+      "deepseek",
       "openai",
       "anthropic",
       "codex",
@@ -29,6 +30,40 @@ describe("PROVIDER_PRESETS", () => {
 });
 
 describe("buildOnboardingConfig", () => {
+  it("writes DeepSeek thinking and cache defaults", () => {
+    const doc = buildOnboardingConfig({
+      preset: preset("deepseek"),
+      apiKey: "sk-deepseek",
+      apiBase: "",
+      proxy: "",
+      modelId: "deepseek-flash",
+      baseDoc: {},
+      catalog: [],
+      managedLogin: false,
+    });
+    expect(doc.providers).toContainEqual(
+      expect.objectContaining({
+        name: "deepseek",
+        type: "deepseek",
+        api_base: "https://api.deepseek.com/v1",
+      }),
+    );
+    expect(doc.models).toContainEqual(
+      expect.objectContaining({
+        model: "deepseek/deepseek-flash",
+        max_tokens: 65536,
+        max_context_tokens: 1000000,
+        multimodal: true,
+        reasoning_levels: ["low", "high", "max"],
+        reasoning_default: "high",
+        allow_reasoning_off: true,
+      }),
+    );
+    expect(
+      (doc.models as Array<Record<string, unknown>>)[0],
+    ).not.toHaveProperty("temperature");
+  });
+
   it("merges the selected provider and model without dropping existing rows", () => {
     const doc = buildOnboardingConfig({
       preset: preset("openai"),

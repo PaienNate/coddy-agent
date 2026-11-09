@@ -1116,6 +1116,8 @@ func TestProviderEndpointResolvesDefaults(t *testing.T) {
 		{"openai with api_base", "openai", "https://api.rpa.icu/v1", "https://api.rpa.icu/v1"},
 		{"openai trims blanks", "openai", "  https://proxy.test/v1  ", "https://proxy.test/v1"},
 		{"anthropic without api_base", "anthropic", "", "https://api.anthropic.com"},
+		{"deepseek without api_base", "deepseek", "", "https://api.deepseek.com/v1"},
+		{"deepseek with api_base", "deepseek", "https://proxy.test/v1", "https://proxy.test/v1"},
 		{"neuraldeep pins its deployment", "neuraldeep", "", NeuralDeepDefaultAPIBase()},
 		{"unknown type reports nothing", "made-up", "", ""},
 	}
@@ -1388,5 +1390,53 @@ func TestFallbackChainOfOneIsTheProviderItself(t *testing.T) {
 	}
 	if got := NewFallbackChain(nil, nil); got != nil {
 		t.Fatalf("an empty chain must be nil, got %T", got)
+	}
+}
+
+// DeepSeek reports prompt cache reads at the top level of usage, not under
+// prompt_tokens_details. A turn that hits the cache must count them.
+func TestOpenAICompletionReportsDeepSeekCacheHitTokens(t *testing.T) {
+	body := map[string]interface{}{
+		"id":      "c1",
+		"object":  "chat.completion",
+		"model":   "deepseek-flash",
+		"choices": []interface{}{map[string]interface{}{"index": 0, "finish_reason": "stop", "message": map[string]interface{}{"role": "assistant", "content": "hi"}}},
+		"usage": map[string]interface{}{
+			"prompt_tokens":            1000,
+			"completion_tokens":        8,
+			"total_tokens":             1008,
+			"prompt_cache_hit_tokens":  640,
+			"prompt_cache_miss_tokens": 360,
+		},
+	}
+	p := openAIStubProvider(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(body)
+	})
+	resp, err := p.Complete(context.Background(), []Message{{Role: RoleUser, Content: "hello"}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.CachedInputTokens != 640 {
+		t.Fatalf("cached input tokens: got %d, want 640", resp.CachedInputTokens)
+	}
+}
+
+func TestOpenAIStreamReportsDeepSeekCacheHitTokens(t *testing.T) {
+	const script = "data: {\"choices\":[{\"finish_reason\":\"stop\",\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"hi\"}}],\"id\":\"c1\",\"model\":\"deepseek-flash\",\"object\":\"chat.completion.chunk\"}\n\n" +
+		"data: {\"choices\":[],\"id\":\"c1\",\"model\":\"deepseek-flash\",\"object\":\"chat.completion.chunk\",\"usage\":{\"prompt_tokens\":1000,\"completion_tokens\":8,\"total_tokens\":1008,\"prompt_cache_hit_tokens\":640,\"prompt_cache_miss_tokens\":360}}\n\n" +
+		"data: [DONE]\n\n"
+	p := openAIStubProvider(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, script)
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	resp, err := p.Stream(ctx, []Message{{Role: RoleUser, Content: "hello"}}, nil, func(StreamChunk) {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.CachedInputTokens != 640 {
+		t.Fatalf("cached input tokens: got %d, want 640", resp.CachedInputTokens)
 	}
 }

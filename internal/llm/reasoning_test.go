@@ -412,3 +412,39 @@ func TestBuildParamsReasoningOff(t *testing.T) {
 		t.Errorf("codex off = %q, want none", got)
 	}
 }
+
+// DeepSeek V4 takes thinking.type plus reasoning_effort for depth, keeps the
+// OpenAI max_tokens spelling, and turns thinking off with thinking.type alone.
+func TestDeepSeekBuildParamsThinking(t *testing.T) {
+	msgs := []Message{{Role: RoleUser, Content: "hi"}}
+	p := newOpenAIProvider("deepseek-flash", "", "https://api.deepseek.com/v1", nil, 65536, 0, "high", "")
+	p.deepseek = true
+	body, err := json.Marshal(p.buildParams(msgs, nil, true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`"thinking":{"type":"enabled"}`,
+		`"reasoning_effort":"high"`,
+		`"max_tokens":65536`,
+	} {
+		if !strings.Contains(string(body), want) {
+			t.Errorf("DeepSeek request lacks %s: %s", want, body)
+		}
+	}
+	if strings.Contains(string(body), "max_completion_tokens") {
+		t.Errorf("DeepSeek request must use max_tokens: %s", body)
+	}
+
+	p.reasoningEffort = "off"
+	body, err = json.Marshal(p.buildParams(msgs, nil, true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(body), `"thinking":{"type":"disabled"}`) {
+		t.Errorf("DeepSeek off request lacks thinking disabled: %s", body)
+	}
+	if strings.Contains(string(body), "reasoning_effort") {
+		t.Errorf("DeepSeek off request must omit the depth hint: %s", body)
+	}
+}

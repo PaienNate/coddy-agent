@@ -485,7 +485,7 @@ export const messagesRu: Record<string, string> = {
     "Префикс идентификаторов моделей этого провайдера, как в provider/model-id. Латинские буквы, цифры, дефис и подчёркивание, первая буква.",
   "settings.schema.providers.type.label": "Тип провайдера",
   "settings.schema.providers.type.desc":
-    "Сетевой протокол для этой записи провайдера.",
+    "Сетевой протокол для этой записи провайдера. Используйте deepseek для официального API DeepSeek с управлением рассуждением, учётом кэша промптов и пресетами V4 Flash/Pro; openai для любого другого OpenAI-совместимого эндпоинта.",
   "settings.schema.providers.api_base.label": "Базовый URL API",
   "settings.schema.providers.api_base.ph": "https://api.openai.com/v1",
   "settings.schema.providers.api_base.desc":
@@ -1123,6 +1123,8 @@ export const messagesRu: Record<string, string> = {
   "onboarding.provider.neuraldeep.description": "Ваша подписка или API-ключ",
   "onboarding.provider.codex.description": "Ваша подписка через OAuth",
   "onboarding.provider.opencode.description": "Ваша подписка Go или Console",
+  "onboarding.provider.deepseek.description":
+    "DeepSeek V4 Flash и Pro с рассуждением и кэшем промптов",
   "onboarding.provider.devin.description": "Подписка Devin со входом в аккаунт",
   "onboarding.apiKey": "Ключ API",
   "onboarding.showKey": "Показать",

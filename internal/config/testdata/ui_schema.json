@@ -1255,9 +1255,10 @@
           },
           "type": {
             "default": "openai",
-            "description": "Wire protocol for this provider entry.",
+            "description": "Wire protocol for this provider entry. Use deepseek for the official DeepSeek API, with its thinking controls, prompt-cache accounting and V4 Flash/Pro presets; openai for any other OpenAI-compatible endpoint.",
             "enum": [
               "openai",
+              "deepseek",
               "anthropic",
               "neuraldeep",
               "opencode",

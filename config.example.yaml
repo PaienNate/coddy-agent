@@ -134,18 +134,35 @@ providers:
   #     # env: {OPENAI_API_KEY: "${OPENAI_API_KEY}"}
   #     # process: per_session            # zcode-acp-server: one prompt at a time per process
 
-  # OpenAI-compatible (DeepSeek, Groq, Together, etc.)
-  # Use type openai and include /v1 in api_base.
+  # DeepSeek's official API (type deepseek): thinking controls, prompt-cache
+  # accounting and V4 Flash/Pro defaults.
   # - name: deepseek
-  #   type: openai
+  #   type: deepseek
   #   api_base: "https://api.deepseek.com/v1"
   #   api_key: "${DEEPSEEK_API_KEY}"
+
+  # Any other OpenAI-compatible endpoint (Groq, Together, a local server, etc.)
+  # Use type openai and include /v1 in api_base.
 
 models:
   - model: "openai/gpt-5.6-terra"
     max_tokens: 8192
     reasoning_default: medium     # a reasoning model takes a level, not a temperature
     multimodal: true              # model accepts image/file inputs; UI shows file attachment button; read shows it image files
+
+  # - model: "deepseek/deepseek-flash"
+  #   max_tokens: 65536
+  #   max_context_tokens: 1000000
+  #   multimodal: true
+  #   reasoning_levels: [low, high, max]
+  #   reasoning_default: high
+  #   allow_reasoning_off: true     # thinking.type=disabled; the API honours it
+  # - model: "deepseek/deepseek-v4-pro"
+  #   max_tokens: 65536
+  #   max_context_tokens: 1000000
+  #   reasoning_levels: [high, max]
+  #   reasoning_default: high
+  #   allow_reasoning_off: true
 
   # Reasoning models expose a reasoning-level selector in the composer.
   # Levels are auto-detected from the model id (gpt-5*/gpt-6* -> minimal,low,medium,high;

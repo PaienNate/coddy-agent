@@ -201,9 +201,26 @@ func detectReasoningLevels(apiModel string) []string {
 		return append([]string(nil), reasoningStandard...)
 	case isQwenThinking(id):
 		return append([]string(nil), reasoningStandard...)
+	case isDeepSeekFlash(id):
+		return []string{ReasoningLow, ReasoningHigh, "max"}
+	case isDeepSeekPro(id):
+		return []string{ReasoningHigh, "max"}
 	default:
 		return nil
 	}
+}
+
+// isDeepSeekFlash matches the DeepSeek Flash ids the official API serves,
+// including the retired names that still answer as the same model.
+func isDeepSeekFlash(id string) bool {
+	return strings.HasPrefix(id, "deepseek-flash") ||
+		strings.HasPrefix(id, "deepseek-v4-flash") ||
+		strings.HasPrefix(id, "deepseek-v4.1-flash")
+}
+
+// isDeepSeekPro matches DeepSeek's text-only Pro model.
+func isDeepSeekPro(id string) bool {
+	return strings.HasPrefix(id, "deepseek-v4-pro")
 }
 
 // isOpenAIOSeries matches OpenAI reasoning models named o1/o3/o4 (optionally with a suffix like -mini).

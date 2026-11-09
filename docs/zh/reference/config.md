@@ -51,7 +51,7 @@ VS Code（配合 YAML 扩展）、Zed、Neovim 和 Helix 会自动读取此注�
 |-----|------|--------|------|
 | `providers` | 对象列表 |  | 上游 LLM 供应商的 API 凭据和传输选择。当 api_key 为空时，运行时读取 NAME_API_KEY 环境变量（NAME 是提供商名称的大写形式，连字符映射为下划线）；type 为 "codex" 的行使用 ChatGPT 登录并且不读取密钥，Kimi 订阅也不读取 API 密钥。 |
 | `providers[].name` | 字符串 |  | 用作 models[].model 第一段的逻辑 id。ASCII 字母、数字、连字符、下划线；必须以字母开头。 |
-| `providers[].type` | 字符串，可选值：`openai`, `anthropic`, `neuraldeep`, `opencode`, `codex`, `devin`, `kimi`, `acp` |  | 此提供商的通信协议。对于可配置的兼容 OpenAI 的端点（OpenAI、DeepSeek、Groq、Ollama、llama.cpp、LM Studio），使用 "openai"；对于 Anthropic，使用 "anthropic"；对于 NeuralDeep 在其两个官方部署之一提供的兼容 OpenAI 的 API（通过 api_base 选择），使用 "neuraldeep"；对于 OpenCode Go/Console 网关（账户设备登录或服务账户密钥，其模型按模型 id 和网关通过 Responses、Anthropic、Google 或兼容 OpenAI 的协议提供；api_base 选择 Go 或 Console），使用 "opencode"；对于针对官方 Codex 后端（Responses API）的 ChatGPT OAuth，使用 "codex"；对于通过浏览器或 Devin CLI 登录的 Devin（Cognition）账户，由 Devin API 服务器提供服务（参见 https://coddy.dev/docs/features/devin），使用 "devin"；对于 Kimi Code 订阅或 Kimi Platform 密钥（参见 https://coddy.dev/docs/features/kimi），使用 "kimi"；或者对于在 stdio 上使用 Agent Client Protocol 的本地智能体（claude-agent-acp、codex-acp、opencode acp、coddy acp），使用 "acp"，并在 acp 块中命名；参见 https://coddy.dev/docs/features/acp-provider。 |
+| `providers[].type` | 字符串，可选值：`openai`, `deepseek`, `anthropic`, `neuraldeep`, `opencode`, `codex`, `devin`, `kimi`, `acp` |  | 此提供商条目的通信协议。官方 DeepSeek API 使用 deepseek，以获得思考控制、提示词缓存统计和 V4 Flash/Pro 预设；其他 OpenAI 兼容端点使用 openai。 |
 | `providers[].mode` | 字符串，可选值：`""`, `subscription`, `platform` |  | Kimi 凭据模式。省略表示订阅。 |
 | `providers[].region` | 字符串，可选值：`""`, `global`, `china` |  | Kimi 区域。省略表示全球。 |
 | `providers[].kimi_identity` | 字符串 |  | 此 Kimi 提供商行的稳定随机标识，用于隔离受管凭据。 |

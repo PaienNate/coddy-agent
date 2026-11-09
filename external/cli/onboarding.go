@@ -605,11 +605,23 @@ func providerSetupCommands(cfg *config.Config, run *providerSetupRun, ref string
 	}
 	if cfg.FindModelEntry(ref) == nil {
 		entry := map[string]any{"model": ref}
+		if run.preset.MaxTokens > 0 {
+			entry["max_tokens"] = run.preset.MaxTokens
+		}
 		switch {
 		case listed != nil && listed.ContextWindow > 0:
 			entry["max_context_tokens"] = listed.ContextWindow
 		case run.preset.MaxContextTokens > 0:
 			entry["max_context_tokens"] = run.preset.MaxContextTokens
+		}
+		if len(run.preset.ReasoningLevels) > 0 {
+			entry["reasoning_levels"] = run.preset.ReasoningLevels
+		}
+		if run.preset.ReasoningDefault != "" {
+			entry["reasoning_default"] = run.preset.ReasoningDefault
+		}
+		if run.preset.AllowReasoningOff {
+			entry["allow_reasoning_off"] = true
 		}
 		// Whether a model reads images is the model's own property, not the
 		// preset's: a text-only endpoint behind the OpenAI-compatible preset

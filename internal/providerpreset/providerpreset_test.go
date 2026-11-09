@@ -118,6 +118,7 @@ func TestDefaultAPIBase(t *testing.T) {
 	for id, want := range map[string]string{
 		"neuraldeep": "https://api.neuraldeep.ru/v1",
 		"opencode":   "https://opencode.ai/inference/go/v1",
+		"deepseek":   "https://api.deepseek.com/v1",
 		"compatible": "",
 		"openai":     "",
 		"acp":        "",

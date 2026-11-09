@@ -580,7 +580,7 @@ func (p *openAIProvider) Stream(ctx context.Context, messages []Message, tools [
 				usageKnown = true
 				inputTokens = int(chunk.Usage.PromptTokens)
 				outputTokens = int(chunk.Usage.CompletionTokens)
-				cachedInputTokens = int(chunk.Usage.PromptTokensDetails.CachedTokens)
+				cachedInputTokens = openAICachedInputTokens(string(payload), chunk.Usage.PromptTokensDetails.CachedTokens)
 				reasoningTokens = int(chunk.Usage.CompletionTokensDetails.ReasoningTokens)
 			}
 			continue
@@ -635,7 +635,7 @@ func (p *openAIProvider) Stream(ctx context.Context, messages []Message, tools [
 			usageKnown = true
 			inputTokens = int(chunk.Usage.PromptTokens)
 			outputTokens = int(chunk.Usage.CompletionTokens)
-			cachedInputTokens = int(chunk.Usage.PromptTokensDetails.CachedTokens)
+			cachedInputTokens = openAICachedInputTokens(string(payload), chunk.Usage.PromptTokensDetails.CachedTokens)
 			reasoningTokens = int(chunk.Usage.CompletionTokensDetails.ReasoningTokens)
 		}
 	}

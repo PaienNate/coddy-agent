@@ -58,6 +58,17 @@ type Preset struct {
 	DefaultModel string
 	// MaxContextTokens is the window of DefaultModel, 0 when unknown.
 	MaxContextTokens int
+	// MaxTokens is the output budget written for DefaultModel, 0 when the
+	// model catalog or the backend default decides.
+	MaxTokens int
+	// ReasoningLevels are the levels the DefaultModel offers, nil when the
+	// provider has no reasoning control.
+	ReasoningLevels []string
+	// ReasoningDefault is the level a new model row starts on.
+	ReasoningDefault string
+	// AllowReasoningOff exposes the off pseudo-level where the provider can
+	// turn thinking off.
+	AllowReasoningOff bool
 	// EnvKey is the conventional variable the key may come from, shown as the
 	// hint of the key field. It is never written into config.yaml: saving one
 	// would escape the "$" and send the placeholder as the bearer token.
@@ -116,6 +127,22 @@ var Presets = []Preset{
 		APIBases:     OpenCodeAPIBases,
 		DefaultModel: "opencode/gpt-5.5",
 		EnvKey:       "OPENCODE_API_KEY",
+	},
+	{
+		ID:                "deepseek",
+		Label:             "DeepSeek",
+		Description:       "DeepSeek V4 Flash and Pro with thinking and prompt cache",
+		ProviderName:      "deepseek",
+		ProviderType:      "deepseek",
+		APIBaseDefault:    "https://api.deepseek.com/v1",
+		Multimodal:        true,
+		DefaultModel:      "deepseek/deepseek-flash",
+		MaxContextTokens:  1000000,
+		MaxTokens:         65536,
+		ReasoningLevels:   []string{"low", "high", "max"},
+		ReasoningDefault:  "high",
+		AllowReasoningOff: true,
+		EnvKey:            "DEEPSEEK_API_KEY",
 	},
 	{
 		ID:           "openai",

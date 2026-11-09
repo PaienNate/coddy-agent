@@ -23,6 +23,7 @@ var validProviderName = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]*$`)
 // AllowedLLMProviderTypes lists provider kinds accepted in YAML (internal/llm.NewProvider).
 var AllowedLLMProviderTypes = map[string]struct{}{
 	"openai":     {},
+	"deepseek":   {},
 	"anthropic":  {},
 	"neuraldeep": {},
 	"opencode":   {},

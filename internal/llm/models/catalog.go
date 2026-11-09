@@ -67,7 +67,7 @@ func Lookup(id string) (Limits, bool) {
 // numbers over a gateway's, which rounds or cuts them. NeuralDeep reports its
 // windows itself and needs no catalog.
 var providers = map[string]bool{
-	"openai": true, "anthropic": true,
+	"openai": true, "anthropic": true, "deepseek": true,
 	"opencode": false, "opencode-go": false,
 }
 
