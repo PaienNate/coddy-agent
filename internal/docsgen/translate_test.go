@@ -233,6 +233,30 @@ func TestRussianConfigReferenceUsesTheTranslation(t *testing.T) {
 	}
 }
 
+func TestChineseConfigReferenceUsesTheTranslation(t *testing.T) {
+	schema := `{"type":"object","properties":{
+	  "logger":{"type":"object","description":"Logging.","properties":{
+	    "level":{"type":"string","enum":["debug","info"],"description":"Verbosity."},
+	    "outputs":{"type":"array","items":{"type":"string"},"description":"Sinks."}}},
+	  "agent":{"type":"object","properties":{"max_turns":{"type":["integer","null"],"description":"Cap."}}}}}`
+	zh := map[string]string{"logger": "日志。", "logger.level": "详细程度。", "logger.outputs": "输出。", "agent.max_turns": "上限。"}
+	out, err := ConfigReferenceLang([]byte(schema), map[string]string{"logger.level": "info"}, "zh", zh)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"### `logger`\n\n日志。",
+		"| 键 | 类型 | 默认值 | 说明 |",
+		"| `logger.level` | 字符串，可选值：`debug`, `info` | info | 详细程度。 |",
+		"| `logger.outputs` | 字符串列表 |  | 输出。 |",
+		"| `agent.max_turns` | 整数 或 null |  | 上限。 |",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+}
+
 func TestRussianHubLinksRootPagesFromItsFolder(t *testing.T) {
 	root := translatedTree(t)
 	nav, err := LoadNav(root)
@@ -304,7 +328,7 @@ func TestSiteRendersTheRussianLayer(t *testing.T) {
 		t.Fatal(err)
 	}
 	js := files[SiteRedirectScript]
-	for _, want := range []string{`(?:([a-z]{2})\/)?docs`, `var LANGS = ["ru"];`, `"docs/" + (lang ? lang + "/" : "")`, "docs-anchors-"} {
+	for _, want := range []string{`(?:([a-z]{2})\/)?docs`, `var LANGS = ["ru","zh"];`, `"docs/" + (lang ? lang + "/" : "")`, "docs-anchors-"} {
 		if !strings.Contains(js, want) {
 			t.Errorf("redirect script lacks %q:\n%s", want, js)
 		}

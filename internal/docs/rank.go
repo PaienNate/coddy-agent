@@ -323,6 +323,10 @@ func eachToken(s string, forms bool, emit func(string)) {
 
 func eachWord(w string, forms bool, emit func(string)) {
 	w = lower(strings.Trim(w, "_"))
+	if strings.ContainsFunc(w, func(r rune) bool { return unicode.Is(unicode.Han, r) }) {
+		eachHanWord(w, forms, emit)
+		return
+	}
 	if !isASCII(w) {
 		// Russian is written with and without the dots over ё; the index
 		// keeps one spelling.
@@ -336,6 +340,41 @@ func eachWord(w string, forms bool, emit func(string)) {
 	emit(w)
 	for _, part := range strings.Split(w, "_") {
 		eachStem(part, forms, emit)
+	}
+}
+
+// eachHanWord indexes a run that holds Chinese characters. Chinese is written
+// without spaces, so a section is split into overlapping two-character words
+// (and a one-character run as itself); the whole run is kept as well, so an
+// exact phrase of any length matches before its bigrams do. Latin or digit
+// segments inside the run are indexed the ordinary way.
+func eachHanWord(w string, forms bool, emit func(string)) {
+	runes := []rune(w)
+	for i := 0; i < len(runes); {
+		if unicode.Is(unicode.Han, runes[i]) {
+			j := i + 1
+			for j < len(runes) && unicode.Is(unicode.Han, runes[j]) {
+				j++
+			}
+			run := runes[i:j]
+			if len(run) == 1 {
+				emit(string(run))
+			} else {
+				emit(string(run))
+				for k := 0; k+1 < len(run); k++ {
+					emit(string(run[k : k+2]))
+				}
+			}
+			i = j
+			continue
+		}
+		j := i + 1
+		for j < len(runes) && !unicode.Is(unicode.Han, runes[j]) &&
+			(unicode.IsLetter(runes[j]) || unicode.IsDigit(runes[j]) || runes[j] == '_') {
+			j++
+		}
+		eachStem(string(runes[i:j]), forms, emit)
+		i = j
 	}
 }
 

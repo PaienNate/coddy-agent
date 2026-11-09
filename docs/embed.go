@@ -10,10 +10,11 @@ package docs
 import "embed"
 
 // FS holds nav.yaml and the Markdown pages of the documentation groups, and
-// the same for the Russian translation. A new group directory has to be
-// added to the pattern below in both trees: the tests of internal/docs fail
-// when a page of the map is missing from either.
+// the same for the Russian and Chinese translations. A new group directory has
+// to be added to the pattern below in every tree: the tests of internal/docs
+// fail when a page of the map is missing from any of them.
 //
 //go:embed nav.yaml getting-started/*.md surfaces/*.md operate/*.md features/*.md reference/*.md tutorials/*.md contributing/*.md
 //go:embed ru/nav.yaml ru/getting-started/*.md ru/surfaces/*.md ru/operate/*.md ru/features/*.md ru/reference/*.md ru/tutorials/*.md ru/contributing/*.md
+//go:embed zh/nav.yaml zh/getting-started/*.md zh/surfaces/*.md zh/operate/*.md zh/features/*.md zh/reference/*.md zh/tutorials/*.md zh/contributing/*.md
 var FS embed.FS

@@ -82,6 +82,7 @@ func ConfigReference(schemaJSON []byte, defaults map[string]string) (string, err
 var tableHeaders = map[string]string{
 	"en": "| Key | Type | Default | Description |\n|-----|------|---------|-------------|\n",
 	"ru": "| Ключ | Тип | По умолчанию | Описание |\n|-----|-----|--------------|----------|\n",
+	"zh": "| 键 | 类型 | 默认值 | 说明 |\n|-----|------|--------|------|\n",
 }
 
 // ConfigReferenceLang renders the field tables in a language: its table
@@ -122,8 +123,9 @@ func ConfigReferenceLang(schemaJSON []byte, defaults map[string]string, lang str
 	return strings.TrimLeft(b.String(), "\n"), nil
 }
 
-// typeWords are the Russian names of the type column's words, longest first
-// so "list of objects" is not read as "list" and "object".
+// typeWords are the names of the type column's words in each language, longest
+// first so "list of objects" is not read as "list" and "object". The last two
+// pairs are the joiners: " or null" and ", one of ".
 var typeWords = map[string][][2]string{
 	"ru": {
 		{"list of objects", "список объектов"}, {"list of strings", "список строк"},
@@ -134,6 +136,16 @@ var typeWords = map[string][][2]string{
 		{"list", "список"}, {"map", "словарь"}, {"string", "строка"}, {"integer", "целое число"},
 		{"number", "число"}, {"boolean", "логическое значение"}, {"object", "объект"}, {"any", "любой тип"},
 		{" or null", " или null"}, {", one of ", ", одно из "},
+	},
+	"zh": {
+		{"list of objects", "对象列表"}, {"list of strings", "字符串列表"},
+		{"list of integers", "整数列表"}, {"list of numbers", "数字列表"},
+		{"list of booleans", "布尔值列表"}, {"map of strings", "字符串映射"},
+		{"map of integers", "整数映射"}, {"map of numbers", "数字映射"},
+		{"map of booleans", "布尔值映射"}, {"map of objects", "对象映射"},
+		{"list", "列表"}, {"map", "映射"}, {"string", "字符串"}, {"integer", "整数"},
+		{"number", "数字"}, {"boolean", "布尔值"}, {"object", "对象"}, {"any", "任意类型"},
+		{" or null", " 或 null"}, {", one of ", "，可选值："},
 	},
 }
 
@@ -146,7 +158,7 @@ func localizeType(kind, lang string) string {
 	}
 	head, enum, hasEnum := strings.Cut(kind, ", one of ")
 	for _, w := range words {
-		if w[0] == ", one of " {
+		if w[0] == ", one of " || w[0] == " or null" {
 			continue
 		}
 		if head == w[0] || strings.HasPrefix(head, w[0]+" ") {
@@ -154,9 +166,9 @@ func localizeType(kind, lang string) string {
 			break
 		}
 	}
-	head = strings.Replace(head, " or null", " или null", 1)
+	head = strings.Replace(head, " or null", words[len(words)-2][1], 1)
 	if hasEnum {
-		return head + ", одно из " + enum
+		return head + words[len(words)-1][1] + enum
 	}
 	return head
 }

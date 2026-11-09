@@ -155,7 +155,8 @@ func tokenizeUnit(src unitSource) (unit, Terms) {
 // Search ranks the sections of the documentation against a query with
 // BM25F over the page title, the section heading and the body. Words are
 // matched case-insensitively after stemming (a light English one for Latin
-// words, Snowball for Russian ones, ё read as е), and a query
+// words, Snowball for Russian ones, ё read as е); Chinese is written without
+// spaces and is indexed as overlapping two-character words, and a query
 // word of three letters or more also finds the words it begins, so a query
 // typed letter by letter finds pages before it is finished. At most three
 // sections of one page are returned; limit 0 means ten.

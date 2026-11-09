@@ -76,6 +76,7 @@ func CLIReference(binary, tags string) (string, error) {
 		out, _ := cmd.CombinedOutput()
 		text := strings.TrimRight(string(out), "\n")
 		text = strings.ReplaceAll(text, binary, "coddy")
+		text = dropHelpNoise(text)
 		if text == "" {
 			return "", fmt.Errorf("%s printed nothing", strings.Join(append([]string{"coddy"}, s.Args...), " "))
 		}
@@ -85,4 +86,20 @@ func CLIReference(binary, tags string) (string, error) {
 		fmt.Fprintf(&b, "### %s\n\n```text\n%s\n```\n", s.Title, text)
 	}
 	return b.String(), nil
+}
+
+// dropHelpNoise removes process-start log lines that are not part of the help
+// screen. The VictoriaMetrics PSI collector logs an INFO line on machines
+// whose cgroup does not expose pressure files; keeping it would make the
+// reference depend on the machine that generated it.
+func dropHelpNoise(text string) string {
+	lines := strings.Split(text, "\n")
+	out := lines[:0]
+	for _, line := range lines {
+		if strings.Contains(line, "INFO: metrics: disable exposing PSI metrics because of failed init:") {
+			continue
+		}
+		out = append(out, line)
+	}
+	return strings.Join(out, "\n")
 }

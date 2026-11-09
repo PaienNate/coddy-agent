@@ -18,6 +18,10 @@ func TestLangTakesEverySpellingOfALocale(t *testing.T) {
 		"ru-RU":       Russian,
 		"ru_RU.UTF-8": Russian,
 		"ru_UA":       Russian,
+		"zh":          Chinese,
+		"ZH":          Chinese,
+		"zh-CN":       Chinese,
+		"zh_CN.UTF-8": Chinese,
 		"en":          English,
 		"en_US.UTF-8": English,
 		"":            English,
@@ -31,14 +35,14 @@ func TestLangTakesEverySpellingOfALocale(t *testing.T) {
 			t.Errorf("Lang(%q) = %q, want %q", in, got, want)
 		}
 	}
-	if !reflect.DeepEqual(Languages, []string{English, Russian}) {
+	if !reflect.DeepEqual(Languages, []string{English, Russian, Chinese}) {
 		t.Fatalf("Languages = %v", Languages)
 	}
 }
 
 // KnownLang names a documentation language only for a locale written in one.
 func TestKnownLangNamesOnlyTheLanguagesOfTheDocumentation(t *testing.T) {
-	for in, want := range map[string]string{"ru": Russian, "ru_RU.UTF-8": Russian, "en-GB": English, "EN": English, "uk": "", "de_DE": "", "": "", "C": ""} {
+	for in, want := range map[string]string{"ru": Russian, "ru_RU.UTF-8": Russian, "zh": Chinese, "zh-CN": Chinese, "en-GB": English, "EN": English, "uk": "", "de_DE": "", "": "", "C": ""} {
 		got, ok := KnownLang(in)
 		if got != want || ok != (want != "") {
 			t.Errorf("KnownLang(%q) = %q, %v; want %q", in, got, ok, want)
@@ -58,6 +62,7 @@ func TestLangFromEnvFollowsThePOSIXOrder(t *testing.T) {
 	}{
 		{map[string]string{"LANG": "ru_RU.UTF-8"}, Russian},
 		{map[string]string{"LANG": "en_US.UTF-8"}, English},
+		{map[string]string{"LANG": "zh_CN.UTF-8"}, Chinese},
 		{map[string]string{"LC_MESSAGES": "ru_RU.UTF-8", "LANG": "en_US.UTF-8"}, Russian},
 		{map[string]string{"LC_ALL": "en_US.UTF-8", "LC_MESSAGES": "ru_RU.UTF-8", "LANG": "ru_RU.UTF-8"}, English},
 		{map[string]string{"LC_ALL": "", "LANG": "ru_RU.UTF-8"}, Russian},
@@ -84,6 +89,7 @@ func TestTurnLangFromEnvNamesOnlyATranslatedLanguage(t *testing.T) {
 	}{
 		{map[string]string{"LANG": "ru_RU.UTF-8"}, Russian},
 		{map[string]string{"LANG": "en_US.UTF-8"}, English},
+		{map[string]string{"LANG": "zh_CN.UTF-8"}, Chinese},
 		{map[string]string{"LANG": "de_DE.UTF-8"}, ""},
 		{map[string]string{"LANG": "C.UTF-8"}, ""},
 		{map[string]string{"LC_ALL": "de_DE.UTF-8", "LANG": "ru_RU.UTF-8"}, ""},
@@ -104,8 +110,10 @@ func TestLangOfText(t *testing.T) {
 		"agent.max_turns ходов":           Russian,
 		"@coddy:features/mcp explain":     English,
 		"@coddy:features/mcp объясни это": Russian,
-		"":     English,
-		"Ёлка": Russian,
+		"安装 Coddy":                        Chinese,
+		"这是一个测试":                          Chinese,
+		"":                                English,
+		"Ёлка":                            Russian,
 	} {
 		if got := LangOfText(in); got != want {
 			t.Errorf("LangOfText(%q) = %q, want %q", in, got, want)
@@ -434,5 +442,32 @@ func TestRussianLibraryCarriesEveryPageOfTheMap(t *testing.T) {
 	}
 	if other, _ := For("de"); other != en {
 		t.Fatal("a language with no translation is not English")
+	}
+}
+
+func TestTokenizeSplitsChineseIntoWords(t *testing.T) {
+	got := strings.Join(tokenize("安装 Coddy 文档"), " ")
+	for _, want := range []string{"安装", "coddy", "文档"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("tokenize does not carry %q: %v", want, tokenize("安装 Coddy 文档"))
+		}
+	}
+}
+
+func TestSearchFindsChineseWords(t *testing.T) {
+	fsys := fstest.MapFS{
+		"nav.yaml":   {Data: []byte("groups:\n  - id: g\n    title: 指南\n    summary: 指南。\n    pages:\n      - path: g/start.md\n        title: 开始\n        summary: 运行它。\n")},
+		"g/start.md": {Data: []byte("# 开始\n\n运行 coddy 并安装所需组件。\n\n## 安装\n\n下载归档文件并解压。\n")},
+	}
+	lib, err := Load(fsys, "dev")
+	if err != nil {
+		t.Fatal(err)
+	}
+	hits := lib.Search("安装", 5)
+	if len(hits) == 0 {
+		t.Fatal("a Chinese query found no section")
+	}
+	if hits[0].Title != "开始" {
+		t.Fatalf("hit title = %q, want 开始", hits[0].Title)
 	}
 }

@@ -263,7 +263,7 @@ func printUsage(w io.Writer) {
   %[1]s hooks list [--cwd DIR]
   %[1]s hooks trust <file> [--cwd DIR]
   %[1]s hooks untrust <file> [--cwd DIR]
-  %[1]s docs [list] [--lang en|ru] | search <words> [--limit N] [--lang en|ru] | show <page>[#section] [--lang en|ru] (the
+  %[1]s docs [list] [--lang en|ru|zh] | search <words> [--limit N] [--lang en|ru|zh] | show <page>[#section] [--lang en|ru|zh] (the
         documentation built into this binary; F1 in the console, Docs in the
         web UI; without --lang it speaks the terminal's language: CODDY_LANG,
         then LC_ALL, LC_MESSAGES, LANG)

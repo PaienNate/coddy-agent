@@ -72,7 +72,7 @@ type Page struct {
 // Library is the whole documentation of one binary in one language.
 type Library struct {
 	Version string
-	// Lang is the language of the library (English, Russian).
+	// Lang is the language of the library (English, Russian, Chinese).
 	Lang   string
 	Groups []*Group
 

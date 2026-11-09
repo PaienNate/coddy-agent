@@ -28,8 +28,8 @@ type docsSearchArgs struct {
 func docsLangProperty() map[string]interface{} {
 	return map[string]interface{}{
 		"type":        "string",
-		"enum":        []interface{}{docs.English, docs.Russian},
-		"description": "The language of the pages: \"en\" or \"ru\". Leave it out for the language of the turn: the person's interface, else the language they write in. References are the same in every language.",
+		"enum":        []interface{}{docs.English, docs.Russian, docs.Chinese},
+		"description": "The language of the pages: \"en\", \"ru\" or \"zh\". Leave it out for the language of the turn: the person's interface, else the language they write in. References are the same in every language.",
 	}
 }
 
@@ -60,7 +60,7 @@ func DocsSearchTool() *tooling.Tool {
 				"properties": map[string]interface{}{
 					"query": map[string]interface{}{
 						"type":        "string",
-						"description": "Words to look for, in English or in Russian, e.g. \"telegram proxy\", \"max_turns\", \"режимы разрешений\". A word may be cut short: \"config\" also finds configuration.",
+						"description": "Words to look for, in English, Russian or Chinese, e.g. \"telegram proxy\", \"max_turns\", \"режимы разрешений\", \"安装\". A word may be cut short: \"config\" also finds configuration.",
 					},
 					"lang": docsLangProperty(),
 					"limit": map[string]interface{}{

@@ -14,10 +14,11 @@ import (
 const (
 	English = "en"
 	Russian = "ru"
+	Chinese = "zh"
 )
 
 // Languages lists every language of the documentation, the source first.
-var Languages = []string{English, Russian}
+var Languages = []string{English, Russian, Chinese}
 
 // Lang is the documentation language of a locale tag, whatever its spelling:
 // "ru", "ru-RU", "ru_RU.UTF-8" are Russian. A language without a translation,
@@ -92,9 +93,15 @@ func localeFromEnv(getenv func(string) string) string {
 }
 
 // LangOfText is the documentation language a piece of text is written in: a
-// text with a Cyrillic letter is Russian, anything else English. It decides
-// for a search query and a prompt whose surface named no language.
+// text with a Han character is Chinese, one with a Cyrillic letter Russian,
+// anything else English. It decides for a search query and a prompt whose
+// surface named no language.
 func LangOfText(s string) string {
+	for _, r := range s {
+		if unicode.Is(unicode.Han, r) {
+			return Chinese
+		}
+	}
 	for _, r := range s {
 		if unicode.Is(unicode.Cyrillic, r) {
 			return Russian

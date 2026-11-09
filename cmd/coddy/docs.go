@@ -19,11 +19,11 @@ var docsVerbs = []string{"list", "search", "show"}
 // docsUsage is the one usage line of `coddy docs`, spelled from the verb list so
 // the two cannot drift.
 func docsUsage() string {
-	return fmt.Sprintf("usage: %s docs [%s] [--lang en|ru] | %s <words> [--limit N] [--lang en|ru] | %s <page>[#section] [--lang en|ru]",
+	return fmt.Sprintf("usage: %s docs [%s] [--lang en|ru|zh] | %s <words> [--limit N] [--lang en|ru|zh] | %s <page>[#section] [--lang en|ru|zh]",
 		os.Args[0], docsVerbList("list"), docsVerbList("search"), docsVerbList("show"))
 }
 
-// docsLang takes --lang <en|ru> (also written --lang=<x>) out of the arguments,
+// docsLang takes --lang <en|ru|zh> (also written --lang=<x>) out of the arguments,
 // wherever it stands among them, so every verb accepts it the same way. A flag
 // without a value, with a flag for a value or with a language the
 // documentation is not written in is a usage error.

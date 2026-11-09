@@ -720,7 +720,7 @@ func openAPISpec() map[string]interface{} {
 					"summary": "Contents of the built-in documentation",
 					"description": "Every group of **`docs/nav.yaml`** with its pages, as this binary carries them: the documentation is embedded at build time, so **`version`** is the binary's and no page is fetched from a site. " +
 						"A page's **`slug`** is its path under **`docs/`** without **`.md`**, the same address as **`https://coddy.dev/docs/<slug>`** and **`@coddy:<slug>`**. Pages the map keeps outside **`docs/`** (the contributing guide, the design contract, the agent notes) are not carried. " +
-						"The documentation exists in English and Russian (**`docs/ru/`**); **`lang`** picks the language, and the response says which one it is.",
+						"The documentation exists in English, Russian and Chinese (**`docs/ru/`**, **`docs/zh/`**); **`lang`** picks the language, and the response says which one it is.",
 					"operationId": "getDocsContents",
 					"parameters": []interface{}{
 						map[string]interface{}{
@@ -740,7 +740,7 @@ func openAPISpec() map[string]interface{} {
 					"summary": "One page of the built-in documentation",
 					"description": "The page **`ref`** names, whole, with its headings and its neighbours in map order. **`ref`** takes a slug (**`features/mentions`**), the file path with or without **`docs/`** and **`.md`**, a **`coddy:`** link, an **`@coddy:`** mention, a **`coddy.dev/docs`** address, a file name only one page has, or a title; a **`#section`** is returned as **`anchor`** for the reader to scroll to. " +
 						"In **`markdown`** a link to another page is written **`coddy:<slug>#<anchor>`**, and an image or a repository file is an address on GitHub at the release the binary was built from (**`main`** for a development build). " +
-						"A section has one anchor in every language, the one GitHub gives its English heading: a Russian page answers to it (and to the anchor of its Russian heading, which **`ref`** may name as well), and its **`headings`** carry the Russian text under the shared **`anchor`**. **`lang`** of the response is the language of the page's text: English for a page the translation lacks.",
+						"A section has one anchor in every language, the one GitHub gives its English heading: a Russian or Chinese page answers to it (and to the anchor of its own translated heading, which **`ref`** may name as well), and its **`headings`** carry the translated text under the shared **`anchor`**. **`lang`** of the response is the language of the page's text: English for a page the translation lacks.",
 					"operationId": "getDocsPage",
 					"parameters": []interface{}{
 						map[string]interface{}{
@@ -4780,7 +4780,7 @@ func openAPISpec() map[string]interface{} {
 					"properties": map[string]interface{}{
 						"object":  map[string]string{"type": "string", "example": "coddy.docs"},
 						"version": map[string]string{"type": "string", "description": "The version of the binary, which is the version of its documentation."},
-						"lang":    map[string]string{"type": "string", "description": "The language of the contents, en or ru.", "example": "ru"},
+						"lang":    map[string]string{"type": "string", "description": "The language of the contents, en, ru or zh.", "example": "ru"},
 						"groups": map[string]interface{}{
 							"type": "array",
 							"items": map[string]interface{}{
@@ -4841,7 +4841,7 @@ func openAPISpec() map[string]interface{} {
 					"properties": map[string]interface{}{
 						"object":  map[string]string{"type": "string", "example": "coddy.docs_search"},
 						"version": map[string]string{"type": "string"},
-						"lang":    map[string]string{"type": "string", "description": "The language searched, en or ru."},
+						"lang":    map[string]string{"type": "string", "description": "The language searched, en, ru or zh."},
 						"query":   map[string]string{"type": "string"},
 						"hits": map[string]interface{}{
 							"type": "array",

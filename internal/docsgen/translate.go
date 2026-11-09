@@ -507,7 +507,32 @@ func lintTranslation(rel, lang, text string) []Problem {
 // configDescription is one entry of docs/<lang>/config-descriptions.yaml.
 type configDescription struct {
 	En string `yaml:"en"`
-	Tr string `yaml:"ru"`
+	Ru string `yaml:"ru"`
+	Zh string `yaml:"zh"`
+}
+
+// translated is the description of one language.
+func (c configDescription) translated(lang string) string {
+	switch lang {
+	case docs.Russian:
+		return c.Ru
+	case docs.Chinese:
+		return c.Zh
+	default:
+		return ""
+	}
+}
+
+// languageName is the name of a translation in a problem message.
+func languageName(lang string) string {
+	switch lang {
+	case docs.Russian:
+		return "Russian"
+	case docs.Chinese:
+		return "Chinese"
+	default:
+		return lang
+	}
 }
 
 // LoadConfigDescriptions reads the translated descriptions of the schema,
@@ -519,8 +544,8 @@ func LoadConfigDescriptions(root, lang string) (map[string]string, error) {
 	}
 	out := map[string]string{}
 	for k, e := range entries {
-		if strings.TrimSpace(e.Tr) != "" {
-			out[k] = e.Tr
+		if v := e.translated(lang); strings.TrimSpace(v) != "" {
+			out[k] = v
 		}
 	}
 	return out, nil
@@ -553,14 +578,15 @@ func CheckConfigDescriptions(root, lang string, schemaJSON []byte) []Problem {
 	var problems []Problem
 	for _, k := range want.keys {
 		e, ok := entries[k]
+		translated := e.translated(lang)
 		switch {
-		case !ok || strings.TrimSpace(e.Tr) == "":
-			problems = append(problems, Problem{file, k + ": no Russian description"})
+		case !ok || strings.TrimSpace(translated) == "":
+			problems = append(problems, Problem{file, k + ": no " + languageName(lang) + " description"})
 		case e.En != want.text[k]:
 			problems = append(problems, Problem{file, fmt.Sprintf("%s: the English description changed (now %q): translate it and update en:", k, want.text[k])})
 		default:
 			if lang == docs.Russian {
-				for _, msg := range lintRussian(inlineCodeRE.ReplaceAllString(e.Tr, "")) {
+				for _, msg := range lintRussian(inlineCodeRE.ReplaceAllString(translated, "")) {
 					problems = append(problems, Problem{file, k + ": " + msg})
 				}
 			}

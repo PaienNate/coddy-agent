@@ -56,6 +56,7 @@ func RenderLLMSIndex(nav *Nav, hub, base string) string {
 	b.WriteString("- [Compare](https://coddy.dev/compare/): Coddy against other agent harnesses, including where it loses.\n")
 	b.WriteString("- [config.yaml JSON Schema](https://coddy.dev/config.schema.json): the schema Coddy writes as a modeline into every config it saves.\n")
 	b.WriteString("- [Russian documentation](https://coddy.dev/ru/llms.txt): the same pages translated into Russian, under docs/ru/ in the repository.\n")
+	b.WriteString("- [Chinese documentation](https://coddy.dev/zh/llms.txt): the same pages translated into Simplified Chinese, under docs/zh/ in the repository.\n")
 	for _, g := range nav.Groups {
 		fmt.Fprintf(&b, "\n## %s\n\n", g.Title)
 		for _, p := range g.Pages {
@@ -103,6 +104,13 @@ var llmsTexts = map[string]llmsText{
 		fullTitle: "# Coddy Agent, вся документация на русском",
 		fullNote:  "Собрано из docs/nav.yaml и docs/ru/ командой make site-docs. Каждый раздел - одна страница документации в порядке чтения; строка Source называет файл.",
 		source:    "Source",
+	},
+	docs.Chinese: {
+		title:     "# Coddy Agent - 中文文档",
+		note:      "下面每一页都是仓库文档的中文翻译，直接来自 main 分支的 Markdown，因此始终与代码一致。英文原文见 https://coddy.dev/llms.txt，人类可读页面位于 https://coddy.dev/zh/docs/<去掉 .md 的路径>。所有页面按顺序收录在同目录的 llms-full.txt 中。源文件：https://github.com/coddy-project/coddy-agent",
+		fullTitle: "# Coddy Agent 完整中文文档",
+		fullNote:  "由 docs/nav.yaml 和 docs/zh/ 经 make site-docs 生成。每个章节按阅读顺序对应一页文档；来源行标明文件。",
+		source:    "来源",
 	},
 }
 

@@ -1,0 +1,551 @@
+# Chinese titles and summaries of docs/nav.yaml, keyed by group id and page
+# path. Order and membership come from docs/nav.yaml alone. Each entry keeps
+# the English title and summary it translates under `en:`.
+groups:
+  getting-started:
+    title: 入门
+    summary: 安装 Coddy，为它配置模型，完成首次运行，并保持更新。
+    en:
+      title: Getting started
+      summary: Install Coddy, give it a model, run it for the first time and keep it updated.
+  surfaces:
+    title: 界面
+    summary: 在终端、浏览器、编辑器或即时通讯工具中，使用同一个智能体和相同的会话。
+    en:
+      title: Surfaces
+      summary: The same agent and the same sessions from a terminal, a browser, an editor or a messenger.
+  operate:
+    title: 运维
+    summary: 将 Coddy 作为服务运行，从其他地方访问它，并限制它可以执行的操作。
+    en:
+      title: Operate
+      summary: Running Coddy as a service, reaching it from elsewhere and bounding what it may do.
+  features:
+    title: 功能
+    summary: 智能体能做什么，以及每项能力如何配置。
+    en:
+      title: Features
+      summary: What the agent can do and how each capability is configured.
+  reference:
+    title: 参考
+    summary: 完整列表，在代码作为事实来源之处从代码生成。
+    en:
+      title: Reference
+      summary: Complete lists, generated from the code wherever the code is the source of truth.
+  tutorials:
+    title: 教程
+    summary: 面向任务的指南，每篇都是从目标到可用结果的完整路径，包含可复制的配置和命令、验证是否成功的检查，以及常见出错点。
+    en:
+      title: Tutorials
+      summary: Task-shaped guides, each a complete path from a goal to a working result, with the configs and commands to copy, the check that it worked and what tends to go wrong.
+  contributing:
+    title: 贡献
+    summary: Coddy 如何构建、测试、编写文档和发布。
+    en:
+      title: Contributing
+      summary: How Coddy is built, tested, documented and released.
+pages:
+  getting-started/quickstart.md:
+    title: 快速开始
+    summary: 在五分钟内从全新安装到获得第一个回答，涵盖控制台、浏览器和编辑器。
+    en:
+      title: Quickstart
+      summary: From a fresh install to the first answer in five minutes, on the console, in the browser and from an editor.
+  getting-started/install.md:
+    title: 安装
+    summary: 单行安装器、发布归档、Linux .deb 和 .rpm 包、Homebrew、Android 上的 Termux、Windows 路径、手动放置。
+    en:
+      title: Install
+      summary: One-line installers, release archives, Linux .deb and .rpm packages, Homebrew, Termux on Android, Windows paths, manual placement.
+  getting-started/configuration.md:
+    title: 配置
+    summary: config.yaml 的位置，如何用 -t 和 --dry-run 检查它，提供商和模型，SSH 远程执行，.env 文件。
+    en:
+      title: Configuration
+      summary: Where config.yaml lives, how to check it with -t and --dry-run, providers and models, SSH remote execution, the .env file.
+  getting-started/update.md:
+    title: 更新
+    summary: coddy update、发布资产、由包管理器接管的安装，以及变更报告。
+    en:
+      title: Update
+      summary: coddy update, release assets, installations owned by a package manager, the report of what changed.
+  getting-started/docker.md:
+    title: Docker
+    summary: GHCR 镜像、docker compose、卷和环境变量、端口 12345 上内置的 Web 界面。
+    en:
+      title: Docker
+      summary: The GHCR image, docker compose, volumes and environment, the bundled UI on port 12345.
+  getting-started/homebrew.md:
+    title: Homebrew
+    summary: cask 与 formula 的对比，哪个 Homebrew 仓库承接什么，homebrew/core 提交。
+    en:
+      title: Homebrew
+      summary: The cask against the formula, which Homebrew repository takes what, the homebrew/core submission.
+  getting-started/android.md:
+    title: Android（Termux）
+    summary: 面向 Termux 的 Android 构建，为什么 Linux 归档无法在那里启动，以及 Coddy 在设备上适配了什么。
+    en:
+      title: Android (Termux)
+      summary: The Android build for Termux, why the Linux archive does not start there, and what Coddy adapts on the device.
+  getting-started/troubleshooting.md:
+    title: 故障排除
+    summary: 当二进制不在 PATH 中、配置无法加载、提供商拒绝密钥、端口被占用或构建缺少某个界面时，应检查什么。
+    en:
+      title: Troubleshooting
+      summary: What to check when the binary is not on PATH, the config does not load, a provider rejects the key, a port is busy or a surface is missing from the build.
+  surfaces/console.md:
+    title: 控制台（TUI）
+    summary: 在终端中直接运行 coddy，布局、按键、斜杠命令、本地 shell、打印模式和远程模式。
+    en:
+      title: Console (TUI)
+      summary: Bare coddy in a terminal, the layout, keys, slash commands, the local shell, print mode and remote mode.
+  surfaces/web-ui.md:
+    title: Web 界面
+    summary: 由 coddy serve 提供的嵌入式单页应用，包含会话、输入框、模式和模型、附件、设置、主题和语言。
+    en:
+      title: Web UI
+      summary: The embedded single-page app served by coddy serve, with sessions, the composer, modes and models, attachments, settings, themes and languages.
+  surfaces/desktop.md:
+    title: 桌面窗口
+    summary: coddy desktop，将 Web 界面作为应用窗口、聊天作为标签页，记住的端口、按键，以及各平台为窗口提供的功能。
+    en:
+      title: Desktop window
+      summary: coddy desktop, the web interface as an application window with chats as tabs, the port it remembers, the keys, and what each platform gives the window.
+  surfaces/editors.md:
+    title: 编辑器（ACP）
+    summary: Zed、VS Code、Obsidian 和脚本作为 coddy acp 的 ACP 客户端，以及它们与其他界面共享的内容。
+    en:
+      title: Editors (ACP)
+      summary: Zed, VS Code, Obsidian and scripts as ACP clients of coddy acp, and what they share with the other surfaces.
+  surfaces/gateway.md:
+    title: Telegram 网关
+    summary: Telegram 机器人适配器、设置、访问级别、会话隔离、富消息、在浏览器中实时查看同一聊天，以及编写新适配器。
+    en:
+      title: Telegram gateway
+      summary: The Telegram bot adapter, setup, access levels, session isolation, rich messages, the same chat live in the browser, writing a new adapter.
+  surfaces/pachca.md:
+    title: Pachca 网关
+    summary: Pachca (Пачка) 集成机器人、在工作区中的设置、事件历史轮询、群组、话题和私聊、命令、限制。
+    en:
+      title: Pachca gateway
+      summary: The Pachca (Пачка) integration bot, setup in the workspace, the events history poll, groups, threads and direct chats, commands, limits.
+  operate/serve.md:
+    title: coddy serve 与守护进程
+    summary: 每个启用的子系统共用一个进程，systemd 用户服务（serve install 和 uninstall），带 status、stop 和 restart 的 --daemon，以及配置重载。
+    en:
+      title: coddy serve and the daemon
+      summary: One process for every enabled subsystem, the systemd user service (serve install and uninstall), --daemon with status, stop and restart, and configuration reloads.
+  operate/monitoring.md:
+    title: 监控
+    summary: coddy serve 的 Prometheus 导出器，在容器中启用和绑定它、抓取配置、每个指标、随附的告警规则，以及永远不会被导出的内容。
+    en:
+      title: Monitoring
+      summary: The Prometheus exporter of coddy serve, enabling it and binding it in a container, the scrape config, every metric, the shipped alert rules and what is never exported.
+  operate/remote.md:
+    title: 远程模式
+    summary: 通过 --remote 从控制台、ACP 或 Web 界面驱动远程 coddy serve，令牌、CORS 和环境菜单。
+    en:
+      title: Remote mode
+      summary: Driving a remote coddy serve from the console, ACP or the web UI with --remote, tokens, CORS and the environment menu.
+  operate/swarm.md:
+    title: 集群
+    summary: 中继和节点、挂载、聚合会话列表、环和路由、反向隧道。
+    en:
+      title: Swarm
+      summary: Relays and nodes, mounts, the aggregated session list, rings and routes, the reverse tunnel.
+  operate/scheduler.md:
+    title: 调度器
+    summary: Cron 任务文件、UTC 触发规则、作为任务会话下的后台智能体任务运行、运行面板、调度器工具和 REST。
+    en:
+      title: Scheduler
+      summary: Cron job files, UTC firing rules, runs as background agent tasks under a job session, the runs panel, the scheduler tools and REST.
+  operate/security.md:
+    title: 安全与信任
+    summary: 智能体可以执行什么以及如何限制它，权限模式，对 MCP 服务器、钩子和子智能体的项目信任，令牌和 CORS，以及哪些内容未沙箱化。
+    en:
+      title: Security and trust
+      summary: What the agent may execute and how to bound it, permission modes, project trust for MCP servers, hooks and subagents, tokens and CORS, what is not sandboxed.
+  features/modes.md:
+    title: 运行模式
+    summary: agent、plan 和 ask，每种模式允许哪些工具，以及如何在每个界面上切换。
+    en:
+      title: Operating modes
+      summary: agent, plan and ask, which tools each mode allows and how to switch on every surface.
+  features/session-settings.md:
+    title: 会话设置
+    summary: 在对话中通过 /model、/reasoning、/think、/nothink、/agent、/plan、/ask 和 /permissions 切换模型、推理级别、模式和权限模式，可作用于当前会话或后续轮次，还包括权限对话框中的会话开关，以及模型切换本身。
+    en:
+      title: Session settings
+      summary: Switching the model, reasoning level, mode and permission mode from the conversation with /model, /reasoning, /think, /nothink, /agent, /plan, /ask and /permissions, for the session or the next turns, the permission dialog's session switch, and the model switching itself.
+  features/session-supervisor.md:
+    title: 会话目标与监督器
+    summary: /goal 让智能体持续工作，直到第二个模型根据证据判断目标已达成，并由只读验证器确认；还包括续接、预算、针对停滞和循环的看门狗，以及阻止 docker 和迁移变更的风险门控。
+    en:
+      title: Session goal and supervisor
+      summary: /goal keeps the agent working until a second model, judging the evidence, finds the objective met and a read-only verifier confirms it; continuations, budgets, the watchdog for stalls and loops, the risk gate that blocks docker and migration changes.
+  features/sessions.md:
+    title: 会话
+    summary: 磁盘上的会话包、恢复、编辑消息时回退历史、待办列表、sessions CLI。
+    en:
+      title: Sessions
+      summary: Session bundles on disk, resuming, history rewind on message edit, todo lists, the sessions CLI.
+  features/worktrees.md:
+    title: Git worktree
+    summary: 从 origin 创建新功能分支、会话移动、Web 输入框和项目分组。
+    en:
+      title: Git worktrees
+      summary: Fresh feature branches from origin, session moves, the web composer and project grouping.
+  features/rules.md:
+    title: 规则与指令
+    summary: 来自 .coddy、.agents、.cursor、.claude 和 .codex 文件夹的规则，智能体进入某文件夹时的 AGENTS.md 和 DESIGN.md，你自己的配对和智能体主目录中的规则，指令文件，按扩展名区分的方言，激活方式。
+    en:
+      title: Rules and instructions
+      summary: Rules from the .coddy, .agents, .cursor, .claude and .codex folders, AGENTS.md and DESIGN.md of a folder the agent enters, your own pair and rules in the agent home, instruction files, dialects by extension, activation.
+  features/skills.md:
+    title: 技能
+    summary: 作为斜杠命令的 SKILL.md 包、skills.dirs、注册表，以及 plugin 命令。
+    en:
+      title: Skills
+      summary: SKILL.md packs as slash commands, skills.dirs, the registries and the plugin command.
+  features/subagents.md:
+    title: 子智能体
+    summary: spawn_agent、定义文件、内置项、项目信任凭据、能力收窄、子会话。
+    en:
+      title: Subagents
+      summary: spawn_agent, definition files, the built-ins, project trust receipts, capability narrowing, child sessions.
+  features/hooks.md:
+    title: 钩子
+    summary: 采用 Claude Code 的 hooks.json 形式的生命周期钩子、事件、匹配器、stdin 载荷、退出码和 JSON 回答、项目信任。
+    en:
+      title: Hooks
+      summary: Lifecycle hooks in Claude Code's hooks.json shape, events, matchers, the stdin payload, exit codes and JSON answers, project trust.
+  features/mcp.md:
+    title: MCP 服务器
+    summary: 通过 stdio、可流式 HTTP 和 SSE 连接 MCP 服务器、mcp.json 文件、工作区信任、启用开关、管理 API。
+    en:
+      title: MCP servers
+      summary: Connecting MCP servers over stdio, streamable HTTP and SSE, mcp.json files, workspace trust, enable switches, the management API.
+  features/kimi.md:
+    title: Kimi
+    summary: Kimi Code 订阅和 Platform 配置、区域端点、CLI 凭据、用量和安全。
+    en:
+      title: Kimi
+      summary: Kimi Code subscription and Platform configuration, regional endpoints, CLI credentials, usage and security.
+  features/devin.md:
+    title: Devin
+    summary: 使用 Devin (Cognition) 账户的模型：浏览器登录或 Devin CLI 登录，每个家族一个模型，推理级别映射到其变体，以及会话令牌来自哪里。
+    en:
+      title: Devin
+      summary: Using the models of a Devin (Cognition) account - browser sign-in or the Devin CLI login, one model per family with reasoning levels mapped to its variants, where the session token comes from.
+  features/opencode.md:
+    title: OpenCode
+    summary: 使用 OpenCode Go 和 Console 网关，通过账户登录或服务账户密钥：模型协议、客户端标头和网关选择。
+    en:
+      title: OpenCode
+      summary: Using the OpenCode Go and Console gateways with account login or a service account key - model protocols, client headers and gateway selection.
+  features/acp-provider.md:
+    title: 作为模型的 ACP 智能体
+    summary: 将本地 ACP 智能体（Claude Code、Codex、OpenCode、ZCode、另一个 Coddy）作为模型提供：acp 块、每个 Coddy 会话对应一个智能体会话、其权限请求、plan 和 ask 模式、智能体进程。
+    en:
+      title: ACP agent as a model
+      summary: Serving a local ACP agent (Claude Code, Codex, OpenCode, ZCode, another Coddy) as a model - the acp block, one agent session per Coddy session, its permission requests, plan and ask modes, the agent process.
+  features/web-search.md:
+    title: Web 搜索
+    summary: websearch 会询问哪些搜索引擎，被阻止的后端如何报告，而不是被计为没有找到结果，相关性门控，以及将其指向你自己的 SearXNG。
+    en:
+      title: Web search
+      summary: The engines websearch asks, how a blocked backend is reported instead of counted as nothing found, the relevance gate, and pointing it at your own SearXNG.
+  features/http-requests.md:
+    title: HTTP 请求
+    summary: http_request 工具：任意方法、标头、正文、多部分上传和下载、每次请求的代理和证书检查、配置为每个请求添加的标头，以及显示请求发往何处和携带什么的权限提示。
+    en:
+      title: HTTP requests
+      summary: The http_request tool - any method, headers, bodies, multipart uploads and downloads, a proxy and the certificate check per request, headers the configuration adds to every request - and the permission prompt that shows where a request goes and what it carries.
+  features/browser.md:
+    title: Coddy for Browser
+    summary: 通过 Coddy for Browser 扩展，将你自己的浏览器（Chrome、Yandex Browser 或 Firefox）作为智能体的双手：browser 工具、标签组、网站批准、文件、侧边栏中的 Web 界面、其他进程和集群的聊天。
+    en:
+      title: Coddy for Browser
+      summary: Your own browser - Chrome, Yandex Browser or Firefox - as the agent's hands through the Coddy for Browser extension - the browser tool, tab groups, website approvals, files, the web UI in its side panel, chats of other processes and of the swarm.
+  features/mentions.md:
+    title: 提及
+    summary: 在提示词中用 @ 指向对象：磁盘任意位置的文件、行范围、文件夹、其他会话、规则、子智能体、网页，在消息中一次性解析，并在每个界面上提供补全。
+    en:
+      title: Mentions
+      summary: Pointing at things with @ in a prompt - files anywhere on disk, line ranges, folders, other sessions, rules, subagents, web pages - resolved once into the message, with completion on every surface.
+  features/images.md:
+    title: 图像
+    summary: 模型查看图片：为标记为多模态的模型读取 PNG、JPEG、GIF 或 WebP 文件、MCP 工具返回的截图、限制、发送给提供商的内容，以及 Web 界面和 Telegram 聊天中的预览。
+    en:
+      title: Images
+      summary: The model looking at a picture - read of a PNG, JPEG, GIF or WebP file for a model marked multimodal, a screenshot an MCP tool returns, the limits, what the provider is sent, and the preview in the web UI and a Telegram chat.
+  features/picture-markup.md:
+    title: 粘贴并标注图片
+    summary: 将复制的图片粘贴到提示词中：控制台中的 ctrl+v、Web 界面中的粘贴，以及首先打开的标注编辑器，支持铅笔、形状、箭头、文本、裁剪、旋转和撤销。
+    en:
+      title: Pasting and marking up pictures
+      summary: A copied picture pasted into a prompt - ctrl+v in the console, a paste in the web UI - and the markup editor it opens in first, with pencil, shapes, arrow, text, crop, rotate and undo.
+  features/built-in-docs.md:
+    title: 内置文档
+    summary: 二进制中的这份文档：Web 界面的阅读器、控制台中的 F1、coddy docs、智能体的 coddy_docs 工具和 @coddy:<page> 提及，使用 BM25 搜索，不涉及网站。
+    en:
+      title: Built-in documentation
+      summary: This documentation inside the binary - the web UI's reader, F1 in the console, coddy docs, the agent's coddy_docs tools and @coddy:<page> mentions - searched with BM25, with no site involved.
+  features/message-queue.md:
+    title: 消息队列
+    summary: 在智能体工作时编写后续消息、运行中的轮次何时读取它、撤回一条消息、输入框和控制台界面、队列路由。
+    en:
+      title: Message queue
+      summary: Writing a follow-up while the agent works, when the running turn reads it, taking one back, the composer and console surfaces, the queue routes.
+  features/background-tasks.md:
+    title: 后台任务
+    summary: 分离的命令、任务池、超时、接管长时间前台命令、程序级权限授予。
+    en:
+      title: Background tasks
+      summary: Detached commands, the task pool, timeouts, adoption of long foreground commands, program-wide permission grants.
+  features/preview-server.md:
+    title: 预览服务器
+    summary: 在空闲的 localhost 端口上提供项目目录，以便在浏览器中打开 HTML、JS 和 CSS 工作成果；服务器作为后台任务，它拒绝提供的内容，绑定主机。
+    en:
+      title: Preview server
+      summary: Serving a project directory on a free localhost port so you can open HTML, JS and CSS work in a browser; the server as a background task, what it refuses to serve, the bind host.
+  features/canvas.md:
+    title: 画布
+    summary: Web 界面文件窗口中 .canvas 面板上的实时页面：canvas_show 和 canvas_inspect、指向元素请求更改、框架运行的沙箱，以及每块面板都是工作区的 Obsidian .canvas 文件，按 Obsidian 写入的方式读写。
+    en:
+      title: Canvas
+      summary: Live pages on a .canvas board in the Files window of the web UI - canvas_show and canvas_inspect, pointing at an element to ask for a change, the sandbox a frame runs in, and every board an Obsidian .canvas file of the workspace, read and written back as Obsidian writes it.
+  features/compaction.md:
+    title: 上下文压缩
+    summary: /compact 和在阈值处自动总结、保留的近期轮次、使用 keep_result 的结果逐出。
+    en:
+      title: Context compaction
+      summary: /compact and automatic summarisation at a threshold, the kept recent turns, result eviction with keep_result.
+  features/memory.md:
+    title: 长期记忆
+    summary: 模型通过 spawn_agent 委托的按需记忆子智能体，它回忆和保存什么、它的工具、存储布局、配置和成本。
+    en:
+      title: Long-term memory
+      summary: The on-demand memory subagent the model delegates to through spawn_agent, what it recalls and saves, its tools, the storage layout, configuration and cost.
+  features/decisions.md:
+    title: 命令安全（decisions）
+    summary: NeuralDeep decisions 检查在权限门控之前询问 shell 命令是否安全：安全命令无需提示即可运行，不安全命令在每种模式下都会被询问，包括 bypass 模式，而在无人能回答时会被拒绝。
+    en:
+      title: Command safety (decisions)
+      summary: 'The NeuralDeep decisions check that asks whether a shell command is safe before the permission gate: a safe command runs without a prompt, an unsafe one is asked about in every mode, bypass included, and rejected where nobody can answer.'
+  features/session-export.md:
+    title: 会话导出
+    summary: /export 和 coddy sessions export、格式、路径规则、裁剪选项、JSON 文档。
+    en:
+      title: Session export
+      summary: /export and coddy sessions export, formats, path rules, trimming options, the JSON document.
+  reference/cli.md:
+    title: CLI 参考
+    summary: coddy 二进制的每个命令、动词和标志，由 --help 生成。
+    en:
+      title: CLI reference
+      summary: Every command, verb and flag of the coddy binary, generated from --help.
+  reference/config.md:
+    title: config.yaml 参考
+    summary: config.yaml 的每个字段及其类型、默认值和描述，由 schema 生成，外加自配置工具。
+    en:
+      title: config.yaml reference
+      summary: Every field of config.yaml with its type, default and description, generated from the schema, plus the self-configuration tools.
+  reference/environment-variables.md:
+    title: 环境变量
+    summary: 二进制读取的每个变量、它覆盖什么，以及在哪里有文档记录。
+    en:
+      title: Environment variables
+      summary: Every variable the binary reads, what it overrides and where it is documented.
+  reference/slash-commands.md:
+    title: 斜杠命令
+    summary: 每个界面上的内置命令，以及技能如何成为命令。
+    en:
+      title: Slash commands
+      summary: The built-in commands on each surface and how skills become commands.
+  reference/keyboard.md:
+    title: 键盘
+    summary: 控制台 TUI 和 Web 界面输入框的按键。
+    en:
+      title: Keyboard
+      summary: The keys of the console TUI and of the web UI composer.
+  reference/tools.md:
+    title: 工具
+    summary: 模型可以调用的内置工具、它们的参数、权限，以及公开它们的模式。
+    en:
+      title: Tools
+      summary: The built-in tools the model can call, their arguments, permissions and the modes that expose them.
+  reference/http-api.md:
+    title: HTTP API
+    summary: OpenAI 兼容端点和 /coddy REST 界面、身份验证、会话和标头、OpenAPI 文档。
+    en:
+      title: HTTP API
+      summary: The OpenAI-compatible endpoints and the /coddy REST surface, authentication, sessions and headers, the OpenAPI document.
+  reference/acp-protocol.md:
+    title: ACP 协议
+    summary: coddy acp 如何实现 Agent Client Protocol、方法、通知、权限和问题请求。
+    en:
+      title: ACP protocol
+      summary: How coddy acp implements the Agent Client Protocol, methods, notifications, permission and question requests.
+  reference/browser-protocol.md:
+    title: 浏览器协议
+    summary: coddy serve 与 Coddy for Browser 扩展之间的 JSON-RPC 通信：握手、标签页、命令、网站批准、文件传输、侧边栏，以及供其他 Coddy 进程使用的 API。
+    en:
+      title: Browser protocol
+      summary: The JSON-RPC wire between coddy serve and the Coddy for Browser extension - the handshake, the tabs, the commands, website approval, file transfers, the side panel and the API for other Coddy processes.
+  tutorials/coddy-in-ci.md:
+    title: CI 中的 Coddy
+    summary: 一个在每个拉取请求上运行 coddy -p 的工作流文件，密钥放在 secret 中，答案放在任务日志中。
+    en:
+      title: Coddy in CI
+      summary: A workflow file that runs coddy -p on every pull request, with the key in a secret and the answer in the job log.
+  tutorials/telegram-bot-for-a-team.md:
+    title: 团队 Telegram 机器人
+    summary: 使用 coddy serve 为团队提供一个机器人：令牌、谁可以与它对话、群组隔离，以及在浏览器中实时查看同一聊天。
+    en:
+      title: A Telegram bot for a team
+      summary: 'One bot for a team with coddy serve: the token, who may talk to it, group isolation, and the same chat live in the browser.'
+  tutorials/project-set-up-for-agents.md:
+    title: 为智能体设置项目
+    summary: 一个教会任何智能体如何工作的仓库：规则、AGENTS.md、技能、一个 MCP 服务器和信任凭据。
+    en:
+      title: A project set up for agents
+      summary: 'A repository that teaches any agent how it works: rules, AGENTS.md, skills, an MCP server and the trust receipts.'
+  tutorials/server-driven-from-a-laptop.md:
+    title: 从笔记本电脑驱动服务器
+    summary: 在拥有模型和工作区的机器上运行 coddy serve，通过控制台、编辑器和浏览器从笔记本电脑驱动。
+    en:
+      title: A server driven from a laptop
+      summary: A coddy serve on a machine with the models and the workspace, driven from a laptop over the console, an editor and the browser.
+  tutorials/coddy-as-a-model-in-vs-code.md:
+    title: 在 VS Code Copilot 中将 Coddy 作为模型
+    summary: 将运行中的 coddy serve 注册到 chatLanguageModels.json，使其模型和智能体出现在 Copilot 的模型选择器中，每个请求一个会话，并受智能体的权限门控。
+    en:
+      title: Coddy as a model in VS Code Copilot
+      summary: A running coddy serve registered in chatLanguageModels.json, so its models and its agent sit in Copilot's model picker, with sessions per request and the agent's permission gate.
+  tutorials/a-skill-of-your-own.md:
+    title: 你自己的技能
+    summary: 一个 SKILL.md 如何在每个界面上成为斜杠命令，从第一个文件到注册表安装。
+    en:
+      title: A skill of your own
+      summary: A SKILL.md that becomes a slash command on every surface, from the first file to a registry install.
+  tutorials/swarm-across-machines.md:
+    title: 跨机器的集群
+    summary: 多台机器上的工作节点加入同一个中继，笔记本电脑通过自己的 Web 界面和控制台驱动任意节点，中继及其智能体出现在环境菜单中，地图一键可达。
+    en:
+      title: A swarm across your machines
+      summary: Workers on several machines join one relay, and a laptop drives any of them from its own web UI and console, with the relay and its agents in the environment menu and the map one click away.
+  tutorials/swarm-relay-and-nodes.md:
+    title: Docker 中的中继和节点
+    summary: 一个 Compose 环境，包含中继和主动拨出的节点、令牌、检查、从控制台和浏览器挂载节点，以及通过添加无名称工作节点来扩容。
+    en:
+      title: A relay and its nodes in Docker
+      summary: A Compose stand with a relay and nodes that dial out to it, the tokens, the checks, a mounted node from the console and the browser, scaling by adding nameless workers.
+  tutorials/swarm-multi-hop.md:
+    title: 中继链
+    summary: 第一个中继后面的第二个中继及其自己的节点、两跳挂载、递归会话列表、环和备用节点。
+    en:
+      title: A chain of relays
+      summary: A second relay behind the first with its own nodes, two-hop mounts, the recursive session list, rings and alternates.
+  tutorials/swarm-remote-nodes.md:
+    title: 使用远程节点
+    summary: 从控制台、编辑器和浏览器驱动中继后面的节点，什么在哪里运行，以及哪个凭据打开什么。
+    en:
+      title: Working with remote nodes
+      summary: Driving a node behind a relay from the console, an editor and the browser, what runs where, and which credential opens what.
+  tutorials/swarm-android-nodes.md:
+    title: 作为集群节点的 Android 手机
+    summary: 在 Termux 中运行 Coddy 的手机加入笔记本电脑或服务器上的中继，并从该中继的 Web 界面和控制台进行驱动，手机上无需开放端口。
+    en:
+      title: Android phones as swarm nodes
+      summary: A phone running Coddy in Termux joins a relay on a laptop or a server and is driven from the relay's web UI and the console, with no open port on the phone.
+  ../CONTRIBUTING.md:
+    title: 贡献指南
+    summary: 开发环境、分支和拉取请求流程，以及每次更改必须携带的内容。
+    en:
+      title: Contributing guide
+      summary: The development environment, the branch and pull request flow, what every change must carry.
+  contributing/documentation.md:
+    title: 编写文档
+    summary: 页面类型、导航地图、截图和视频、资产索引、生成的参考，以及守护它们的检查。
+    en:
+      title: Writing documentation
+      summary: Page types, the navigation map, screenshots and videos, the assets index, generated references and the checks that guard them.
+  contributing/architecture.md:
+    title: 架构
+    summary: 系统设计和组件概览、包边界、会话模式、目录结构。
+    en:
+      title: Architecture
+      summary: System design and component overview, package boundaries, session modes, the directory structure.
+  contributing/build.md:
+    title: 从源码构建
+    summary: 前提条件、make build、TAGS 与 go build -tags、发布二进制和分发包。
+    en:
+      title: Build from source
+      summary: Prerequisites, make build, TAGS against go build -tags, the release binaries and the distribution packages.
+  contributing/tgfake.md:
+    title: 使用 tgfake 进行集成测试
+    summary: 机器人测试所针对的假 Telegram Bot API：go.mod 固定的版本、进程内测试套件、端到端脚本、CI 任务，以及迁移到新的 tgfake。
+    en:
+      title: Integration tests with tgfake
+      summary: The fake Telegram Bot API the bot is tested against - the version go.mod pins, the in-process suites, the end-to-end scripts, the CI job and moving to a new tgfake.
+  contributing/security-scanning.md:
+    title: AppSec 扫描
+    summary: 通过一个脚本在本地和 CI 中运行 Trivy、semgrep 和 govulncheck、严重性门控、固定的 Go 工具链、分类和抑制。
+    en:
+      title: AppSec scanning
+      summary: Trivy, semgrep and govulncheck locally and in CI through one script, the severity gate, the pinned Go toolchain, triage and suppression.
+  contributing/custom-tools.md:
+    title: 自定义工具
+    summary: 向注册表添加内置工具、其 schema 和权限接线，并附一个完整示例。
+    en:
+      title: Custom tools
+      summary: Adding a built-in tool to the registry, its schema and permission wiring, with a complete example.
+  contributing/react-agent.md:
+    title: ReAct 智能体
+    summary: 循环设计、系统提示词结构、工具调用契约和特定模式的行为。
+    en:
+      title: ReAct agent
+      summary: The loop design, the system prompt structure, the tool-calling contract and mode-specific behaviour.
+  ../DESIGN.md:
+    title: Web 界面设计
+    summary: 嵌入式 SPA 的设计令牌、布局和组件契约。
+    en:
+      title: Web UI design
+      summary: Tokens, layout and component contracts of the embedded SPA.
+  contributing/codex-hooks.md:
+    title: Codex 钩子
+    summary: Cursor 规则如何到达在此仓库上工作的 Codex CLI 会话。
+    en:
+      title: Codex hooks
+      summary: How the Cursor rules reach a Codex CLI session working on this repository.
+  contributing/opencode-hooks.md:
+    title: OpenCode 钩子
+    summary: 将 Cursor 规则确定性地传递到在此仓库上工作的 OpenCode 会话。
+    en:
+      title: OpenCode hooks
+      summary: Deterministic delivery of the Cursor rules to OpenCode sessions working on this repository.
+  contributing/zcode-hooks.md:
+    title: ZCode 钩子
+    summary: 将 Cursor 规则确定性地传递到在此仓库上工作的 ZCode 会话。
+    en:
+      title: ZCode hooks
+      summary: Deterministic delivery of the Cursor rules to ZCode sessions working on this repository.
+  contributing/kimi-code-hooks.md:
+    title: Kimi Code 钩子
+    summary: 将 Cursor 规则确定性地传递到在此仓库上工作的 Kimi Code 会话。
+    en:
+      title: Kimi Code hooks
+      summary: Deterministic delivery of the Cursor rules to Kimi Code sessions working on this repository.
+  contributing/syntax-highlighting-audit.md:
+    title: 语法高亮审计
+    summary: NeuralDeep 对八个主题中代码高亮的审计、其夹具以及如何重新运行。
+    en:
+      title: Syntax highlighting audit
+      summary: The NeuralDeep audit of code highlighting across the eight themes, its fixtures and how to re-run it.
+  ../AGENTS.md:
+    title: 智能体说明
+    summary: 面向编码智能体的仓库地图和贡献者说明。
+    en:
+      title: Agent notes
+      summary: The repository map and contributor notes for coding agents.
