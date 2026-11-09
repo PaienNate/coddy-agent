@@ -19,6 +19,18 @@ coddy serve
 
 进程占用终端，打印它启动了什么，并在 Ctrl-C 时停止。在 `systemd`、`supervisord`、Docker 或任何其他已经接管进程生命周期的环境下，应使用这种形式 - 那些监督程序会自行重启进程，在它们下面再叠一层只会让第一层看不到失败。在 Linux 上，`coddy serve install` 会为你设置该 systemd 单元，可能是打包的单元，也可能是它写入的单元（下一节）。
 
+### Windows 通知区域
+
+在 Windows 上，`coddy serve` 在 HTTP 界面启用时会把 Coddy 图标放进通知区域；`coddy serve --daemon` 背后的 worker 也一样。这个图标只是服务器的便捷入口，不是第二个进程：如果当前会话没有交互式桌面，服务器仍会继续运行。
+
+它的菜单有三项：
+
+- **打开页面**：在默认浏览器中打开 `http://127.0.0.1:<port>/`。绑定 `0.0.0.0` 这类通配地址时，这个链接会换成 loopback；显式命名的绑定地址保持不变。
+- **打开项目**：打开 Windows 文件夹选择框，以所选文件夹为工作区创建一个新聊天，并打开该聊天。最近聊天的工作区列在同一项下面，因此这个 home 用过的文件夹只差一次点击。
+- **退出**：通过与 Ctrl+C 相同的 supervisor 关闭流程停止进程。
+
+托盘只属于 `coddy serve`；`coddy desktop` 保留自己的窗口和托盘行为。
+
 ## 在 Linux 上作为 systemd 用户服务
 
 ```bash
@@ -229,4 +241,4 @@ MCP 服务器不在 `config.yaml` 中：进程以同样方式监视 `~/.coddy/mc
 
 软件包会附带一个不会启用的用户单元，并且不附带系统单元：Coddy 的状态是按用户存放在 `~/.coddy` 下的，因此系统守护进程将需要一个主目录和一个没人能编辑的配置。参见[安装](../getting-started/install.md)。
 
-<!-- docsgen:source sha256=7488a204c173561b -->
+<!-- docsgen:source sha256=ff8294a12145be5e -->

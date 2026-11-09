@@ -30,10 +30,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log/slog"
 	"os"
 	"os/signal"
-	"sort"
 	"strings"
 	"syscall"
 
@@ -173,38 +171,6 @@ func runDesktopWindow(args []string) error {
 		RecentFolders: recentWorkspaces(rt, log),
 		Serve:         serveHTTP(rt, paths.Home, !*keepAuth, windowHandle),
 	})
-}
-
-// recentWorkspaces are the folders this home's chats were last had in, most
-// recent first: the rows of the application entry's menu, where picking one
-// opens a new chat in that folder.
-//
-// They are read here rather than in the launcher because the session store is
-// the agent's and the launcher knows nothing of it. A store that cannot be
-// read is a menu with no folders in it, which is what the entry looked like
-// before there were any.
-func recentWorkspaces(rt *serve.Runtime, log *slog.Logger) []string {
-	if rt == nil || rt.Mgr == nil {
-		return nil
-	}
-	store := rt.Mgr.FileStore()
-	if store == nil {
-		return nil
-	}
-	rows, err := store.ListSnapshots("", false)
-	if err != nil {
-		log.Debug("the recent workspaces could not be read", "error", err)
-		return nil
-	}
-	// Newest first, by the time the session was last written.
-	sort.SliceStable(rows, func(i, j int) bool { return rows[i].UpdatedAt > rows[j].UpdatedAt })
-	out := make([]string, 0, len(rows))
-	for _, row := range rows {
-		if strings.TrimSpace(row.CWD) != "" {
-			out = append(out, row.CWD)
-		}
-	}
-	return out
 }
 
 // serveHTTP is the surface behind the window: the HTTP server, and nothing

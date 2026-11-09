@@ -14,17 +14,21 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/EvilFreelancer/coddy-agent/external/browser"
 	"github.com/EvilFreelancer/coddy-agent/external/gateway"
 	"github.com/EvilFreelancer/coddy-agent/external/httpserver"
 	"github.com/EvilFreelancer/coddy-agent/external/scheduler"
+	"github.com/EvilFreelancer/coddy-agent/external/serveui"
 	"github.com/EvilFreelancer/coddy-agent/external/swarm"
+	"github.com/EvilFreelancer/coddy-agent/internal/acp"
 	"github.com/EvilFreelancer/coddy-agent/internal/bgtask"
 	"github.com/EvilFreelancer/coddy-agent/internal/config"
 	"github.com/EvilFreelancer/coddy-agent/internal/dryrun"
 	"github.com/EvilFreelancer/coddy-agent/internal/llm"
 	"github.com/EvilFreelancer/coddy-agent/internal/logger"
+	"github.com/EvilFreelancer/coddy-agent/internal/platform"
 	"github.com/EvilFreelancer/coddy-agent/internal/serve"
 	"github.com/EvilFreelancer/coddy-agent/internal/version"
 )
@@ -307,6 +311,38 @@ func runServe(args []string) error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	// On Windows the server puts Coddy's mark in the notification area. The
+	// icon is a convenience around the same process: Open page hands the
+	// browser the root URL, Open project creates an ordinary chat in the
+	// folder the system chooser returned and opens that chat, and Exit goes
+	// through the same context a Ctrl+C cancels. Platforms without a serve
+	// tray answer a no-op, so nothing below is conditional on the icon.
+	if webURL, ok := serveWebURL(httpAddr, enabled); ok && serveui.Available() {
+		stopTray := serveui.Start(ctx, serveui.Options{
+			URL:           webURL,
+			RecentFolders: recentWorkspaces(rt, log),
+			OpenURL:       platform.OpenBrowser,
+			NewSession: func(folder string) (string, error) {
+				if rt.Mgr == nil {
+					return "", errors.New("this process has no session manager")
+				}
+				sessionCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				defer cancel()
+				created, err := rt.Mgr.HandleSessionNew(sessionCtx, acp.SessionNewParams{CWD: folder})
+				if err != nil {
+					return "", err
+				}
+				if created == nil || strings.TrimSpace(created.SessionID) == "" {
+					return "", errors.New("the session manager created no session id")
+				}
+				return created.SessionID, nil
+			},
+			Log:  log,
+			Quit: stop,
+		})
+		defer stopTray()
+	}
 
 	reloads := make(chan *config.Config, 1)
 	// Every reload path - the settings screen, the agent's config_commit tool,

@@ -39,6 +39,25 @@ process lifetimes - those supervisors restart the process themselves, and stacki
 second one under them only hides failures from the first. On Linux, `coddy serve install`
 sets up that systemd unit for you, the packaged one or one it writes (next section).
 
+### Windows notification area
+
+On Windows, `coddy serve` puts Coddy's icon in the notification area while the HTTP
+surface is enabled; the worker behind `coddy serve --daemon` does the same. The icon is a
+convenience around the server, not a second process: if this session has no interactive
+desktop, the server keeps running without it.
+
+Its menu has three rows:
+
+- **Open page** opens `http://127.0.0.1:<port>/` in the default browser. A wildcard
+  listener such as `0.0.0.0` is translated to loopback for this link; a named bind address
+  is kept.
+- **Open project** opens the Windows folder chooser, creates a new chat whose workspace is
+  the chosen folder, and opens that chat. The workspaces of recent chats are listed under
+  the same row, so a folder already used in this home is one click away.
+- **Exit** stops the process through the same supervisor shutdown a Ctrl+C uses.
+
+The tray is only for `coddy serve`; `coddy desktop` keeps its own window and tray behavior.
+
 ## As a systemd user service on Linux
 
 ```bash
