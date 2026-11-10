@@ -8,6 +8,10 @@ export type ClientDraftSession = {
   localId: string;
   draftText: string;
   updatedAt: string;
+  /** The workspace the draft was parked in, when it is known. */
+  cwd?: string;
+  /** Main checkout of that workspace, so project filtering includes worktrees. */
+  repoRoot?: string;
 };
 
 export function isClientDraftSessionId(id: string): boolean {
@@ -45,10 +49,14 @@ export function readClientDraftSessions(): ClientDraftSession[] {
       const draftText = typeof r.draftText === "string" ? r.draftText : "";
       const updatedAt = typeof r.updatedAt === "string" ? r.updatedAt : "";
       if (!localId || !isClientDraftSessionId(localId)) continue;
+      const cwd = typeof r.cwd === "string" ? r.cwd.trim() : "";
+      const repoRoot = typeof r.repoRoot === "string" ? r.repoRoot.trim() : "";
       out.push({
         localId,
         draftText,
         updatedAt: updatedAt || new Date().toISOString(),
+        ...(cwd ? { cwd } : {}),
+        ...(repoRoot ? { repoRoot } : {}),
       });
     }
     return out.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -98,6 +106,8 @@ export function mergeSessionsWithDrafts(
       id: d.localId,
       title: draftSessionTitle(d.draftText),
       updatedAt: d.updatedAt,
+      ...(d.cwd ? { cwd: d.cwd } : {}),
+      ...(d.repoRoot ? { repoRoot: d.repoRoot } : {}),
     }));
   return [...draftRows, ...serverRows];
 }

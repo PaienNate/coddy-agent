@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -159,6 +160,24 @@ func (s *sessTagsState) startedByGateway(nth int, messenger string) error {
 
 func (s *sessTagsState) listOfGateways() error {
 	return s.listQuery("origin=gateway")
+}
+
+// rootedAt moves a stored session into a folder under the scenario root.
+func (s *sessTagsState) rootedAt(nth int, folder string) error {
+	id, err := s.idAt(nth)
+	if err != nil {
+		return err
+	}
+	st := s.mgr.SessionByID(id)
+	if st == nil {
+		return fmt.Errorf("session %q not registered", id)
+	}
+	st.SetCWD(filepath.Join(s.root, folder))
+	return s.store.Save(st)
+}
+
+func (s *sessTagsState) listProject(folder string) error {
+	return s.listQuery("repo_root=" + url.QueryEscape(filepath.Join(s.root, folder)))
 }
 
 func (s *sessTagsState) listStartedHere() error {
@@ -336,7 +355,9 @@ func initializeSessionTagsScenario(sc *godog.ScenarioContext) {
 	sc.Step(`^session (\d+) is titled "([^"]*)"$`, s.titleSession)
 	sc.Step(`^I archive session (\d+)$`, s.archiveSession)
 	sc.Step(`^session (\d+) is archived$`, s.archiveSession)
+	sc.Step(`^session (\d+) is rooted at folder "([^"]*)"$`, s.rootedAt)
 	sc.Step(`^I list the sessions tagged "([^"]*)"$`, s.listTagged)
+	sc.Step(`^I list the sessions of project folder "([^"]*)"$`, s.listProject)
 	sc.Step(`^session (\d+) was started by the (\w+) gateway$`, s.startedByGateway)
 	sc.Step(`^I list the sessions of the gateways$`, s.listOfGateways)
 	sc.Step(`^I list the sessions started here$`, s.listStartedHere)

@@ -72,6 +72,23 @@ func sessionRepoRoot(cwd string) string {
 	return root
 }
 
+// sessionsInProject keeps the conversations whose workspace is the project
+// root or a worktree of it. A non-git folder is its own root, so the exact
+// workspace comparison keeps it too.
+func sessionsInProject(rows []session.SessionListEntry, projectRoot string) []session.SessionListEntry {
+	out := make([]session.SessionListEntry, 0, len(rows))
+	for _, row := range rows {
+		if session.SameWorkspacePath(row.CWD, projectRoot) {
+			out = append(out, row)
+			continue
+		}
+		if root := sessionRepoRoot(row.CWD); root != "" && session.SameWorkspacePath(root, projectRoot) {
+			out = append(out, row)
+		}
+	}
+	return out
+}
+
 func describeStripLineNoise(s string) string {
 	s = strings.TrimSpace(s)
 	s = strings.TrimPrefix(s, "- ")
@@ -1171,6 +1188,12 @@ func (s *Server) coddySessionsList(w http.ResponseWriter, r *http.Request) {
 		s.log.Error("coddy sessions list", "error", err)
 		http.Error(w, `{"error":{"message":"list failed"}}`, http.StatusInternalServerError)
 		return
+	}
+	// A project workspace lists every conversation in its main checkout and in
+	// that checkout's worktrees. cwd is an exact workspace; repo_root is the
+	// project root the row belongs to, so a project page can filter by it.
+	if projectRoot := strings.TrimSpace(r.URL.Query().Get("repo_root")); projectRoot != "" {
+		rows = sessionsInProject(rows, projectRoot)
 	}
 	turnActive := func(id string) bool {
 		return s.mgr.SessionTurnActiveInProcess(id) || session.TurnLockHeld(fs.SessionPath(id))

@@ -20,6 +20,14 @@ Feature: Tags and the archive over the stored sessions
     When I list the sessions tagged "backend"
     Then the listing holds sessions 1 and 3
 
+  Scenario: A project view lists only its own conversations
+    Given 3 stored sessions
+    And session 1 is rooted at folder "project"
+    And session 2 is rooted at folder "elsewhere"
+    And session 3 is rooted at folder "project"
+    When I list the sessions of project folder "project"
+    Then the listing holds sessions 1 and 3
+
   Scenario: An archived session leaves the working list
     Given 3 stored sessions
     When I archive session 2

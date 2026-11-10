@@ -1,0 +1,23 @@
+//go:build http
+
+package httpserver
+
+import (
+	"path/filepath"
+	"testing"
+
+	"github.com/EvilFreelancer/coddy-agent/internal/session"
+)
+
+func TestSessionsInProjectKeepsTheProjectAndLeavesOthers(t *testing.T) {
+	project := t.TempDir()
+	other := t.TempDir()
+	rows := []session.SessionListEntry{
+		{SessionID: "inside", CWD: project},
+		{SessionID: "outside", CWD: other},
+	}
+	got := sessionsInProject(rows, filepath.Clean(project))
+	if len(got) != 1 || got[0].SessionID != "inside" {
+		t.Fatalf("sessionsInProject = %+v", got)
+	}
+}

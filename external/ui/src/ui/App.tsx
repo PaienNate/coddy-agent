@@ -3511,6 +3511,9 @@ export function App() {
       if (sessionsOrigin) {
         ps.set("origin", sessionsOrigin);
       }
+      if (activeProject) {
+        ps.set("repo_root", activeProject.path);
+      }
       ps.set("sort", sessionsSortKey);
       ps.set("order", defaultSortOrder(sessionsSortKey));
       ps.set("include_activity", "true");
@@ -3586,6 +3589,7 @@ export function App() {
       sessionsArchiveFilter,
       sessionsOrigin,
       sessionsSortKey,
+      activeProject?.path,
       headers,
       t,
       pruneArchiveLists,
@@ -4490,10 +4494,18 @@ export function App() {
       return;
     }
     const localId = existing || newClientDraftId();
+    const cwd = (
+      pendingWorkspaceRef.current?.path ||
+      workspaceCtx?.path ||
+      ""
+    ).trim();
+    const repoRoot = (workspaceCtx?.repo_root || "").trim();
     const rows = upsertClientDraftSession({
       localId,
       draftText: text,
       updatedAt: new Date().toISOString(),
+      ...(cwd ? { cwd } : {}),
+      ...(repoRoot ? { repoRoot } : {}),
     });
     setClientDraftSessions(rows);
   }
@@ -7765,12 +7777,26 @@ export function App() {
     return rows;
   }, [activeEnv, configuredRemotes, sessionsOrigin, t]);
 
+  // History follows the project in view. The server filters the listing by
+  // repo_root, so old conversations in worktrees are included too; this local
+  // filter also covers drafts and rows from a request that was already in
+  // flight when the project changed.
+  const sessionsForHistoryPanel = useMemo(() => {
+    if (!activeProject) {
+      return sessionsForSidebar;
+    }
+    return sessionsForSidebar.filter((row) => {
+      const path = (row.repoRoot || row.cwd || "").trim();
+      return path !== "" && sameProjectPath(path, activeProject.path);
+    });
+  }, [sessionsForSidebar, activeProject]);
+
   const sessionPanelShared = {
     sessionId: sidebarActiveId,
     namingSessionIds,
     permissionPendingSessionIds: permissionPendingSids,
     questionPendingSessionIds: questionPendingSids,
-    sessions: sessionsForSidebar,
+    sessions: sessionsForHistoryPanel,
     ...(sessionsError ? { error: sessionsError } : {}),
     rowErrors: sessionRowErrors,
     open: sessionsOpen,

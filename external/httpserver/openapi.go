@@ -244,6 +244,11 @@ func openAPISpec() map[string]interface{} {
 						"description": "Only the sessions of this workspace (an absolute path). The path names a folder rather than a string: it is cleaned, symlinks are resolved, and Windows and macOS compare case-insensitively, " +
 							"so a session the console stored under the logical path of a symlinked checkout is listed for the physical path an editor sends. Sessions of a parent or a child folder are not included.",
 					}, map[string]interface{}{
+						"name":        "repo_root",
+						"in":          "query",
+						"schema":      map[string]string{"type": "string"},
+						"description": "Only the sessions of this project: the main checkout itself and the worktrees that belong to it, matched by the **repoRoot** a row reports. A folder that is not a git checkout matches by its exact path. Combine it with **cwd** to narrow the project to one workspace.",
+					}, map[string]interface{}{
 						"name":        "include_scheduler",
 						"in":          "query",
 						"schema":      map[string]string{"type": "boolean"},
