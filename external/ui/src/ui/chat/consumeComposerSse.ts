@@ -117,9 +117,11 @@ export type ComposerStreamCursor = {
   frames: number;
   /** The open assistant text segment. */
   assistantId: string;
-  /** A tool call or reasoning row closed that segment: text opens a new one. */
+  /** A tool call or reasoning row closed that segment; reasoning text may rejoin it. */
   segmentDirty: boolean;
   segmentHasText: boolean;
+  /** Assistant row a reasoning block interrupted; its text joins that row. */
+  mergeAssistantId?: string;
   /** Lands rows the reader still holds back (the batched tool rows). */
   flush?: () => void;
 };
@@ -226,18 +228,19 @@ export async function consumeComposerSseReader(
     cursor,
   } = p;
 
-  // Streaming assistant segmentation. Text before any tool/thinking stays in
-  // one bubble; when text resumes AFTER a tool call or thinking row we open a
-  // NEW assistant bubble, so the live transcript interleaves in arrival order
-  // (matching the chronological order loadMessages later applies from the
-  // server). `currentAssistantId` points at the open text segment;
+  // Streaming assistant segmentation. Text before a tool call stays in one
+  // bubble; text after a tool call opens a new one, so tools and text
+  // interleave in arrival order. Reasoning is different: the persisted
+  // transcript keeps one assistant message for a reasoning block inside it,
+  // so the text after that block joins the row the block interrupted.
+  // `currentAssistantId` points at the open text segment;
   // `assistantSegmentDirty` means the next text delta must start a fresh one.
   const resuming = !!cursor && cursor.frames > 0;
   let currentAssistantId = resuming ? cursor.assistantId : assistantId;
-  // Every row this stream wrote its answer into: an answer whose text and
-  // reasoning interleave (an ACP agent thinking between two parts of one
-  // answer) is a row per part. Once the persisted message replaces them it
-  // carries the id of one of them, which the end of the turn looks for.
+  // Every row this stream wrote its answer into: a tool call starts another
+  // part of the answer, while reasoning inside it keeps the row it interrupted.
+  // Once the persisted message replaces them it carries the id of one of them,
+  // which the end of the turn looks for.
   const assistantIds = new Set<string>();
 
   // The checklist a plan frame carries; a design plan's frame, or one that
@@ -253,6 +256,15 @@ export async function consumeComposerSseReader(
     if (entries) onTodoPlan?.(entries);
   };
   let assistantSegmentDirty = resuming ? cursor.segmentDirty : false;
+  // The assistant row a thinking block interrupted. Text that follows reasoning
+  // in the same model call belongs to that row, not to a second bubble: the
+  // persisted transcript stores one assistant message, and a live view that
+  // split it left fragments like a lone "删除" above the real answer. A tool
+  // call or any other transcript row clears the anchor, because there the two
+  // parts really are separate.
+  let thinkingMergeAssistantId: string | null = resuming
+    ? cursor?.mergeAssistantId || null
+    : null;
 
   const toolQueue: Array<
     Partial<Extract<TranscriptItem, { type: "tool_call" }>> & {
@@ -269,6 +281,7 @@ export async function consumeComposerSseReader(
     }
     if (toolQueue.length === 0) return;
     const pending = toolQueue.splice(0, toolQueue.length);
+    thinkingMergeAssistantId = null;
     applyStreamItems((prev) => {
       let next = prev;
       for (const upd of pending) {
@@ -397,15 +410,22 @@ export async function consumeComposerSseReader(
   let callThinkingId: string | null = null;
   const appendThinking = (delta: string) => {
     const freezeAt = eventNow();
+    // Queued tool rows came first in the stream; they land before a new
+    // reasoning row does, not after it.
+    flushToolQueue();
     if (!activeThinkingId) {
+      if (
+        !thinkingMergeAssistantId &&
+        !assistantSegmentDirty &&
+        currentSegmentHasText
+      ) {
+        thinkingMergeAssistantId = currentAssistantId;
+      }
       activeThinkingId = newId("r");
       activeThinkingStarted = freezeAt;
       callThinkingId = activeThinkingId;
     }
     const id = activeThinkingId;
-    // Queued tool rows came first in the stream; they land before a new
-    // reasoning row does, not after it.
-    flushToolQueue();
     applyStreamItems((prev) => {
       const known = prev.some((it) => it.type === "thinking" && it.id === id);
       const newRow: Extract<TranscriptItem, { type: "thinking" }> = {
@@ -480,6 +500,11 @@ export async function consumeComposerSseReader(
     cursor.assistantId = currentAssistantId;
     cursor.segmentDirty = assistantSegmentDirty;
     cursor.segmentHasText = currentSegmentHasText;
+    if (thinkingMergeAssistantId) {
+      cursor.mergeAssistantId = thinkingMergeAssistantId;
+    } else {
+      delete cursor.mergeAssistantId;
+    }
   };
   const appendText = (c: string) => {
     // Land any queued tool rows first, then open a new assistant
@@ -497,9 +522,36 @@ export async function consumeComposerSseReader(
     const text = pendingWhitespace + c;
     pendingWhitespace = "";
     if (assistantSegmentDirty) {
+      const mergeId = thinkingMergeAssistantId;
+      thinkingMergeAssistantId = null;
       currentAssistantId = newId("a");
+      assistantIds.add(currentAssistantId);
       assistantSegmentDirty = false;
-      currentSegmentHasText = false;
+      currentSegmentHasText = true;
+      applyStreamItems((prev) => {
+        const anchor = mergeId
+          ? prev.find(
+              (
+                it,
+              ): it is Extract<TranscriptItem, { type: "assistant_message" }> =>
+                it.type === "assistant_message" && it.id === mergeId,
+            )
+          : undefined;
+        if (anchor) {
+          assistantIds.delete(anchor.id);
+        }
+        const without = anchor ? prev.filter((it) => it !== anchor) : prev;
+        return [
+          ...without,
+          {
+            id: currentAssistantId,
+            type: "assistant_message" as const,
+            content: (anchor?.content || "") + text,
+            streaming: true,
+          },
+        ];
+      });
+      return;
     }
     ensureAssistant();
     currentSegmentHasText = true;
@@ -750,6 +802,7 @@ export async function consumeComposerSseReader(
         const wake = backgroundWakeItem(ev.data, newId("wake"));
         if (wake) {
           applyStreamItems((prev) => [...prev, wake]);
+          thinkingMergeAssistantId = null;
           assistantSegmentDirty = true;
         }
         continue;
@@ -764,6 +817,7 @@ export async function consumeComposerSseReader(
           flushToolQueue();
           finishThinking();
           applyStreamItems((prev) => applyGoalTurnToItems(prev, goalRow));
+          thinkingMergeAssistantId = null;
           assistantSegmentDirty = true;
         }
         continue;
@@ -781,6 +835,7 @@ export async function consumeComposerSseReader(
         );
         if (item) {
           applyStreamItems((prev) => [...prev, item]);
+          thinkingMergeAssistantId = null;
           assistantSegmentDirty = true;
         }
         continue;
@@ -1024,6 +1079,7 @@ export async function consumeComposerSseReader(
         const wake = backgroundWakeItem(ev.data, newId("wake"));
         if (wake) {
           applyStreamItems((prev) => [...prev, wake]);
+          thinkingMergeAssistantId = null;
           assistantSegmentDirty = true;
         }
         continue;
@@ -1038,6 +1094,7 @@ export async function consumeComposerSseReader(
           flushToolQueue();
           finishThinking();
           applyStreamItems((prev) => applyGoalTurnToItems(prev, goalRow));
+          thinkingMergeAssistantId = null;
           assistantSegmentDirty = true;
         }
         continue;
@@ -1055,6 +1112,7 @@ export async function consumeComposerSseReader(
         );
         if (item) {
           applyStreamItems((prev) => [...prev, item]);
+          thinkingMergeAssistantId = null;
           assistantSegmentDirty = true;
         }
         continue;

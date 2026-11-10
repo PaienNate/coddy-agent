@@ -810,10 +810,10 @@ test("a call without reasoning text or a count touches no earlier row", async ()
   expect(rows[0]!.reasoningTokens).toBeUndefined();
 });
 
-test("a turn whose text and reasoning interleave records every segment of its answer", async () => {
-  // An ACP agent served as a model thinks between two parts of one answer:
-  // each part is a row of its own, and the stream reports both ids, so the
-  // end of the turn can find its answer under either of them.
+test("text interrupted by reasoning stays one answer below the thinking rows", async () => {
+  // A provider can emit a first content fragment, then reasoning, then the rest
+  // of the same answer. The persisted transcript stores one assistant message,
+  // so the live view must not leave the fragment as a bubble of its own.
   vi.stubGlobal("requestAnimationFrame", () => 0);
   const items: TranscriptItem[] = [];
   let idc = 0;
@@ -841,13 +841,40 @@ test("a turn whose text and reasoning interleave records every segment of its an
     reasoningDurationMsByContentRef: { current: new Map() },
     newId: (p) => `${p}-${idc++}`,
   });
+  expect(items.map((it) => it.type)).toEqual([
+    "thinking",
+    "thinking",
+    "assistant_message",
+  ]);
   const answers = items.filter((it) => it.type === "assistant_message");
   expect(answers.map((a) => a.content)).toEqual([
-    "I'll create the file.",
-    "Created src/hello.ts.",
+    "I'll create the file.Created src/hello.ts.",
   ]);
   expect(res.assistantIds).toEqual(answers.map((a) => a.id));
-  expect(res.lastAssistantId).toBe(answers[1]!.id);
+  expect(res.lastAssistantId).toBe(answers[0]!.id);
+});
+
+// A tool row ends the answer segment on purpose. Text after that tool and its
+// reasoning is a new bubble, the way the persisted transcript stores them.
+test("a tool call keeps the answer on either side of it in separate bubbles", async () => {
+  const tool = `event: tool_call\ndata: ${JSON.stringify({ toolCallId: "t1", title: "run", status: "pending" })}\n\n`;
+  const reasoning = `data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: "Check the result." } }] })}\n\n`;
+  const items = await drive(
+    textEvent("First. ") +
+      tool +
+      reasoning +
+      textEvent("Second.") +
+      `data: [DONE]\n\n`,
+  );
+  expect(
+    items.map((it) =>
+      it.type === "assistant_message"
+        ? `text:${it.content}`
+        : it.type === "tool_call"
+          ? `tool:${it.toolCallId}`
+          : it.type,
+    ),
+  ).toEqual(["text:First. ", "tool:t1", "thinking", "text:Second."]);
 });
 
 test("a tool call of an acp agent keeps its mark", async () => {
