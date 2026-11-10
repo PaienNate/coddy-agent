@@ -1130,6 +1130,10 @@ The indicator replaces the three bouncing dots with a 14px SVG (`coddy-work-indi
 - A tool Coddy does not define takes the generic `Running a tool`, which says nothing about a call an MCP server serves, so that one phrase names the server and the tool instead - `Calling browser_navigate on the MCP server playwright`. That is the identity of the step, not its arguments; what the call acts on is read on the transcript row above, which names the server and the tool as well.
 - Derivation scans back to the last `user_message`, so a stale `in_progress` row from a finished turn never drives the label. The console twin of the phrase table lives in `external/cli/status.go`.
 
+### Folded tool runs
+
+Adjacent tool calls in one transcript are folded into a **Used N tools** row when there are at least two. Its second line counts them by kind - Shell, Read, Search, Edit (edit, write and patch), Web, Agent, Other - and a failed call keeps a failed marker. The group is closed when every call has finished, opens while one is running or failed, and expands to the ordinary per-call rows; a single call keeps its own row. A permission prompt, question, subagent, todo, scheduler or plan card, a background task, a picture or a shared file stays outside the group, because folding it would hide the thing the reader may need to act on.
+
 ## Tool call card (bundled SPA, current)
 
 ![The permission card of an edit: the diff, then Allow, Allow always, the two session switches and Reject](../assets/screenshot-tool-previews-dark.png)

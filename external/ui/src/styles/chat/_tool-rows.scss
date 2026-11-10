@@ -845,3 +845,35 @@
 .coddy-tool-call-body > .tool-call-result-card + .tool-result-toggle-row {
   margin-top: -8px;
 }
+
+/* A folded run of adjacent tool calls. The summary uses the thinking-row
+   language already used by a single call; the open list is indented like the
+   body of a reasoning row so a group reads as one unit. */
+.tool-group-row {
+  margin: 1px 0;
+}
+
+.tool-group-counts {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0 8px;
+}
+
+.tool-group-count {
+  color: mix-text(40%);
+  font-size: 12px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.tool-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  margin: 2px 0 0 14px;
+}
+
+.tool-group-list > [data-tool-group-item] {
+  min-width: 0;
+}

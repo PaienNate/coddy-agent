@@ -16,6 +16,8 @@ import { CompactionMessage } from "./CompactionMessage";
 import { GoalTurnMessage } from "./GoalTurnMessage";
 import { opensTurn } from "../chat/backgroundWake";
 import { ToolCallMessage } from "./ToolCallMessage";
+import { ToolGroupMessage } from "./ToolGroupMessage";
+import { groupToolCalls, type ToolCallItem } from "./toolGroups";
 import type { BackgroundTask } from "../tasks/types";
 import type { TurnProgress } from "../chat/turnProgress";
 import { TypingDotsMessage } from "./TypingDotsMessage";
@@ -198,10 +200,116 @@ export function MessageList(props: {
     return ids;
   }, [props.items]);
 
+  // The interactive or live cards keep their own row: a permission prompt, a
+  // question, a subagent card and a background task must not disappear into a
+  // folded "Used N tools" line while somebody is waiting on them.
+  const renderRows = useMemo(
+    () =>
+      groupToolCalls(rendered, renderStart, (item: ToolCallItem) => {
+        const name = (item.title || item.kind || "").trim().toLowerCase();
+        if (
+          name === "question" ||
+          name === "spawn_agent" ||
+          name === "task" ||
+          name === "subagent" ||
+          name === "load_skill" ||
+          name === "share_file" ||
+          name.startsWith("coddy_todo_") ||
+          name.startsWith("coddy_scheduler_") ||
+          name.startsWith("plan_")
+        ) {
+          return false;
+        }
+        if (permissionWaitingToolCallIds.has(item.toolCallId)) return false;
+        if (props.backgroundTasksByToolCallId?.has(item.toolCallId)) {
+          return false;
+        }
+        // A picture or a shared file is the point of its row; a folded group
+        // must not hide it behind a count.
+        if ((item.images?.length ?? 0) > 0 || (item.artifacts?.length ?? 0) > 0) {
+          return false;
+        }
+        return true;
+      }),
+    [
+      rendered,
+      renderStart,
+      permissionWaitingToolCallIds,
+      props.backgroundTasksByToolCallId,
+    ],
+  );
+
+  const renderToolCall = (it: ToolCallItem) => {
+    const rowBackgroundTask = props.backgroundTasksByToolCallId?.get(
+      it.toolCallId,
+    );
+    return (
+      <ToolCallMessage
+        key={it.id}
+        rowId={it.id}
+        toolCallId={it.toolCallId}
+        status={it.status}
+        {...(props.pathRoots !== undefined
+          ? { pathRoots: props.pathRoots }
+          : {})}
+        {...(rowBackgroundTask
+          ? { backgroundTask: rowBackgroundTask }
+          : {})}
+        {...(rowBackgroundTask && props.backgroundNowMs !== undefined
+          ? { backgroundNowMs: props.backgroundNowMs }
+          : {})}
+        {...(it.title !== undefined ? { title: it.title } : {})}
+        {...(it.kind !== undefined ? { kind: it.kind } : {})}
+        {...(it.argsText !== undefined ? { argsText: it.argsText } : {})}
+        {...(it.resultText !== undefined
+          ? { resultText: it.resultText }
+          : {})}
+        {...(it.fullResultText !== undefined
+          ? { fullResultText: it.fullResultText }
+          : {})}
+        {...(it.resultWasTruncated === true
+          ? { resultWasTruncated: true }
+          : {})}
+        {...(it.todoPlan !== undefined ? { todoPlan: it.todoPlan } : {})}
+        {...(it.agentTool === true ? { agentTool: true } : {})}
+        {...(it.images !== undefined ? { images: it.images } : {})}
+        {...(it.artifacts !== undefined
+          ? {
+              artifacts: it.artifacts.filter(
+                (artifact) => !inlineArtifactIds.has(artifact.id),
+              ),
+            }
+          : {})}
+        {...(typeof it.durationMs === "number"
+          ? { durationMs: it.durationMs }
+          : {})}
+        {...(typeof it.startedAtMs === "number"
+          ? { startedAtMs: it.startedAtMs }
+          : {})}
+        {...(permissionWaitingToolCallIds.has(it.toolCallId)
+          ? { permissionWaiting: true }
+          : {})}
+        {...(props.onFetchToolCallFull
+          ? { onFetchToolCallFull: props.onFetchToolCallFull }
+          : {})}
+      />
+    );
+  };
+
   return (
     <>
-      {rendered.map((it, sliceIdx) => {
-        const idx = renderStart + sliceIdx;
+      {renderRows.map((row) => {
+        if (row.kind === "group") {
+          return (
+            <ToolGroupMessage
+              key={row.key}
+              items={row.items}
+              renderItem={renderToolCall}
+            />
+          );
+        }
+        const it = row.item;
+        const idx = row.index;
         if (it.type === "user_message") {
           const myIdx = userMsgIndexById.get(it.id);
           // A missing index must not fall back to 0: a rewind names the first
@@ -409,60 +517,7 @@ export function MessageList(props: {
             </div>
           );
         }
-        const rowBackgroundTask = props.backgroundTasksByToolCallId?.get(
-          it.toolCallId,
-        );
-        return (
-          <ToolCallMessage
-            key={it.id}
-            rowId={it.id}
-            toolCallId={it.toolCallId}
-            status={it.status}
-            {...(props.pathRoots !== undefined
-              ? { pathRoots: props.pathRoots }
-              : {})}
-            {...(rowBackgroundTask
-              ? { backgroundTask: rowBackgroundTask }
-              : {})}
-            {...(rowBackgroundTask && props.backgroundNowMs !== undefined
-              ? { backgroundNowMs: props.backgroundNowMs }
-              : {})}
-            {...(it.title !== undefined ? { title: it.title } : {})}
-            {...(it.kind !== undefined ? { kind: it.kind } : {})}
-            {...(it.argsText !== undefined ? { argsText: it.argsText } : {})}
-            {...(it.resultText !== undefined
-              ? { resultText: it.resultText }
-              : {})}
-            {...(it.fullResultText !== undefined
-              ? { fullResultText: it.fullResultText }
-              : {})}
-            {...(it.resultWasTruncated === true
-              ? { resultWasTruncated: true }
-              : {})}
-            {...(it.todoPlan !== undefined ? { todoPlan: it.todoPlan } : {})}
-            {...(it.agentTool === true ? { agentTool: true } : {})}
-            {...(it.images !== undefined ? { images: it.images } : {})}
-            {...(it.artifacts !== undefined
-              ? {
-                  artifacts: it.artifacts.filter(
-                    (artifact) => !inlineArtifactIds.has(artifact.id),
-                  ),
-                }
-              : {})}
-            {...(typeof it.durationMs === "number"
-              ? { durationMs: it.durationMs }
-              : {})}
-            {...(typeof it.startedAtMs === "number"
-              ? { startedAtMs: it.startedAtMs }
-              : {})}
-            {...(permissionWaitingToolCallIds.has(it.toolCallId)
-              ? { permissionWaiting: true }
-              : {})}
-            {...(props.onFetchToolCallFull
-              ? { onFetchToolCallFull: props.onFetchToolCallFull }
-              : {})}
-          />
-        );
+        return renderToolCall(it);
       })}
       {/* The tail rows below belong under the newest message: a window cut short
           of it (the reader deep in history) leaves them out. */}

@@ -1116,6 +1116,10 @@ SSE 载荷
 - 在那之前，自其消息以来未显示任何内容的轮次会显示 `Preparing the session…`，直到服务器报告它正在与其模型通信：轮次的第一个 `turn_progress` 在轮次引入其 MCP 服务器并等待其模型的上下文窗口期间携带 `preparing` 阶段（`chat/liveStatus.ts` 中的 `withPreparingPhase`）。此期间的等待不会升级，因为慢的不是模型。
 - Coddy 未定义的工具采用通用的 `Running a tool`，它无法说明 MCP 服务器提供的调用，因此那一条短语会改为指明服务器和工具：`Calling browser_navigate on the MCP server playwright`。那是该步骤的身份，而不是它的参数；调用作用于什么在其上方的对话记录行中读取，该行也会指明服务器和工具。
 - 派生逻辑会回溯到最后一个 `user_message`，因此已结束轮次中过期的 `in_progress` 行绝不会驱动该标签。短语表的控制台对应版本位于 `external/cli/status.go`。
+### 折叠的工具调用
+
+同一段对话记录里相邻的工具调用在至少有两个时会折叠成 **使用了 N 个工具** 一行。第二行按类别计数 - Shell、读取、搜索、编辑/写入、网络、子智能体、其他 - 失败调用保留失败标记。调用全部结束后组默认收起，有调用正在运行或失败时展开；展开后仍是原来的逐调用行，单独一个调用保持原样。权限提示、question、子智能体、待办、调度或计划卡片、后台任务、图片或共享文件不放进组里，因为折叠会藏住读者可能需要操作的内容。
+
 ## 工具调用卡片（内置 SPA，当前）
 
 ![编辑操作的权限卡片：差异，然后是 Allow、Allow always、两个会话开关和 Reject](../../assets/screenshot-tool-previews-dark.png)
@@ -2081,4 +2085,4 @@ Playwright 安装与上方折叠箭头检查相同。**`CODDY_BROWSER_PATH`** �
 
 *Anthropic 兼容提供商默认提供其自己的 SDK 身份。*
 
-<!-- docsgen:source sha256=68f0de30a2782401 -->
+<!-- docsgen:source sha256=e8810f24145369c5 -->
