@@ -11,6 +11,7 @@ export type Project = {
 };
 
 const ACTIVE_PROJECT_KEY = "coddy.projects.active.v1";
+const LAST_OPENED_KEY = "coddy.projects.lastOpened.v1";
 
 /** Paths compare the way the server's workspace filter does, as far as a
  *  browser can tell: separators, trailing slashes and a Windows drive letter
@@ -63,4 +64,50 @@ export function writeActiveProjectId(id: string): void {
   } catch {
     // A private window may refuse storage; the in-memory state still works.
   }
+}
+
+/** Project id -> the last instant this browser opened that project. */
+export type ProjectLastOpened = Record<string, string>;
+
+export function readProjectLastOpened(): ProjectLastOpened {
+  try {
+    const raw = localStorage.getItem(LAST_OPENED_KEY);
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+    const out: ProjectLastOpened = {};
+    for (const [id, at] of Object.entries(parsed)) {
+      if (
+        id.trim() &&
+        typeof at === "string" &&
+        Number.isFinite(Date.parse(at))
+      ) {
+        out[id] = at;
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+/** Records a project open and returns the whole map for React state. */
+export function markProjectOpened(
+  id: string,
+  at: string = new Date().toISOString(),
+): ProjectLastOpened {
+  const next = { ...readProjectLastOpened() };
+  if (id.trim()) {
+    next[id] = at;
+    try {
+      localStorage.setItem(LAST_OPENED_KEY, JSON.stringify(next));
+    } catch {
+      // A private window may refuse storage; the card still has its fallback.
+    }
+  }
+  return next;
 }

@@ -209,10 +209,13 @@ import {
   listProjects,
 } from "./projects/api";
 import {
+  markProjectOpened,
   readActiveProjectId,
+  readProjectLastOpened,
   sameProjectPath,
   writeActiveProjectId,
   type Project,
+  type ProjectLastOpened,
 } from "./projects/types";
 import {
   reconcilePermissionPendingSessionIds,
@@ -1328,6 +1331,16 @@ export function App() {
   const [activeProjectId, setActiveProjectId] = useState(() =>
     readActiveProjectId(),
   );
+  const [projectLastOpened, setProjectLastOpened] = useState<ProjectLastOpened>(
+    () => readProjectLastOpened(),
+  );
+  // A project's History opens by date, newest first. Its own controls can
+  // still change that; the choice is scoped to the project on screen and does
+  // not overwrite the History-wide preference used outside a project.
+  const [projectSessionGroupMode, setProjectSessionGroupMode] =
+    useState<SessionGroupMode>("time");
+  const [projectSessionsSortKey, setProjectSessionsSortKey] =
+    useState<SessionSortKey>("updated");
   const loadProjects = useCallback(async () => {
     setProjectsLoading(true);
     try {
@@ -1355,11 +1368,19 @@ export function App() {
   const rememberActiveProject = useCallback((project: Project | null) => {
     setActiveProjectId(project?.id || "");
     writeActiveProjectId(project?.id || "");
+    if (project) {
+      setProjectLastOpened(markProjectOpened(project.id));
+    }
   }, []);
   const activeProject = useMemo(
     () => projects.find((p) => p.id === activeProjectId) || null,
     [projects, activeProjectId],
   );
+
+  useEffect(() => {
+    setProjectSessionGroupMode("time");
+    setProjectSessionsSortKey("updated");
+  }, [activeProjectId]);
 
   useEffect(() => {
     const sid = sessionId.trim();
@@ -1619,6 +1640,12 @@ export function App() {
       readSessionPref(SESSION_PREF_COOKIES.sort, isHistorySortKey) ??
       DEFAULT_SESSION_SORT_KEY,
   );
+  const historyGroupMode = activeProject
+    ? projectSessionGroupMode
+    : sessionGroupMode;
+  const historySortKey = activeProject
+    ? projectSessionsSortKey
+    : sessionsSortKey;
   // Which surface's conversations History shows: every one, the ones opened on
   // this host, or the chats a messenger gateway is holding.
   const [sessionsOrigin, setSessionsOrigin] = useState<SessionOriginFilter>(
@@ -3514,8 +3541,8 @@ export function App() {
       if (activeProject) {
         ps.set("repo_root", activeProject.path);
       }
-      ps.set("sort", sessionsSortKey);
-      ps.set("order", defaultSortOrder(sessionsSortKey));
+      ps.set("sort", historySortKey);
+      ps.set("order", defaultSortOrder(historySortKey));
       ps.set("include_activity", "true");
       const seq = ++sessionsListSeqRef.current;
       if (reset) sessionsListResetSeqRef.current = seq;
@@ -3588,7 +3615,7 @@ export function App() {
       sessionFilterQ,
       sessionsArchiveFilter,
       sessionsOrigin,
-      sessionsSortKey,
+      historySortKey,
       activeProject?.path,
       headers,
       t,
@@ -7830,8 +7857,12 @@ export function App() {
       void archiveSession(id, archived),
     onPin: (id: string, pinned: boolean) => void pinSession(id, pinned),
     onReorderPins: (ids: string[]) => void reorderPinnedSessions(ids),
-    groupMode: sessionGroupMode,
+    groupMode: historyGroupMode,
     onGroupModeChange: (mode: SessionGroupMode) => {
+      if (activeProject) {
+        setProjectSessionGroupMode(mode);
+        return;
+      }
       setSessionGroupMode(mode);
       writeSessionGroupCookie(mode);
     },
@@ -7841,8 +7872,12 @@ export function App() {
       writeSessionPref(SESSION_PREF_COOKIES.status, value);
     },
     environments: sessionEnvironments,
-    sortKey: sessionsSortKey,
+    sortKey: historySortKey,
     onSortKeyChange: (key: SessionSortKey) => {
+      if (activeProject) {
+        setProjectSessionsSortKey(key);
+        return;
+      }
       setSessionsSortKey(key);
       writeSessionPref(SESSION_PREF_COOKIES.sort, key);
     },
@@ -8468,6 +8503,7 @@ export function App() {
               onCreateProject={createProjectFromPage}
               onDeleteProject={deleteProjectFromPage}
               onRefresh={() => void loadProjects()}
+              lastOpened={projectLastOpened}
             />
           </div>
         ) : null}

@@ -1603,6 +1603,7 @@ export const messagesRu: Record<string, string> = {
   "projects.card.sessions.many": "{count} сеансов",
   "projects.card.sessions.other": "{count} сеансов",
   "projects.card.open": "Открыть",
+  "projects.card.lastOpened": "Последнее открытие: {time}",
   "projects.delete.title": "Убрать {name}?",
   "projects.delete.message":
     "Папка и её разговоры останутся на месте; удаляется только запись проекта.",

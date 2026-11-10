@@ -1415,6 +1415,7 @@ export const messagesZh: Record<string, string> = {
   "projects.empty.body": "添加一个文件夹，让它的对话拥有独立工作区。",
   "projects.card.sessions.other": "{count} 个会话",
   "projects.card.open": "打开",
+  "projects.card.lastOpened": "最后访问 {time}",
   "projects.delete.title": "移除 {name}？",
   "projects.delete.message": "文件夹和其中的对话不会被删除，只会移除项目入口。",
   "projects.delete.aria": "移除项目 {name}",

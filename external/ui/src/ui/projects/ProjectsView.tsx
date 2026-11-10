@@ -3,11 +3,13 @@ import { useT } from "../i18n/I18nProvider";
 import { useConfirm } from "../components/useConfirm";
 import { WorkspaceFolderModal } from "../chat/WorkspaceFolderModal";
 import type { SessionRow } from "../sessions/types";
+import { projectLastAccessAgo, projectLastAccessFull } from "./lastAccess";
 import {
   projectPathKey,
   projectPathName,
   sameProjectPath,
   type Project,
+  type ProjectLastOpened,
 } from "./types";
 
 type Props = {
@@ -19,6 +21,8 @@ type Props = {
   onCreateProject: (path: string) => Promise<Project>;
   onDeleteProject: (project: Project) => Promise<void>;
   onRefresh: () => void;
+  /** Last time this browser opened each project, by project id. */
+  lastOpened?: Readonly<ProjectLastOpened>;
 };
 
 type ProjectCount = { count: number; updatedAt: string; path: string };
@@ -142,6 +146,27 @@ function countFor(
   );
 }
 
+function LastAccess(props: {
+  at: string | undefined;
+  now: number;
+  t: (key: string, params?: Record<string, string>) => string;
+}) {
+  const at = props.at || "";
+  const ago = projectLastAccessAgo(at, props.now);
+  if (!ago) {
+    return null;
+  }
+  return (
+    <time
+      className="projects-card-last"
+      dateTime={at}
+      title={projectLastAccessFull(at)}
+    >
+      {props.t("projects.card.lastOpened", { time: ago })}
+    </time>
+  );
+}
+
 /**
  * The Projects page: the folders this Coddy home knows, each opening its own
  * workspace and tab strip. Adding a project registers a folder; it never
@@ -154,6 +179,12 @@ export function ProjectsView(props: Props) {
   const [busy, setBusy] = useState("");
   const [localError, setLocalError] = useState("");
   const [counts, setCounts] = useState<Map<string, ProjectCount>>(new Map());
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -330,9 +361,21 @@ export function ProjectsView(props: Props) {
                 </div>
                 <div className="projects-card-foot">
                   <span>{tp("projects.card.sessions", stat?.count ?? 0)}</span>
-                  <span className="projects-card-open">
-                    {t("projects.card.open")}
-                    <IconOpen />
+                  <span className="projects-card-foot-end">
+                    <span className="projects-card-open">
+                      {t("projects.card.open")}
+                      <IconOpen />
+                    </span>
+                    <LastAccess
+                      at={
+                        props.lastOpened?.[project.id] ||
+                        stat?.updatedAt ||
+                        project.updatedAt ||
+                        project.createdAt
+                      }
+                      now={now}
+                      t={t}
+                    />
                   </span>
                 </div>
               </div>
@@ -375,8 +418,11 @@ export function ProjectsView(props: Props) {
                   </div>
                   <div className="projects-card-foot">
                     <span>{tp("projects.card.sessions", row.count)}</span>
-                    <span className="projects-card-discovered">
-                      {t("projects.discovered.add")}
+                    <span className="projects-card-foot-end">
+                      <span className="projects-card-discovered">
+                        {t("projects.discovered.add")}
+                      </span>
+                      <LastAccess at={row.updatedAt} now={now} t={t} />
                     </span>
                   </div>
                 </div>

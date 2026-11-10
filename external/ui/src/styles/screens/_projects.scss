@@ -446,11 +446,20 @@
 
 .projects-card-foot {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 8px;
   color: var(--muted);
   font-size: 0.75rem;
+}
+
+.projects-card-foot-end {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  min-width: 0;
+  max-width: 68%;
 }
 
 .projects-card-open {
@@ -459,6 +468,16 @@
   gap: 4px;
   color: color-mix(in srgb, var(--accent) 75%, var(--text));
   font-weight: 600;
+}
+
+.projects-card-last {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .projects-empty {

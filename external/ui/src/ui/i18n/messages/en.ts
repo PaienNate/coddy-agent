@@ -1552,6 +1552,7 @@ export const messagesEn: Record<string, string> = {
   "projects.card.sessions.one": "{count} session",
   "projects.card.sessions.other": "{count} sessions",
   "projects.card.open": "Open",
+  "projects.card.lastOpened": "Last opened {time}",
   "projects.delete.title": "Remove {name}?",
   "projects.delete.message":
     "The folder and its conversations stay where they are; only the project entry is removed.",
