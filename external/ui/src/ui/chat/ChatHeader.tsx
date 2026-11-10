@@ -15,6 +15,8 @@ export function ChatHeader(props: {
   onTitleSave?: (title: string) => void;
   /** Background tasks of this chat, counted on the control `onOpenTasks` puts at the right edge. */
   tasks?: BackgroundTask[];
+  /** Subagent runs behind the subagent control; defaults to `tasks`. */
+  subagentTasks?: BackgroundTask[];
   /** Opens the background tasks beside the chat, or puts them away when they show. */
   onOpenTasks?: () => void;
   /** The Tasks panel is showing. */
@@ -108,6 +110,9 @@ export function ChatHeader(props: {
       {props.onOpenTasks ? (
         <HeaderViews
           tasks={props.tasks ?? []}
+          {...(props.subagentTasks
+            ? { subagentTasks: props.subagentTasks }
+            : {})}
           onOpenTasks={props.onOpenTasks}
           tasksOpen={props.tasksOpen === true}
           {...(props.onOpenSubagents
@@ -142,6 +147,7 @@ type ViewId = "tasks" | "files" | "subagents";
  */
 function HeaderViews(props: {
   tasks: BackgroundTask[];
+  subagentTasks?: BackgroundTask[];
   onOpenTasks: () => void;
   tasksOpen: boolean;
   onOpenSubagents?: () => void;
@@ -151,7 +157,7 @@ function HeaderViews(props: {
 }) {
   const { t } = useT();
   const { running, total } = countTasks(props.tasks);
-  const subagents = countSubagents(props.tasks);
+  const subagents = countSubagents(props.subagentTasks ?? props.tasks);
   const live = running > 0;
   const tasksName =
     total === 0

@@ -186,6 +186,30 @@ function viewsHeader(
   );
 }
 
+test("the subagent control reads the child list, not the command list", () => {
+  render(
+    <ChatHeader
+      title="Hello"
+      tasks={[task({ id: "bg_1" })]}
+      subagentTasks={[
+        task({
+          id: "sess_child",
+          kind: "agent",
+          agent: { name: "explore", session_id: "sess_child" },
+        }),
+      ]}
+      onOpenTasks={() => {}}
+      onOpenSubagents={() => {}}
+    />,
+  );
+  expect(screen.getByTestId("chat-views-subagents-count").textContent).toBe(
+    "1",
+  );
+  expect(screen.getByTestId("chat-views-tasks-count").textContent).toBe(
+    "1 / 1",
+  );
+});
+
 test("the header puts subagents between files and background tasks", () => {
   render(viewsHeader({ onOpenSubagents: () => {} }));
   const row = screen.getByRole("toolbar", { name: "Views of this chat" });

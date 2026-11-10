@@ -502,6 +502,35 @@ async function fetchJSON<T>(
   return { ok: true, status, data };
 }
 
+/** A child session as a task row for the Subagents panel: imported runs have a
+ *  transcript but no task in this process, so the panel reads them from the
+ *  bundle instead. Opening one follows its child session. */
+function subagentSessionTask(
+  row: SessionRow,
+  parentSessionId: string,
+): BackgroundTask {
+  const at = row.updatedAt || new Date(0).toISOString();
+  return {
+    id: row.id,
+    session_id: parentSessionId,
+    kind: "agent",
+    label: (row.title || "").trim() || row.subagent?.name || row.id,
+    agent: {
+      name: row.subagent?.name || "",
+      session_id: row.id,
+    },
+    status: "succeeded",
+    started_at: at,
+    finished_at: at,
+    timeout_seconds: 0,
+    output_bytes: 0,
+    output_truncated: false,
+    elapsed_seconds: 0,
+    overdue: false,
+    running: false,
+  };
+}
+
 function newId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(16).slice(2)}`;
 }
@@ -1599,6 +1628,9 @@ export function App() {
   const [schedulerRunsFocus, setSchedulerRunsFocus] =
     useState<TaskFocus | null>(null);
   const [backgroundTasks, setBackgroundTasks] = useState<BackgroundTask[]>([]);
+  /** Child sessions of the open chat: imported runs and any task the pool has
+   *  already forgotten. The subagents control reads them beside backgroundTasks. */
+  const [subagentSessions, setSubagentSessions] = useState<SessionRow[]>([]);
   const [backgroundRunning, setBackgroundRunning] = useState(0);
   const [backgroundListError, setBackgroundListError] = useState<string | null>(
     null,
@@ -3159,6 +3191,39 @@ export function App() {
     }, tasksPollIntervalMs(backgroundRunning));
     return () => window.clearInterval(id);
   }, [sessionId, backgroundRunning, refreshBackgroundTasks]);
+
+  // A child session can be older than the process that serves it: an imported
+  // run has no background task to point at. Its bundle still names the parent,
+  // so the Subagents panel asks for that parent's children directly. This is
+  // also what keeps a child out of History and the project tabs.
+  useEffect(() => {
+    const sid = sessionId.trim();
+    if (!sid || subagentTranscript) {
+      setSubagentSessions([]);
+      return;
+    }
+    let live = true;
+    const q = new URLSearchParams({
+      subagent_parent: sid,
+      limit: "100",
+      sort: "updated",
+      order: "desc",
+    });
+    void (async () => {
+      const res = await fetchJSON<SessionsPage>(
+        `/coddy/sessions?${q.toString()}`,
+      );
+      if (!live) return;
+      if (res.ok && Array.isArray(res.data?.sessions)) {
+        setSubagentSessions(res.data.sessions);
+      } else {
+        setSubagentSessions([]);
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [sessionId, subagentTranscript, backgroundTasks.length]);
 
   // Elapsed labels must advance between polls, so the clock ticks on its own
   // while something is actually running.
@@ -7692,10 +7757,16 @@ export function App() {
     return byToolCall;
   }, [backgroundTasks]);
 
-  const subagentTasks = useMemo(
-    () => backgroundTasks.filter(isSubagentTask),
-    [backgroundTasks],
-  );
+  const subagentTasks = useMemo(() => {
+    const tasks = backgroundTasks.filter(isSubagentTask);
+    const known = new Set(
+      tasks.map((task) => task.agent?.session_id || "").filter(Boolean),
+    );
+    const imported = subagentSessions
+      .filter((row) => row.id && !known.has(row.id))
+      .map((row) => subagentSessionTask(row, sessionId.trim()));
+    return [...tasks, ...imported];
+  }, [backgroundTasks, subagentSessions, sessionId]);
   // The panel belongs to a chat, so it only exists when one is open. Its two
   // header controls share the dock; `tasksPanelView` says which list is in it.
   const tasksPanelOpen =
@@ -8676,9 +8747,19 @@ export function App() {
             key={activeProject.id}
             project={activeProject}
             projects={projects}
-            activeSessionId={sessionId}
-            activeSessionTitle={currentTitle}
+            activeSessionId={
+              subagentTranscript?.parentSessionId ||
+              (subagentTranscript ? "" : sessionId)
+            }
+            activeSessionTitle={
+              subagentTranscript
+                ? sessions.find(
+                    (row) => row.id === subagentTranscript.parentSessionId,
+                  )?.title || ""
+                : currentTitle
+            }
             workspacePath={workspaceCtx?.path || ""}
+            reselectActive={!!subagentTranscript}
             onSelectSession={pickSession}
             onNewChat={openProjectWorkspace}
             onSwitchProject={openProjectWorkspace}
@@ -8699,10 +8780,15 @@ export function App() {
             }
             filesOpen={filesOpen}
             backgroundTasks={backgroundTasks}
+            subagentTasks={subagentTasks}
             onOpenBackgroundTasks={openTasksFromNav}
-            onOpenSubagents={openSubagentsFromNav}
-            onCloseSubagents={closeTasksDrawer}
-            subagentsOpen={subagentsPanelOpen}
+            {...(subagentTranscript
+              ? {}
+              : {
+                  onOpenSubagents: openSubagentsFromNav,
+                  onCloseSubagents: closeTasksDrawer,
+                  subagentsOpen: subagentsPanelOpen,
+                })}
             onBackgroundTasksChanged={() => {
               void refreshBackgroundTasks({ silent: true });
             }}

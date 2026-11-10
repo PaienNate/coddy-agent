@@ -87,6 +87,7 @@ export async function listWorkspaceSessions(
     sort: "updated",
     order: "desc",
     include_activity: "true",
+    include_imported_subagents: "false",
   });
   const [pages, recent] = await Promise.all([
     Promise.all(
@@ -98,6 +99,7 @@ export async function listWorkspaceSessions(
             sort: "updated",
             order: "desc",
             include_activity: "true",
+            include_imported_subagents: "false",
           }),
         ),
       ),

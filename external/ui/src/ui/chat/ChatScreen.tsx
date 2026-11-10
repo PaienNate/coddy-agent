@@ -199,6 +199,8 @@ export function ChatScreen(props: {
   backgroundNowMs?: number;
   /** Every background task of this chat, for the header control and the live line. */
   backgroundTasks?: BackgroundTask[];
+  /** Subagent runs, including imported child sessions, for the subagent control. */
+  subagentTasks?: BackgroundTask[];
   onOpenBackgroundTasks?: () => void;
   /** The Tasks panel is showing, for the header control's expanded state. */
   backgroundTasksOpen?: boolean;
@@ -1126,6 +1128,10 @@ export function ChatScreen(props: {
                             ? props.onCloseBackgroundTasks
                             : props.onOpenBackgroundTasks,
                         tasksOpen: props.backgroundTasksOpen === true,
+
+                        ...(props.subagentTasks
+                          ? { subagentTasks: props.subagentTasks }
+                          : {}),
 
                         ...(props.onOpenSubagents
                           ? {

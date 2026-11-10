@@ -249,6 +249,16 @@ func openAPISpec() map[string]interface{} {
 						"schema":      map[string]string{"type": "string"},
 						"description": "Only the sessions of this project: the main checkout itself and the worktrees that belong to it, matched by the **repoRoot** a row reports. A folder that is not a git checkout matches by its exact path. Combine it with **cwd** to narrow the project to one workspace.",
 					}, map[string]interface{}{
+						"name":        "include_imported_subagents",
+						"in":          "query",
+						"schema":      map[string]interface{}{"type": "boolean", "default": true},
+						"description": "When false, child sessions imported with the **opencode** tag stay out even though the default listing admits them; a project workspace uses this so its tabs and pickers show only conversations a person started.",
+					}, map[string]interface{}{
+						"name":        "subagent_parent",
+						"in":          "query",
+						"schema":      map[string]string{"type": "string"},
+						"description": "Only the child sessions this parent started. The listing descends into subagent bundles for this query even without **include_subagents**. Each row carries the **subagent** link, so a chat can list its runs without showing them in History.",
+					}, map[string]interface{}{
 						"name":        "include_scheduler",
 						"in":          "query",
 						"schema":      map[string]string{"type": "boolean"},

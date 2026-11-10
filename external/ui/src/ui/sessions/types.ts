@@ -19,6 +19,12 @@ export type SessionRow = {
   /** True while the session is held at the top of every listing. */
   pinned?: boolean;
   pinnedAt?: string;
+  /** Present on a child session: the run that spawned it and its parent. */
+  subagent?: {
+    parentSessionId: string;
+    name: string;
+    taskId: string;
+  };
   turnActive?: boolean;
   activitySeq?: number;
   readActivitySeq?: number;

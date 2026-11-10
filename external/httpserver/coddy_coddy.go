@@ -75,6 +75,18 @@ func sessionRepoRoot(cwd string) string {
 // sessionsInProject keeps the conversations whose workspace is the project
 // root or a worktree of it. A non-git folder is its own root, so the exact
 // workspace comparison keeps it too.
+// sessionsOfParent keeps the child sessions a spawn_agent run left under one
+// parent, whether this process started them or an import recorded the link.
+func sessionsOfParent(rows []session.SessionListEntry, parentSessionID string) []session.SessionListEntry {
+	out := make([]session.SessionListEntry, 0, len(rows))
+	for _, row := range rows {
+		if row.SubagentRun && row.ParentSessionID == parentSessionID {
+			out = append(out, row)
+		}
+	}
+	return out
+}
+
 func sessionsInProject(rows []session.SessionListEntry, projectRoot string) []session.SessionListEntry {
 	out := make([]session.SessionListEntry, 0, len(rows))
 	for _, row := range rows {
@@ -1141,6 +1153,12 @@ func (s *Server) coddySessionsList(w http.ResponseWriter, r *http.Request) {
 	}
 	includeScheduler := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("include_scheduler")), "true")
 	includeSubagents := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("include_subagents")), "true")
+	includeImportedSubagents := true
+	if v := strings.TrimSpace(r.URL.Query().Get("include_imported_subagents")); v != "" {
+		includeImportedSubagents = !strings.EqualFold(v, "false")
+	}
+	parentSessionID := strings.TrimSpace(r.URL.Query().Get("subagent_parent"))
+	includeSubagents = includeSubagents || parentSessionID != ""
 	includePrint := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("include_print")), "true")
 	archived, ok := session.ParseArchiveFilter(r.URL.Query().Get("archived"))
 	if !ok {
@@ -1166,7 +1184,7 @@ func (s *Server) coddySessionsList(w http.ResponseWriter, r *http.Request) {
 		CWD:                      strings.TrimSpace(r.URL.Query().Get("cwd")),
 		IncludeSchedulerRuns:     includeScheduler,
 		IncludeSubagents:         includeSubagents,
-		IncludeImportedSubagents: true,
+		IncludeImportedSubagents: includeImportedSubagents,
 		Archived:                 archived,
 		Tags:                     session.ParseTagList(r.URL.Query().Get("tags")),
 		Origin:                   origin,
@@ -1194,6 +1212,9 @@ func (s *Server) coddySessionsList(w http.ResponseWriter, r *http.Request) {
 	// project root the row belongs to, so a project page can filter by it.
 	if projectRoot := strings.TrimSpace(r.URL.Query().Get("repo_root")); projectRoot != "" {
 		rows = sessionsInProject(rows, projectRoot)
+	}
+	if parentSessionID != "" {
+		rows = sessionsOfParent(rows, parentSessionID)
 	}
 	turnActive := func(id string) bool {
 		return s.mgr.SessionTurnActiveInProcess(id) || session.TurnLockHeld(fs.SessionPath(id))

@@ -76,6 +76,30 @@ afterEach(() => {
   cleanup();
 });
 
+test("a child transcript can send its already-active parent tab back to the parent", async () => {
+  const view = renderTabs("b");
+  await screen.findByText("Beta");
+  fireEvent.click(screen.getByText("Beta"));
+  expect(view.onSelectSession).not.toHaveBeenCalled();
+
+  view.rerender(
+    <ProjectTabs
+      project={project}
+      projects={projects}
+      activeSessionId="b"
+      activeSessionTitle="Beta"
+      reselectActive
+      onSelectSession={view.onSelectSession}
+      onNewChat={view.onNewChat}
+      onSwitchProject={view.onSwitchProject}
+      onOpenProjects={view.onOpenProjects}
+      onHome={view.onHome}
+    />,
+  );
+  fireEvent.click(screen.getByText("Beta"));
+  expect(view.onSelectSession).toHaveBeenCalledWith("b");
+});
+
 test("a project renders one tab per conversation and the active one is selected", async () => {
   renderTabs();
   expect(await screen.findByText("Alpha")).toBeTruthy();

@@ -45,6 +45,9 @@ type Props = {
   onHome: (project: Project) => void;
   /** Bumped by the shell when a new session may have appeared. */
   refreshEpoch?: number;
+  /** A child transcript is on screen under its parent tab: selecting that
+   *  already-active tab still has to return to the parent chat. */
+  reselectActive?: boolean;
 };
 
 function IconFolder() {
@@ -268,7 +271,7 @@ export function ProjectTabs(props: Props) {
   };
 
   const activate = (id: string) => {
-    if (id && id !== props.activeSessionId) {
+    if (id && (id !== props.activeSessionId || props.reselectActive)) {
       props.onSelectSession(id);
     }
   };
