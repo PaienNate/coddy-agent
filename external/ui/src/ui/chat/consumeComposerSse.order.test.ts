@@ -5,6 +5,7 @@ import {
   type ConsumeComposerSseParams,
 } from "./consumeComposerSse";
 import type { TranscriptItem } from "./types";
+import { transcriptItemsFromMessages } from "./transcriptFromMessages";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -36,7 +37,10 @@ async function drive(sse: string): Promise<TranscriptItem[]> {
     reader: mockReader(sse),
     dec: new TextDecoder(),
     carry: { buf: "" },
-    assistantId: "a-init",
+    assistantId: "as_0",
+    turnIdx: 0,
+    assistantStep: 0,
+    thinkingStep: 0,
     applyStreamItems: (fn) => {
       const next = fn(items.slice());
       items.length = 0;
@@ -841,11 +845,7 @@ test("text interrupted by reasoning stays one answer below the thinking rows", a
     reasoningDurationMsByContentRef: { current: new Map() },
     newId: (p) => `${p}-${idc++}`,
   });
-  expect(items.map((it) => it.type)).toEqual([
-    "thinking",
-    "thinking",
-    "assistant_message",
-  ]);
+  expect(items.map((it) => it.type)).toEqual(["thinking", "assistant_message"]);
   const answers = items.filter((it) => it.type === "assistant_message");
   expect(answers.map((a) => a.content)).toEqual([
     "I'll create the file.Created src/hello.ts.",
@@ -916,4 +916,109 @@ test("unknown session usage stays hidden when the current call is known", async 
     newId: (p) => p,
   });
   expect(updates).toEqual([null]);
+});
+
+test("live rows get the same stable ids the persisted turn will use", async () => {
+  vi.stubGlobal("requestAnimationFrame", () => 0);
+  const items: TranscriptItem[] = [];
+  const res = await consumeComposerSseReader({
+    reader: mockReader(
+      `data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: "first look" } }] })}\n\n` +
+        textEvent("删除") +
+        `data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: " then look" } }] })}\n\n` +
+        textEvent("和停用都执行成功。") +
+        "data: [DONE]\n\n",
+    ),
+    dec: new TextDecoder(),
+    carry: { buf: "" },
+    assistantId: "as_7",
+    turnIdx: 7,
+    assistantStep: 0,
+    thinkingStep: 0,
+    applyStreamItems: (fn) => {
+      const next = fn(items.slice());
+      items.length = 0;
+      items.push(...next);
+    },
+    setTokenUsage: () => {},
+    setContextUsage: () => {},
+    tokenBaselineRef: { current: { input: 0, output: 0, total: 0 } },
+    reasoningDurationMsByContentRef: { current: new Map() },
+    newId: (p) => `${p}-live`,
+  });
+  expect(items.map((it) => [it.type, it.id])).toEqual([
+    ["thinking", "th_7_0"],
+    ["assistant_message", "as_7"],
+  ]);
+  expect(items[1]?.type === "assistant_message" ? items[1].content : "").toBe(
+    "删除和停用都执行成功。",
+  );
+  expect(res.assistantIds).toEqual(["as_7"]);
+});
+
+test("a tool call spends an assistant step while a tool-only first step does not", async () => {
+  const tool = (id: string) =>
+    `event: tool_call\ndata: ${JSON.stringify({ toolCallId: id, title: "read", status: "pending" })}\n\n`;
+  const items = await drive(
+    textEvent("first ") +
+      tool("t1") +
+      textEvent("second ") +
+      tool("t2") +
+      textEvent("third") +
+      `data: [DONE]\n\n`,
+  );
+  expect(
+    items
+      .filter((it) => it.type === "assistant_message")
+      .map((it) => (it.type === "assistant_message" ? it.id : "")),
+  ).toEqual(["as_0", "as_0_1", "as_0_2"]);
+});
+
+test("the live ids are the ids a reload of the same turn produces", async () => {
+  const persistedUser = { role: "user", content: "question" };
+  const persistedAssistant = {
+    role: "assistant",
+    reasoning: "first look",
+    content: "删除和停用都执行成功。",
+  };
+  const mapped = transcriptItemsFromMessages({
+    messages: [persistedUser, persistedAssistant],
+    window: { offset: 0, total: 2, turnsBefore: 0, userRowsBefore: 0 },
+    uiLog: undefined,
+    newId: (p) => `${p}-persisted`,
+    reasoningDurations: new Map(),
+  });
+  const persisted = mapped.items.map((it) => [it.type, it.id]);
+  expect(persisted).toEqual([
+    ["user_message", "u_1"],
+    ["thinking", "th_1_0"],
+    ["assistant_message", "as_1"],
+  ]);
+
+  vi.stubGlobal("requestAnimationFrame", () => 0);
+  const live: TranscriptItem[] = [];
+  await consumeComposerSseReader({
+    reader: mockReader(
+      `data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: "first look" } }] })}\n\n` +
+        textEvent("删除和停用都执行成功。") +
+        "data: [DONE]\n\n",
+    ),
+    dec: new TextDecoder(),
+    carry: { buf: "" },
+    assistantId: "as_1",
+    turnIdx: 1,
+    assistantStep: 0,
+    thinkingStep: 0,
+    applyStreamItems: (fn) => {
+      const next = fn(live.slice());
+      live.length = 0;
+      live.push(...next);
+    },
+    setTokenUsage: () => {},
+    setContextUsage: () => {},
+    tokenBaselineRef: { current: { input: 0, output: 0, total: 0 } },
+    reasoningDurationMsByContentRef: { current: new Map() },
+    newId: (p) => `${p}-live`,
+  });
+  expect(live.map((it) => [it.type, it.id])).toEqual(persisted.slice(1));
 });

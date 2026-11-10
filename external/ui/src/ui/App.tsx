@@ -102,7 +102,9 @@ import {
 import { createDebouncedSessionStatsRefresh } from "./chat/sessionStatsPoll";
 import {
   preserveTranscriptItemIds,
+  stableAssistantItemId,
   stablePermissionPromptItemId,
+  stableUserItemId,
 } from "./chat/transcriptItemIds";
 import {
   dedupeAdjacentDuplicateThinkingCompleted,
@@ -112,6 +114,7 @@ import {
   revokeSupersededUserMessagePreviews,
 } from "./chat/transcriptServerSnapshot";
 import { pickStreamMutationBase } from "./chat/streamMutationBase";
+import { newTurnIdentity, resumedTurnIdentity } from "./chat/streamIdentity";
 import { ShadowTranscriptCache } from "./chat/sessionTranscriptCache";
 import {
   dropSettledPermissionPrompts,
@@ -5425,7 +5428,14 @@ export function App() {
     const queueEpoch = queueOrderRef.current.capture(key).epoch;
 
     addActiveComposer(key);
-    const assistantId = newId("a");
+    const identity = resumedTurnIdentity(
+      baseline,
+      liveWindowBySidRef.current.get(key)?.turnsBefore ?? 0,
+    );
+    const assistantId = stableAssistantItemId(
+      identity.turnIdx,
+      identity.assistantStep,
+    );
     // A reader of this turn that a Stop released: resume after its last frame,
     // writing on in its segment, rather than replaying the turn on top of it.
     const released = releasedCursorBySidRef.current.get(key);
@@ -5447,6 +5457,10 @@ export function App() {
           assistantId,
           segmentDirty: false,
           segmentHasText: false,
+          turnIdx: identity.turnIdx,
+          assistantStep: identity.assistantStep,
+          thinkingStep: identity.thinkingStep,
+          assistantRowUsed: identity.assistantRowUsed,
         };
     streamCursorBySidRef.current.set(key, cursor);
     streamingAssistantBySidRef.current.set(key, cursor.assistantId);
@@ -5526,6 +5540,9 @@ export function App() {
         dec,
         carry,
         assistantId,
+        turnIdx: identity.turnIdx,
+        assistantStep: identity.assistantStep,
+        thinkingStep: identity.thinkingStep,
         sessionId: key,
         cursor,
         applyStreamItems,
@@ -5932,23 +5949,6 @@ export function App() {
       }
 
       const hdrs = sid ? { [HDR]: sid } : {};
-      const userItem: TranscriptItem = {
-        id: newId("u"),
-        type: "user_message",
-        content: text,
-        createdAtUtc: new Date().toISOString(),
-        ...(opts?.files && opts.files.length > 0
-          ? { files: optimisticUserFiles(opts.files) }
-          : {}),
-      };
-      const assistantId = newId("a");
-      assistantStreamId = assistantId;
-      // The server never took this send: the bubble drawn for it leaves the
-      // transcript, and what the operator wrote returns to the composer - text
-      // and files - ahead of anything typed since.
-      userItemId = userItem.id;
-      let settingsOnly = false;
-      streamingAssistantBySidRef.current.set(streamKey, assistantId);
       const viewingNow = viewedSessionIdRef.current.trim();
       const baseItems = pickStreamMutationBase({
         mutationSessionId: streamKey,
@@ -5958,6 +5958,27 @@ export function App() {
         itemsWhenViewingMatches: itemsRef.current,
         assumeActiveForBase: true,
       });
+      const turnIdentity = newTurnIdentity(
+        baseItems,
+        liveWindowBySidRef.current.get(streamKey)?.turnsBefore ?? 0,
+      );
+      const userItem: TranscriptItem = {
+        id: stableUserItemId(turnIdentity.turnIdx),
+        type: "user_message",
+        content: text,
+        createdAtUtc: new Date().toISOString(),
+        ...(opts?.files && opts.files.length > 0
+          ? { files: optimisticUserFiles(opts.files) }
+          : {}),
+      };
+      const assistantId = stableAssistantItemId(turnIdentity.turnIdx, 0);
+      assistantStreamId = assistantId;
+      // The server never took this send: the bubble drawn for it leaves the
+      // transcript, and what the operator wrote returns to the composer - text
+      // and files - ahead of anything typed since.
+      userItemId = userItem.id;
+      let settingsOnly = false;
+      streamingAssistantBySidRef.current.set(streamKey, assistantId);
       const nextShadow = [...baseItems, userItem];
       streamShadowBySidRef.current.set(streamKey, nextShadow);
       if (viewingNow === streamKey) {
@@ -6301,6 +6322,10 @@ export function App() {
         assistantId,
         segmentDirty: false,
         segmentHasText: false,
+        turnIdx: turnIdentity.turnIdx,
+        assistantStep: turnIdentity.assistantStep,
+        thinkingStep: turnIdentity.thinkingStep,
+        assistantRowUsed: false,
       };
       postCursor = cursor;
       streamCursorBySidRef.current.set(streamKey, cursor);
@@ -6317,6 +6342,9 @@ export function App() {
         dec,
         carry,
         assistantId,
+        turnIdx: turnIdentity.turnIdx,
+        assistantStep: turnIdentity.assistantStep,
+        thinkingStep: turnIdentity.thinkingStep,
         sessionId: streamKey,
         cursor,
         applyStreamItems,

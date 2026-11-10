@@ -27,6 +27,12 @@ import {
   type SessionSettingsEvent,
 } from "./sessionSettings";
 import { t } from "../i18n/i18n";
+import {
+  stableAssistantItemId,
+  stableThinkingItemId,
+  stableToolCallItemId,
+  stableUserItemId,
+} from "./transcriptItemIds";
 
 export type ContextUsageUpdate = {
   used: number;
@@ -122,6 +128,14 @@ export type ComposerStreamCursor = {
   segmentHasText: boolean;
   /** Assistant row a reasoning block interrupted; its text joins that row. */
   mergeAssistantId?: string;
+  /** The turn these stable rows belong to. */
+  turnIdx?: number;
+  /** The initial assistant row has carried text and spent its step index. */
+  assistantRowUsed?: boolean;
+  /** Next assistant-text row number inside the turn. */
+  assistantStep?: number;
+  /** Next reasoning row number inside the turn. */
+  thinkingStep?: number;
   /** Lands rows the reader still holds back (the batched tool rows). */
   flush?: () => void;
 };
@@ -131,6 +145,12 @@ export type ConsumeComposerSseParams = {
   dec: TextDecoder;
   carry: { buf: string };
   assistantId: string;
+  /** The turn index these stable row ids belong to (stableAssistantItemId). */
+  turnIdx?: number;
+  /** The next assistant-text row number inside the turn; 0 on a new send. */
+  assistantStep?: number;
+  /** The next reasoning row number inside the turn; 0 on a new send. */
+  thinkingStep?: number;
   /** The session this stream reads: a queued picture's row opens from its assets. */
   sessionId?: string;
   /** Kept up to date while the stream is read. With `frames` above zero the
@@ -209,6 +229,9 @@ export async function consumeComposerSseReader(
     dec,
     carry,
     assistantId,
+    turnIdx: turnIdxParam,
+    assistantStep: assistantStepParam,
+    thinkingStep: thinkingStepParam,
     sessionId,
     applyStreamItems,
     setTokenUsage,
@@ -236,7 +259,19 @@ export async function consumeComposerSseReader(
   // `currentAssistantId` points at the open text segment;
   // `assistantSegmentDirty` means the next text delta must start a fresh one.
   const resuming = !!cursor && cursor.frames > 0;
+  let turnIdx = resuming ? (cursor.turnIdx ?? 0) : (turnIdxParam ?? 0);
+  let assistantStep = resuming
+    ? (cursor.assistantStep ?? 0)
+    : (assistantStepParam ?? 0);
+  let thinkingStep = resuming
+    ? (cursor.thinkingStep ?? 0)
+    : (thinkingStepParam ?? 0);
   let currentAssistantId = resuming ? cursor.assistantId : assistantId;
+  // The initial id stands for the first text row of the turn but is not spent
+  // until that row actually appears: a model that only calls a tool first
+  // leaves the first text row at step 0, exactly as the persisted message list
+  // numbers it.
+  let assistantRowUsed = resuming ? cursor.assistantRowUsed === true : false;
   // Every row this stream wrote its answer into: a tool call starts another
   // part of the answer, while reasoning inside it keeps the row it interrupted.
   // Once the persisted message replaces them it carries the id of one of them,
@@ -256,6 +291,10 @@ export async function consumeComposerSseReader(
     if (entries) onTodoPlan?.(entries);
   };
   let assistantSegmentDirty = resuming ? cursor.segmentDirty : false;
+  // A tool or another row (not reasoning) ended the whole assistant step: the
+  // next text opens a new stable assistant row. Reasoning inside one step only
+  // ends the text segment; its text rejoins that row.
+  let assistantStepDirty = false;
   // The assistant row a thinking block interrupted. Text that follows reasoning
   // in the same model call belongs to that row, not to a second bubble: the
   // persisted transcript stores one assistant message, and a live view that
@@ -290,7 +329,7 @@ export async function consumeComposerSseReader(
         );
         if (idx < 0) {
           const itBase: Extract<TranscriptItem, { type: "tool_call" }> = {
-            id: newId("t"),
+            id: stableToolCallItemId(upd.toolCallId),
             type: "tool_call",
             toolCallId: upd.toolCallId,
             status: (upd.status as any) || "pending",
@@ -320,6 +359,9 @@ export async function consumeComposerSseReader(
           arr.push(it);
           next = arr;
           assistantSegmentDirty = true;
+          assistantStepDirty = true;
+          thinkingMergeAssistantId = null;
+          stepThinkingId = null;
           continue;
         }
         const arr = next === prev ? [...next] : next;
@@ -405,6 +447,11 @@ export async function consumeComposerSseReader(
 
   let activeThinkingId: string | null = null;
   let activeThinkingStarted = 0;
+  // One reasoning row per assistant step, even when a provider interleaves
+  // text and reasoning inside the step. The persisted message has one
+  // reasoning field, so the row's id and content stay one.
+  let stepThinkingId: string | null = null;
+  const thinkingDurationById = new Map<string, number>();
   // The reasoning row the model call in flight wrote, if any: the call's
   // token_usage, which follows it, puts what its reasoning cost there.
   let callThinkingId: string | null = null;
@@ -416,12 +463,16 @@ export async function consumeComposerSseReader(
     if (!activeThinkingId) {
       if (
         !thinkingMergeAssistantId &&
+        !assistantStepDirty &&
         !assistantSegmentDirty &&
         currentSegmentHasText
       ) {
         thinkingMergeAssistantId = currentAssistantId;
       }
-      activeThinkingId = newId("r");
+      if (!stepThinkingId) {
+        stepThinkingId = stableThinkingItemId(turnIdx, thinkingStep++);
+      }
+      activeThinkingId = stepThinkingId;
       activeThinkingStarted = freezeAt;
       callThinkingId = activeThinkingId;
     }
@@ -439,14 +490,14 @@ export async function consumeComposerSseReader(
       if (known) {
         next = prev;
       } else {
-        // Append thinking at the end (arrival order); text after it opens a
-        // new assistant segment below, keeping the live order chronological.
-        assistantSegmentDirty = true;
         next = [...prev, newRow];
       }
+      // Reasoning inside the step may resume after text: the same row opens
+      // again and the text that follows still rejoins the answer above it.
+      assistantSegmentDirty = true;
       next = next.map((it) =>
         it.type === "thinking" && it.id === id
-          ? { ...it, content: it.content + delta }
+          ? { ...it, status: "in_progress", content: it.content + delta }
           : it,
       );
       return next;
@@ -461,6 +512,8 @@ export async function consumeComposerSseReader(
     // than how long the model thought. Below the floor there is nothing to report:
     // the row shows "-" instead of a fabricated millisecond.
     const measured = dur >= minMeasurableThinkingMs;
+    const total = (thinkingDurationById.get(id) ?? 0) + (measured ? dur : 0);
+    if (measured) thinkingDurationById.set(id, total);
     applyStreamItems((prev) =>
       prev.map((it) => {
         if (it.type !== "thinking" || it.id !== id) {
@@ -469,11 +522,11 @@ export async function consumeComposerSseReader(
         const nextIt = {
           ...it,
           status: "completed" as const,
-          ...(measured ? { durationMs: dur } : {}),
+          ...(measured ? { durationMs: total } : {}),
         };
         const dk = reasoningDurationCacheKey(nextIt.content);
         if (measured && dk.length > 0) {
-          reasoningDurationMsByContentRef.current.set(dk, dur);
+          reasoningDurationMsByContentRef.current.set(dk, total);
         }
         return nextIt;
       }),
@@ -500,6 +553,10 @@ export async function consumeComposerSseReader(
     cursor.assistantId = currentAssistantId;
     cursor.segmentDirty = assistantSegmentDirty;
     cursor.segmentHasText = currentSegmentHasText;
+    cursor.turnIdx = turnIdx;
+    cursor.assistantStep = assistantStep;
+    cursor.thinkingStep = thinkingStep;
+    cursor.assistantRowUsed = assistantRowUsed;
     if (thinkingMergeAssistantId) {
       cursor.mergeAssistantId = thinkingMergeAssistantId;
     } else {
@@ -522,11 +579,32 @@ export async function consumeComposerSseReader(
     const text = pendingWhitespace + c;
     pendingWhitespace = "";
     if (assistantSegmentDirty) {
-      const mergeId = thinkingMergeAssistantId;
+      // Reasoning inside one step joins the answer row it interrupted. A tool
+      // or another row starts a new stable assistant row instead.
+      const mergeId =
+        assistantStepDirty || !thinkingMergeAssistantId
+          ? null
+          : thinkingMergeAssistantId;
+      if (mergeId) {
+        assistantIds.add(currentAssistantId);
+        if (!assistantRowUsed) {
+          assistantRowUsed = true;
+          assistantStep = Math.max(assistantStep, 1);
+        }
+      } else if (!assistantRowUsed) {
+        // The initial id is step 0 and was reserved, not spent, until text
+        // actually arrived (a tool-only first step never spends it).
+        assistantRowUsed = true;
+        assistantStep = Math.max(assistantStep, 1);
+        assistantIds.add(currentAssistantId);
+      } else {
+        currentAssistantId = stableAssistantItemId(turnIdx, assistantStep++);
+        assistantRowUsed = true;
+        assistantIds.add(currentAssistantId);
+      }
       thinkingMergeAssistantId = null;
-      currentAssistantId = newId("a");
-      assistantIds.add(currentAssistantId);
       assistantSegmentDirty = false;
+      assistantStepDirty = false;
       currentSegmentHasText = true;
       applyStreamItems((prev) => {
         const anchor = mergeId
@@ -537,9 +615,6 @@ export async function consumeComposerSseReader(
                 it.type === "assistant_message" && it.id === mergeId,
             )
           : undefined;
-        if (anchor) {
-          assistantIds.delete(anchor.id);
-        }
         const without = anchor ? prev.filter((it) => it !== anchor) : prev;
         return [
           ...without,
@@ -552,6 +627,10 @@ export async function consumeComposerSseReader(
         ];
       });
       return;
+    }
+    if (!assistantRowUsed) {
+      assistantRowUsed = true;
+      assistantStep = Math.max(assistantStep, 1);
     }
     ensureAssistant();
     currentSegmentHasText = true;
@@ -803,7 +882,9 @@ export async function consumeComposerSseReader(
         if (wake) {
           applyStreamItems((prev) => [...prev, wake]);
           thinkingMergeAssistantId = null;
+          stepThinkingId = null;
           assistantSegmentDirty = true;
+          assistantStepDirty = true;
         }
         continue;
       }
@@ -818,7 +899,9 @@ export async function consumeComposerSseReader(
           finishThinking();
           applyStreamItems((prev) => applyGoalTurnToItems(prev, goalRow));
           thinkingMergeAssistantId = null;
+          stepThinkingId = null;
           assistantSegmentDirty = true;
+          assistantStepDirty = true;
         }
         continue;
       }
@@ -827,16 +910,29 @@ export async function consumeComposerSseReader(
       // here, where it was read - not at the end, where a transcript reload
       // would otherwise be the first place it appears.
       if (ev.event === "user_message") {
+        // This row is a user turn like any other: the persisted transcript
+        // numbers it next and resets the answer counters under it.
+        flushToolQueue();
+        finishThinking();
+        turnIdx += 1;
+        assistantStep = 0;
+        thinkingStep = 0;
+        assistantRowUsed = false;
+        currentAssistantId = stableAssistantItemId(turnIdx, 0);
         const item = queuedUserMessageItem(
           ev.data,
-          newId("u"),
+          stableUserItemId(turnIdx),
           new Date().toISOString(),
           sessionId,
         );
         if (item) {
           applyStreamItems((prev) => [...prev, item]);
           thinkingMergeAssistantId = null;
+          stepThinkingId = null;
           assistantSegmentDirty = true;
+          assistantStepDirty = true;
+          currentSegmentHasText = false;
+          pendingWhitespace = "";
         }
         continue;
       }
@@ -1080,7 +1176,9 @@ export async function consumeComposerSseReader(
         if (wake) {
           applyStreamItems((prev) => [...prev, wake]);
           thinkingMergeAssistantId = null;
+          stepThinkingId = null;
           assistantSegmentDirty = true;
+          assistantStepDirty = true;
         }
         continue;
       }
@@ -1095,7 +1193,9 @@ export async function consumeComposerSseReader(
           finishThinking();
           applyStreamItems((prev) => applyGoalTurnToItems(prev, goalRow));
           thinkingMergeAssistantId = null;
+          stepThinkingId = null;
           assistantSegmentDirty = true;
+          assistantStepDirty = true;
         }
         continue;
       }
@@ -1104,16 +1204,29 @@ export async function consumeComposerSseReader(
       // here, where it was read - not at the end, where a transcript reload
       // would otherwise be the first place it appears.
       if (ev.event === "user_message") {
+        // This row is a user turn like any other: the persisted transcript
+        // numbers it next and resets the answer counters under it.
+        flushToolQueue();
+        finishThinking();
+        turnIdx += 1;
+        assistantStep = 0;
+        thinkingStep = 0;
+        assistantRowUsed = false;
+        currentAssistantId = stableAssistantItemId(turnIdx, 0);
         const item = queuedUserMessageItem(
           ev.data,
-          newId("u"),
+          stableUserItemId(turnIdx),
           new Date().toISOString(),
           sessionId,
         );
         if (item) {
           applyStreamItems((prev) => [...prev, item]);
           thinkingMergeAssistantId = null;
+          stepThinkingId = null;
           assistantSegmentDirty = true;
+          assistantStepDirty = true;
+          currentSegmentHasText = false;
+          pendingWhitespace = "";
         }
         continue;
       }

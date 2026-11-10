@@ -1,5 +1,27 @@
 import type { TranscriptItem } from "./types";
 
+const stableUserRow = /^u_\d+$/;
+const stableAssistantRow = /^as_\d+(?:_\d+)?$/;
+const stableThinkingRow = /^th_\d+_\d+$/;
+
+function isStableUserRow(
+  it: Extract<TranscriptItem, { type: "user_message" }>,
+): boolean {
+  return stableUserRow.test(it.id);
+}
+
+function isStableAssistantRow(
+  it: Extract<TranscriptItem, { type: "assistant_message" }>,
+): boolean {
+  return stableAssistantRow.test(it.id);
+}
+
+function isStableThinkingRow(
+  it: Extract<TranscriptItem, { type: "thinking" }>,
+): boolean {
+  return stableThinkingRow.test(it.id);
+}
+
 /**
  * True when server row and local row describe the same step for prefix alignment.
  * Assistant rows allow the longer local body when the server snapshot is a prefix
@@ -11,12 +33,11 @@ export function transcriptItemsLooselyEqual(
 ): boolean {
   if (a.type !== b.type) return false;
   switch (a.type) {
-    case "user_message":
-      return (
-        (
-          b as Extract<TranscriptItem, { type: "user_message" }>
-        ).content.trim() === a.content.trim()
-      );
+    case "user_message": {
+      const bu = b as Extract<TranscriptItem, { type: "user_message" }>;
+      if (isStableUserRow(a) && isStableUserRow(bu)) return a.id === bu.id;
+      return bu.content.trim() === a.content.trim();
+    }
     case "background_wake":
       return (
         (b as Extract<TranscriptItem, { type: "background_wake" }>).tasks
@@ -31,16 +52,19 @@ export function transcriptItemsLooselyEqual(
         bt.objective === a.turn.objective
       );
     }
-    case "thinking":
-      return (
-        (b as Extract<TranscriptItem, { type: "thinking" }>).status ===
-          a.status &&
-        (b as Extract<TranscriptItem, { type: "thinking" }>).content.trim() ===
-          a.content.trim()
-      );
+    case "thinking": {
+      const bt = b as Extract<TranscriptItem, { type: "thinking" }>;
+      if (isStableThinkingRow(a) && isStableThinkingRow(bt)) {
+        return a.id === bt.id;
+      }
+      return bt.status === a.status && bt.content.trim() === a.content.trim();
+    }
     case "assistant_message": {
-      const bc = (b as Extract<TranscriptItem, { type: "assistant_message" }>)
-        .content;
+      const ba = b as Extract<TranscriptItem, { type: "assistant_message" }>;
+      if (isStableAssistantRow(a) && isStableAssistantRow(ba)) {
+        return a.id === ba.id;
+      }
+      const bc = ba.content;
       const ac = a.content.trim();
       const bt = bc.trim();
       if (ac === bt) return true;
@@ -234,10 +258,28 @@ function mergeServerPrefix(
     ) {
       return [...serverNext.slice(0, -1), lastL];
     }
+    if (lastS.type === "thinking" && lastL.type === "thinking") {
+      const sameId =
+        !isStableThinkingRow(lastS) ||
+        !isStableThinkingRow(lastL) ||
+        lastS.id === lastL.id;
+      const sText = lastS.content;
+      const lText = lastL.content;
+      if (sameId && lText.length > sText.length && lText.startsWith(sText)) {
+        return [...serverNext.slice(0, -1), lastL];
+      }
+    }
     if (
       lastS.type === "assistant_message" &&
       lastL.type === "assistant_message"
     ) {
+      if (
+        isStableAssistantRow(lastS) &&
+        isStableAssistantRow(lastL) &&
+        lastS.id !== lastL.id
+      ) {
+        return serverNext;
+      }
       const sText = lastS.content;
       const lText = lastL.content;
       if (lText.length > sText.length && lText.startsWith(sText)) {

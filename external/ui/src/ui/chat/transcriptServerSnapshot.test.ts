@@ -511,3 +511,45 @@ it("a notice the server wrote mid-turn does not drop the answer still streaming"
     "system_notice",
   ]);
 });
+
+it("stable ids decide identity without reading the text", () => {
+  const server: TranscriptItem = {
+    id: "as_4",
+    type: "assistant_message",
+    content: "删除和停用都执行成功。",
+  };
+  const local: TranscriptItem = {
+    id: "as_4_1",
+    type: "assistant_message",
+    content: "删除",
+  };
+  expect(transcriptItemsLooselyEqual(server, local)).toBe(false);
+
+  const same: TranscriptItem = {
+    id: "as_4",
+    type: "assistant_message",
+    content: "删除",
+  };
+  expect(transcriptItemsLooselyEqual(server, same)).toBe(true);
+});
+
+it("a longer live thinking row wins over the stale snapshot of the same id", () => {
+  const server: TranscriptItem = {
+    id: "th_2_0",
+    type: "thinking",
+    status: "completed",
+    content: "first look",
+  };
+  const local: TranscriptItem = {
+    id: "th_2_0",
+    type: "thinking",
+    status: "completed",
+    content: "first look then more",
+  };
+  const merged = mergeTranscriptPreferLocalSuffix([server], [local]);
+  expect(merged).toHaveLength(1);
+  expect(merged[0]).toMatchObject({
+    id: "th_2_0",
+    content: "first look then more",
+  });
+});
