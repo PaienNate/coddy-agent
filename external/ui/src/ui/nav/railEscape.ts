@@ -44,7 +44,8 @@ const RAIL_SCREEN_DEPTH: Record<RailScreenId, number> = {
   settings: 1,
   swarm: 2,
   scheduler: 3,
-  history: 4,
+  projects: 4,
+  history: 5,
 };
 
 /** Every screen of the rail, the topmost first. */

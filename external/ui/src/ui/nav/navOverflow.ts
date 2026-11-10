@@ -7,6 +7,7 @@
  */
 export type NavItemId =
   | "history"
+  | "projects"
   | "scheduler"
   | "swarm"
   | "docs"
@@ -20,12 +21,14 @@ export const NAV_ALWAYS: readonly NavItemId[] = [
   "environment",
 ];
 export const NAV_RETURN_ORDER: readonly NavItemId[] = [
+  "projects",
   "settings",
   "scheduler",
   "docs",
   "signOut",
 ];
 export const NAV_MENU_ORDER: readonly NavItemId[] = [
+  "projects",
   "docs",
   "scheduler",
   "settings",

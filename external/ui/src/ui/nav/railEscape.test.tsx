@@ -49,6 +49,7 @@ describe("the screens of the rail", () => {
       "settings",
       "swarm",
       "scheduler",
+      "projects",
       "history",
     ]);
   });

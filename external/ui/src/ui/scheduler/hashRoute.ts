@@ -33,6 +33,7 @@ export type ParsedAppHash =
     }
   | { branch: "draft"; draftId: string; historyOpen: boolean }
   | { branch: "history" }
+  | { branch: "projects"; historyOpen: boolean }
   | {
       branch: "scheduler";
       jobId: string | null;
@@ -137,6 +138,9 @@ export function parseAppHash(): ParsedAppHash {
   }
   if (h === "history") {
     return { branch: "history" };
+  }
+  if (h === "projects") {
+    return { branch: "projects", historyOpen };
   }
   if (h === "settings") {
     return {
@@ -588,6 +592,23 @@ export function appNavHrefHome(): string {
 
 export function appNavHrefHistory(): string {
   return "#/history";
+}
+
+export function appNavHrefProjects(): string {
+  return "#/projects";
+}
+
+/** Opens the Projects page without adding a browser history entry. */
+export function setProjectsHash(opts?: { historySidebar?: boolean }): void {
+  const next = withHistoryQuery("#/projects", !!opts?.historySidebar);
+  if (window.location.hash !== next) {
+    history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${window.location.search}${next}`,
+    );
+    notifyHashAfterReplaceState();
+  }
 }
 
 export function appNavHrefSwarm(): string {

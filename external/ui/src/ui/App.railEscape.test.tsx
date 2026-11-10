@@ -17,6 +17,7 @@ import { shellStackMaxWidthMediaQuery } from "./shellBreakpoint";
 import {
   appNavHrefDocs,
   appNavHrefHistory,
+  appNavHrefProjects,
   appNavHrefScheduler,
   appNavHrefSettings,
   appNavHrefSwarm,
@@ -149,6 +150,7 @@ const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
   if (path === "/coddy/docs" || path.startsWith("/coddy/docs?"))
     return json(docsContents);
   if (path.startsWith("/coddy/docs/page")) return json(docsPage);
+  if (path === "/coddy/projects") return json({ projects: [] });
   if (path === "/coddy/config/schema") return json(configSchema);
   if (path === "/coddy/config")
     return json({ models: [{ model: "fake/alpha" }] });
@@ -400,6 +402,7 @@ const RAIL_SCREEN_PAGES: Record<
   { href: string; testId: string }
 > = {
   history: { href: appNavHrefHistory(), testId: "sessions" },
+  projects: { href: appNavHrefProjects(), testId: "projects-view" },
   scheduler: { href: appNavHrefScheduler(), testId: "scheduler-drawer" },
   swarm: { href: appNavHrefSwarm(), testId: "swarm-view" },
   docs: { href: appNavHrefDocs(), testId: "docs-view" },

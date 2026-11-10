@@ -12,6 +12,7 @@ import {
   appNavHrefDocs,
   appNavHrefHistory,
   appNavHrefHome,
+  appNavHrefProjects,
   appNavHrefScheduler,
   appNavHrefSettings,
   appNavHrefSwarm,
@@ -108,6 +109,27 @@ function IconDocs(props: { className?: string }) {
       <circle cx="12" cy="12" r="9" />
       <path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.6" />
       <path d="M12 17.2h.01" />
+    </svg>
+  );
+}
+
+/** A folder: the Projects page and each project workspace. */
+function IconProjects(props: { className?: string }) {
+  return (
+    <svg
+      className={props.className}
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3.5 6.5h5.2l1.8 2h9.9v9.2a1.8 1.8 0 0 1-1.8 1.8H5.3a1.8 1.8 0 0 1-1.8-1.8V6.5Z" />
+      <path d="M8 14.5h8" />
     </svg>
   );
 }
@@ -240,6 +262,9 @@ export function NavRail(props: {
   onNewChat: () => void;
   onOpenHistory: () => void;
   historyOpen: boolean;
+  /** The project workspace page: every conversation of a folder as tabs. */
+  onOpenProjects?: () => void;
+  projectsOpen?: boolean;
   /** Currently active sessions across History's normal eligible listing. */
   historyActiveCount?: number;
   /** When false, hide History: a relay holds no sessions of its own. */
@@ -361,6 +386,7 @@ export function NavRail(props: {
 
   const present: NavItemId[] = [];
   if (showHistory) present.push("history");
+  if (props.onOpenProjects) present.push("projects");
   if (showScheduler) present.push("scheduler");
   if (showSwarm) present.push("swarm");
   if (props.onOpenDocs) present.push("docs");
@@ -371,6 +397,7 @@ export function NavRail(props: {
   const inBar = (id: NavItemId) => bar.includes(id);
   const moreActive = menu.some(
     (id) =>
+      (id === "projects" && props.projectsOpen === true) ||
       (id === "scheduler" && props.schedulerOpen) ||
       (id === "docs" && props.docsOpen === true) ||
       (id === "settings" && props.settingsOpen),
@@ -571,6 +598,33 @@ export function NavRail(props: {
             </div>
           ) : null}
 
+          {inBar("projects") ? (
+            <div className="rail-tip-host">
+              <a
+                href={appNavHrefProjects()}
+                className={`${navBtnCls} ${props.projectsOpen ? "is-active" : ""}`}
+                aria-label={t("nav.projects")}
+                aria-pressed={props.projectsOpen}
+                data-testid="nav-projects"
+                onClick={(ev) =>
+                  sameTabInAppNavClick(ev, props.onOpenProjects ?? (() => {}))
+                }
+              >
+                <span className="rail-nav-icon">
+                  <IconProjects className="rail-svg rail-nav-hit-svg" />
+                </span>
+                {pillWide ? (
+                  <span className="rail-nav-label">{t("nav.projects")}</span>
+                ) : null}
+              </a>
+              {!pillWide && !props.projectsOpen ? (
+                <span className="rail-tip" role="tooltip">
+                  {t("nav.projects")}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+
           {inBar("scheduler") ? (
             <div className="rail-tip-host">
               <a
@@ -742,6 +796,27 @@ export function NavRail(props: {
                   aria-label={t("nav.more")}
                 >
                   {menu.map((id, i) => {
+                    if (id === "projects") {
+                      return (
+                        <a
+                          key="projects"
+                          role="menuitem"
+                          href={appNavHrefProjects()}
+                          className={`rail-more-item ${props.projectsOpen ? "is-active" : ""}`}
+                          data-testid="nav-more-projects"
+                          onClick={(ev) => {
+                            setMoreOpen(false);
+                            sameTabInAppNavClick(
+                              ev,
+                              props.onOpenProjects ?? (() => {}),
+                            );
+                          }}
+                        >
+                          <IconProjects className="rail-svg" />
+                          <span>{t("nav.projects")}</span>
+                        </a>
+                      );
+                    }
                     if (id === "docs") {
                       return (
                         <a

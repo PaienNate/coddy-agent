@@ -194,6 +194,19 @@ import {
 } from "./chat/reasoningCookie";
 import { pickReasoningLevel } from "./chat/reasoningSelection";
 import { SessionsSidebar } from "./sessions/SessionsSidebar";
+import { ProjectsView } from "./projects/ProjectsView";
+import { ProjectTabs } from "./projects/ProjectTabs";
+import {
+  createProject as createProjectRequest,
+  deleteProject as deleteProjectRequest,
+  listProjects,
+} from "./projects/api";
+import {
+  readActiveProjectId,
+  sameProjectPath,
+  writeActiveProjectId,
+  type Project,
+} from "./projects/types";
 import {
   reconcilePermissionPendingSessionIds,
   reconcileQuestionPendingSessionIds,
@@ -269,6 +282,7 @@ import {
   parseAppHash,
   setDraftHashInLocation,
   setHistoryHash,
+  setProjectsHash,
   setSessionHashInLocation,
   schedulerEditorFromParsedHash,
   setSchedulerCreateHash,
@@ -1278,6 +1292,82 @@ export function App() {
         initialRoute.branch === "none") &&
         initialRoute.historyOpen),
   );
+
+  // The project registry and the project workspace. The list lives on the
+  // server (CODDY_HOME/projects.json); this browser only remembers which
+  // project was last open and the tab order, which is a per-operator choice.
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectsRoute, setProjectsRoute] = useState(
+    () => initialRoute.branch === "projects",
+  );
+  const [projectsLoading, setProjectsLoading] = useState(true);
+  const [projectsError, setProjectsError] = useState("");
+  const [activeProjectId, setActiveProjectId] = useState(() =>
+    readActiveProjectId(),
+  );
+  const loadProjects = useCallback(async () => {
+    setProjectsLoading(true);
+    try {
+      const rows = await listProjects();
+      setProjects(rows);
+      setProjectsError("");
+      setActiveProjectId((prev) => {
+        if (prev && !rows.some((p) => p.id === prev)) {
+          writeActiveProjectId("");
+          return "";
+        }
+        return prev;
+      });
+    } catch (err) {
+      setProjectsError(
+        err instanceof Error ? err.message : t("projects.loadError"),
+      );
+    } finally {
+      setProjectsLoading(false);
+    }
+  }, [t]);
+  useEffect(() => {
+    void loadProjects();
+  }, [loadProjects]);
+  const rememberActiveProject = useCallback((project: Project | null) => {
+    setActiveProjectId(project?.id || "");
+    writeActiveProjectId(project?.id || "");
+  }, []);
+  const activeProject = useMemo(
+    () => projects.find((p) => p.id === activeProjectId) || null,
+    [projects, activeProjectId],
+  );
+
+  useEffect(() => {
+    const sid = sessionId.trim();
+    if (!sid || projects.length === 0) {
+      return;
+    }
+    const path = (workspaceCtx?.repo_root || workspaceCtx?.path || "").trim();
+    if (!path) {
+      return;
+    }
+    const match = projects.find((p) => sameProjectPath(p.path, path));
+    if (match) {
+      if (match.id !== activeProjectId) {
+        rememberActiveProject(match);
+      }
+      return;
+    }
+    // A conversation outside every registered project must not leave another
+    // project's tabs over it.
+    if (activeProjectId) {
+      rememberActiveProject(null);
+    }
+  }, [
+    sessionId,
+    workspaceCtx?.path,
+    workspaceCtx?.repo_root,
+    projects,
+    activeProjectId,
+    rememberActiveProject,
+  ]);
+
   // The environment this app was started on. A switch to another remote
   // starts another app (EnvScope), so an answer that lands here after one is
   // the old environment's, and must not be kept for the new one.
@@ -2319,6 +2409,22 @@ export function App() {
     setPendingWorkspace,
   ]);
 
+  // A reload of the start screen with a project open starts its New Chat in
+  // that project: the tab strip and the composer's folder must not disagree.
+  useEffect(() => {
+    if (sessionId.trim() || !activeProject) {
+      return;
+    }
+    if (pendingWorkspaceRef.current?.path || newChatWorkspaceRef.current) {
+      return;
+    }
+    newChatWorkspaceRef.current = {
+      path: activeProject.path,
+      nonce: Date.now(),
+    };
+    setNewChatWorkspaceEpoch((n) => n + 1);
+  }, [sessionId, activeProject?.id]);
+
   // On the start screen, coming back to the page reads the folder again: its
   // branch may have been switched in a terminal meanwhile.
   useEffect(() => {
@@ -2626,6 +2732,18 @@ export function App() {
     // one puts them away.
     if (!(p.branch === "session" && p.filesOpen)) setFilesOpen(false);
     if (!(p.branch === "session" && p.editsOpen)) setChangesViewerOpen(false);
+    if (p.branch === "projects") {
+      setProjectsRoute(true);
+      setDocsRoute(null);
+      setSwarmRoute(false);
+      setSettingsRoute(false);
+      setSchedulerOpen(false);
+      setSchedulerEditor(null);
+      if (isStackedShell()) setTasksOpen(false);
+      setSessionsOpen(false);
+      return;
+    }
+    setProjectsRoute(false);
     if (p.branch === "docs") {
       setDocsRoute({ slug: p.slug, anchor: p.anchor });
       if (p.slug) {
@@ -2825,6 +2943,7 @@ export function App() {
     setChangesViewerOpen(false);
     setSchedulerOpen(false);
     setSchedulerEditor(null);
+    setProjectsRoute(false);
     // On desktop Tasks is the side panel of the chat on screen, not a screen of
     // the rail: the backdrop that takes History down after a pick there leaves
     // it open on the chat picked. The stacked shell shows it full screen, so
@@ -2836,6 +2955,7 @@ export function App() {
     setSwarmRoute(false);
     if (
       parseAppHash().branch === "settings" ||
+      parseAppHash().branch === "projects" ||
       parseAppHash().branch === "docs"
     ) {
       const sid = sessionId.trim();
@@ -7344,6 +7464,66 @@ export function App() {
     }
   }, [sessionId, clearSessionRoute]);
 
+  const closeProjectsPage = useCallback(() => {
+    setProjectsRoute(false);
+    closeToChat();
+  }, [closeToChat]);
+
+  const openProjectsFromNav = useCallback(() => {
+    setSchedulerOpen(false);
+    setSchedulerEditor(null);
+    if (isStackedShell()) setTasksOpen(false);
+    setSessionsOpen(false);
+    setFilesOpen(false);
+    setChangesViewerOpen(false);
+    setSettingsRoute(false);
+    setSwarmRoute(false);
+    setDocsRoute(null);
+    setProjectsRoute(true);
+    setProjectsHash();
+  }, []);
+
+  /**
+   * Opens a project workspace at its start screen with the project's folder
+   * picked. The tab strip is rendered by ProjectTabs from the sessions stored
+   * for that folder; the chat starts empty so a new conversation lands in the
+   * project rather than in whatever folder the last chat used.
+   */
+  function openProjectWorkspace(project: Project) {
+    rememberActiveProject(project);
+    setProjectsRoute(false);
+    newChatWorkspaceRef.current = { path: project.path, nonce: Date.now() };
+    setNewChatWorkspaceEpoch((n) => n + 1);
+    goHome();
+  }
+
+  /** The rail's New Chat keeps the project context: a new conversation in the
+   *  project that is open, or an unfiled one when no project is active. */
+  function newChatFromNav() {
+    if (activeProject) {
+      openProjectWorkspace(activeProject);
+      return;
+    }
+    goHome();
+  }
+
+  async function createProjectFromPage(path: string): Promise<Project> {
+    const project = await createProjectRequest(path);
+    setProjects((prev) => [
+      ...prev.filter((p) => p.id !== project.id),
+      project,
+    ]);
+    return project;
+  }
+
+  async function deleteProjectFromPage(project: Project): Promise<void> {
+    await deleteProjectRequest(project.id);
+    setProjects((prev) => prev.filter((p) => p.id !== project.id));
+    if (activeProjectId === project.id) {
+      rememberActiveProject(null);
+    }
+  }
+
   const maybeStartTour = useCallback(() => {
     if (!isTourSeen()) setShowTour(true);
   }, []);
@@ -7423,6 +7603,7 @@ export function App() {
   const shellBackdropOpen =
     chatWindowOpen ||
     sessionsOpen ||
+    projectsRoute ||
     (schedulerOpen && schedulerHttpLinked === true) ||
     settingsRoute ||
     swarmRoute ||
@@ -7586,6 +7767,7 @@ export function App() {
   // it: the step its close control takes (nav/railEscape.ts).
   useRailScreenEscape({
     history: { open: sessionsOpen, close: sessionPanelShared.onClose },
+    projects: { open: projectsRoute, close: closeProjectsPage },
     scheduler: {
       open: schedulerOpen && schedulerHttpLinked === true,
       // An open job or its runs first, back onto the list; the drawer next.
@@ -7954,10 +8136,16 @@ export function App() {
         localHost={localHost}
         // A relay has no chat to start: its home is the map, and the brand
         // leads there as it leads an agent's page to a new chat.
-        onNewChat={atSwarmRoot ? openSwarmFromNav : goHome}
+        onNewChat={atSwarmRoot ? openSwarmFromNav : newChatFromNav}
         onOpenHistory={onOpenHistoryFromNav}
         historyOpen={sessionsOpen}
         historyActiveCount={historyActiveCount}
+        {...(atSwarmRoot
+          ? {}
+          : {
+              onOpenProjects: openProjectsFromNav,
+              projectsOpen: projectsRoute,
+            })}
         showHistory={!atSwarmRoot}
         showScheduler={schedulerHttpLinked === true && !atSwarmRoot}
         onOpenScheduler={openSchedulerFromNav}
@@ -8150,6 +8338,20 @@ export function App() {
             />
           </div>
         ) : null}
+        {projectsRoute ? (
+          <div className="projects-dock-cluster">
+            <ProjectsView
+              projects={projects}
+              loading={projectsLoading}
+              error={projectsError}
+              onClose={closeProjectsPage}
+              onOpenProject={openProjectWorkspace}
+              onCreateProject={createProjectFromPage}
+              onDeleteProject={deleteProjectFromPage}
+              onRefresh={() => void loadProjects()}
+            />
+          </div>
+        ) : null}
         {settingsRoute ? (
           <div className="settings-dock-cluster">
             <Settings
@@ -8265,6 +8467,27 @@ export function App() {
               onPermissionResolved: resolvePermissionPrompt,
               onQuestionResolved: resolveQuestionPrompt,
             }}
+          />
+        ) : null}
+        {activeProject &&
+        !projectsRoute &&
+        !settingsRoute &&
+        !swarmRoute &&
+        docsRoute === null &&
+        !atSwarmRoot ? (
+          <ProjectTabs
+            key={activeProject.id}
+            project={activeProject}
+            projects={projects}
+            activeSessionId={sessionId}
+            activeSessionTitle={currentTitle}
+            workspacePath={workspaceCtx?.path || ""}
+            onSelectSession={pickSession}
+            onNewChat={openProjectWorkspace}
+            onSwitchProject={openProjectWorkspace}
+            onOpenProjects={openProjectsFromNav}
+            onHome={openProjectWorkspace}
+            refreshEpoch={heroHomeGeneration}
           />
         ) : null}
         {atSwarmRoot ? null : (

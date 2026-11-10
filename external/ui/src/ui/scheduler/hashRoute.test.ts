@@ -3,6 +3,7 @@ import {
   appNavHrefDocs,
   appNavHrefHome,
   appNavHrefHistory,
+  appNavHrefProjects,
   appNavHrefScheduler,
   appNavHrefSchedulerJob,
   appNavHrefSchedulerJobRuns,
@@ -35,6 +36,12 @@ describe("parseAppHash", () => {
   test("parses standalone history", () => {
     setHash("#/history");
     expect(parseAppHash()).toEqual({ branch: "history" });
+  });
+
+  test("parses the projects page and its rail address", () => {
+    setHash("#/projects");
+    expect(parseAppHash()).toEqual({ branch: "projects", historyOpen: false });
+    expect(appNavHrefProjects()).toBe("#/projects");
   });
 
   test("parses home hash with history sidebar query only", () => {

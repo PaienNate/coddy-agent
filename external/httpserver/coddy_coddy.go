@@ -216,6 +216,7 @@ func describeIsAnswerLine(line string) bool {
 
 func (s *Server) registerCoddyRoutes() {
 	s.registerOpenCodeImportRoutes()
+	s.registerProjectRoutes()
 	s.mux.HandleFunc("GET /coddy/info", s.coddyInfoGet)
 	s.mux.HandleFunc("GET /coddy/workspace/files", s.coddyWorkspaceFilesGet)
 	s.mux.HandleFunc("GET /coddy/workspace/context", s.coddyWorkspaceContextGet)
