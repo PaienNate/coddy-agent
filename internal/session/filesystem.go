@@ -61,6 +61,23 @@ type FileStore struct {
 	childDirs    map[string]string
 	childScanned time.Time
 	childScanMu  sync.Mutex
+
+	// listMu guards listMeta, the parsed session.json of each bundle used by
+	// History. A row is reused while session.json still has the same size and
+	// modification time, so paging a large History costs stats rather than a
+	// JSON decode per session. The cache is derived state: deleting it only
+	// makes the next listing read the files again.
+	listMu   sync.RWMutex
+	listMeta map[string]cachedListMeta
+}
+
+// cachedListMeta is one bundle's parsed session.json together with the file
+// identity it was read from. The metadata is immutable in the cache; callers
+// copy it before applying a listing's filters.
+type cachedListMeta struct {
+	meta    SessionMeta
+	size    int64
+	modTime time.Time
 }
 
 // persistedMessages remembers what was last written to one messages.json. A
@@ -863,17 +880,20 @@ func (f *FileStore) ListSnapshotsWith(opts ListOptions) ([]SessionListEntry, err
 		}
 		return nil, err
 	}
+	seen := make(map[string]struct{}, len(de))
 	for _, ent := range de {
 		if !ent.IsDir() || strings.HasPrefix(ent.Name(), ".") {
 			continue
 		}
 		dir := filepath.Join(f.Root, ent.Name())
+		seen[filepath.Clean(dir)] = struct{}{}
 		var descend bool
 		out, descend = f.appendBundleRow(out, dir, ent.Name(), cwdFilter, opts, false)
 		if (opts.IncludeSubagents || opts.IncludeImportedSubagents) && descend {
 			out = f.appendChildRows(out, dir, cwdFilter, opts, 0)
 		}
 	}
+	f.pruneListMeta(seen)
 	sort.Slice(out, func(i, j int) bool {
 		ti, ei := time.Parse(time.RFC3339, out[i].UpdatedAt)
 		tj, ej := time.Parse(time.RFC3339, out[j].UpdatedAt)
@@ -898,7 +918,7 @@ func (f *FileStore) ListSnapshotsWith(opts ListOptions) ([]SessionListEntry, err
 // a scheduler job session the options leave out, whose children stay out with
 // it.
 func (f *FileStore) appendBundleRow(out []SessionListEntry, dir, id, cwdFilter string, opts ListOptions, child bool) (_ []SessionListEntry, descend bool) {
-	meta, err := f.readListMetaAt(dir, id)
+	meta, err := f.readListMetaCached(dir, id)
 	if err != nil {
 		return out, true
 	}
@@ -968,6 +988,87 @@ func (f *FileStore) appendBundleRow(out []SessionListEntry, dir, id, cwdFilter s
 		return out, true
 	}
 	return append(out, row), true
+}
+
+// readListMetaCached is readListMetaAt behind the History metadata cache. It
+// stats session.json before deciding whether the parsed copy is still good;
+// another process may have rewritten the bundle without this store hearing
+// about it, so existence alone is not evidence. A cache miss reads the file
+// exactly as readListMetaAt always did.
+func (f *FileStore) readListMetaCached(dir, sessionID string) (SessionMeta, error) {
+	metaPath := filepath.Join(dir, sessionMetaFile)
+	info, err := os.Stat(metaPath)
+	if err != nil {
+		f.forgetListMeta(dir)
+		return f.readListMetaAt(dir, sessionID)
+	}
+	key := filepath.Clean(dir)
+	f.listMu.RLock()
+	cached, ok := f.listMeta[key]
+	f.listMu.RUnlock()
+	if ok && cached.size == info.Size() && cached.modTime.Equal(info.ModTime()) {
+		return cached.meta, nil
+	}
+	meta, err := f.readListMetaAt(dir, sessionID)
+	if err != nil {
+		f.forgetListMeta(dir)
+		return meta, err
+	}
+	// Stat again after the read: a write between the first stat and the read
+	// must not leave a newer document filed under the older identity.
+	if after, statErr := os.Stat(metaPath); statErr == nil {
+		info = after
+	}
+	f.listMu.Lock()
+	if f.listMeta == nil {
+		f.listMeta = make(map[string]cachedListMeta)
+	}
+	f.listMeta[key] = cachedListMeta{meta: meta, size: info.Size(), modTime: info.ModTime()}
+	f.listMu.Unlock()
+	return meta, nil
+}
+
+// WarmSessionIndex reads the bundles a History listing will need into the
+// metadata cache. It is best effort: a missing sessions root, an unreadable
+// bundle or a caller that never asks for History all behave as before.
+func (f *FileStore) WarmSessionIndex() {
+	if f == nil || f.Root == "" {
+		return
+	}
+	_, _ = f.ListSnapshotsWith(ListOptions{IncludeEmpty: true})
+}
+
+// forgetListMeta drops the cached copy of one bundle's session.json. Save and
+// the metadata-only patcher call it after writing, so a same-size rewrite on a
+// filesystem with coarse timestamps cannot keep the previous document.
+func (f *FileStore) forgetListMeta(dir string) {
+	if f == nil {
+		return
+	}
+	key := filepath.Clean(dir)
+	f.listMu.Lock()
+	delete(f.listMeta, key)
+	f.listMu.Unlock()
+}
+
+// pruneListMeta drops cached top-level bundles no longer present in the
+// directory listing. Child bundles are left alone: a listing that does not
+// include subagents never walks them, so a missing child here is not evidence
+// that it was deleted.
+func (f *FileStore) pruneListMeta(seen map[string]struct{}) {
+	if f == nil {
+		return
+	}
+	root := filepath.Clean(f.Root)
+	f.listMu.Lock()
+	defer f.listMu.Unlock()
+	for dir := range f.listMeta {
+		if filepath.Dir(dir) == root {
+			if _, ok := seen[dir]; !ok {
+				delete(f.listMeta, dir)
+			}
+		}
+	}
 }
 
 // readListMetaAt reads the durable metadata necessary to list a bundle. A
@@ -1383,6 +1484,7 @@ func (f *FileStore) Save(state *State) error {
 	if err := writeJSONAtomic(metaPath, meta); err != nil {
 		return err
 	}
+	f.forgetListMeta(dir)
 	uiWrap := uiLogFileData{
 		Version: uiLogLayout,
 		Entries: state.GetUILog(),
@@ -1436,7 +1538,11 @@ func (f *FileStore) PatchSessionMetaActivitySync(st *State) error {
 		return fmt.Errorf("session.json: %w", err)
 	}
 	meta.ReadActivitySeq = meta.ActivitySeq
-	return writeJSONAtomic(path, meta)
+	if err := writeJSONAtomic(path, meta); err != nil {
+		return err
+	}
+	f.forgetListMeta(dir)
+	return nil
 }
 
 func deriveSessionTitle(s *State) string {

@@ -307,6 +307,10 @@ func runServe(args []string) error {
 		// with the process.
 		rt.Mgr.StartGlobalMCPServers()
 		defer rt.Mgr.CloseMCP()
+		// History pages its rows from session.json. Read those files once in
+		// the background so the first drawer open follows stats rather than a
+		// cold decode of every bundle.
+		go rt.Mgr.FileStore().WarmSessionIndex()
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

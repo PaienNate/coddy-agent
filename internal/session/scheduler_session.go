@@ -183,5 +183,9 @@ func (f *FileStore) RenameSchedulerJobSession(sessionID, jobID string) error {
 		return fmt.Errorf("session %s is not the session of a scheduler job", sessionID)
 	}
 	doc["schedulerJobId"] = strings.TrimSpace(jobID)
-	return writeJSONAtomic(path, doc)
+	if err := writeJSONAtomic(path, doc); err != nil {
+		return err
+	}
+	f.forgetListMeta(filepath.Dir(path))
+	return nil
 }
