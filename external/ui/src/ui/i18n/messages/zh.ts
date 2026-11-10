@@ -1233,6 +1233,9 @@ export const messagesZh: Record<string, string> = {
   "mcp.fact.reads": "读取",
   "mcp.origin.home": "~/.coddy/mcp.json",
   "mcp.origin.project": "./.coddy/mcp.json",
+  "subagents.header.aria": "子智能体：{count}",
+  "subagents.panelTitle": "子智能体",
+  "subagents.panelEmpty": "此对话还没有子智能体",
   "subagents.settings.legend": "子智能体设置",
   "subagents.settings.description":
     "委派池的规则：随检出代码带来的定义是否可以运行，同时可以运行多少个，派生可以嵌套多深，以及当定义和调用未指定时，一次运行可获得多少时间和轮次。",

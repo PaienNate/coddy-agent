@@ -203,6 +203,12 @@ export function ChatScreen(props: {
   /** The Tasks panel is showing, for the header control's expanded state. */
   backgroundTasksOpen?: boolean;
   onCloseBackgroundTasks?: () => void;
+  /** Opens the subagent runs beside the chat. */
+  onOpenSubagents?: () => void;
+  /** Puts the subagent runs away. */
+  onCloseSubagents?: () => void;
+  /** The Subagents panel is showing. */
+  subagentsOpen?: boolean;
   /** Opens the edits window: what git reports for the chat's folder. */
   onOpenEdits?: () => void;
   /** Opens (or puts away) the Files window from the header. */
@@ -1120,6 +1126,17 @@ export function ChatScreen(props: {
                             ? props.onCloseBackgroundTasks
                             : props.onOpenBackgroundTasks,
                         tasksOpen: props.backgroundTasksOpen === true,
+
+                        ...(props.onOpenSubagents
+                          ? {
+                              onOpenSubagents:
+                                props.subagentsOpen === true &&
+                                props.onCloseSubagents
+                                  ? props.onCloseSubagents
+                                  : props.onOpenSubagents,
+                              subagentsOpen: props.subagentsOpen === true,
+                            }
+                          : {}),
 
                         ...(openFiles
                           ? {

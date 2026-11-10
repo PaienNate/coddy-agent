@@ -1378,6 +1378,9 @@ export const messagesRu: Record<string, string> = {
   "mcp.origin.home": "~/.coddy/mcp.json",
   "mcp.origin.project": "./.coddy/mcp.json",
   // Настройки -> Субагенты: каталог определений
+  "subagents.header.aria": "Субагенты: {count}",
+  "subagents.panelTitle": "Субагенты",
+  "subagents.panelEmpty": "В этом чате пока нет субагентов",
   "subagents.settings.legend": "Настройки субагентов",
   "subagents.settings.description":
     "Правила пула делегирования, то есть можно ли запускать определения, пришедшие с чекаутом, сколько запусков идёт одновременно, насколько глубоко они вкладываются и сколько времени и итераций получает один запуск, если ни определение, ни вызов их не задают.",

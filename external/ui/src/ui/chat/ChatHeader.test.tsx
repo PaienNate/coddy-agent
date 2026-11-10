@@ -133,6 +133,36 @@ test("without a way to open the panel the header has no views", () => {
   expect(screen.queryByTestId("chat-views")).toBeNull();
 });
 
+test("the subagents control counts the runs the model started, not the runtime's own child", () => {
+  const onOpenSubagents = vi.fn();
+  render(
+    <ChatHeader
+      title="Hello"
+      tasks={[
+        task({ id: "bg_1" }),
+        task({ id: "bg_2", kind: "agent", agent: { name: "explore" } }),
+        task({
+          id: "bg_3",
+          kind: "agent",
+          agent: { name: "goal-verifier", system: true },
+        }),
+      ]}
+      onOpenTasks={() => {}}
+      onOpenSubagents={onOpenSubagents}
+    />,
+  );
+  const control = screen.getByTestId("chat-views-subagents");
+  expect(screen.getByTestId("chat-views-subagents-count").textContent).toBe(
+    "1",
+  );
+  expect(control.getAttribute("aria-label")).toBe("Subagents: 1");
+  expect(
+    control.parentElement?.querySelector(".chat-view-tip")?.textContent,
+  ).toBe("Subagents: 1");
+  fireEvent.click(control);
+  expect(onOpenSubagents).toHaveBeenCalledTimes(1);
+});
+
 // The views of a chat in its header - its files, its background tasks - are a
 // row of buttons, the way the views of a session sit at the top of Claude's
 // app, and icons at every width: Files its icon alone, Background tasks last
@@ -155,6 +185,16 @@ function viewsHeader(
     />
   );
 }
+
+test("the header puts subagents between files and background tasks", () => {
+  render(viewsHeader({ onOpenSubagents: () => {} }));
+  const row = screen.getByRole("toolbar", { name: "Views of this chat" });
+  expect(
+    Array.from(row.querySelectorAll("button")).map((b) =>
+      b.getAttribute("data-testid"),
+    ),
+  ).toEqual(["chat-views-files", "chat-views-subagents", "chat-views-tasks"]);
+});
 
 test("the header shows files and background tasks as buttons in a row", () => {
   render(viewsHeader());

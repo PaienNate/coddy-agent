@@ -425,6 +425,9 @@ export function BackgroundTasksPanel(props: {
   title?: string;
   /** Copy for an empty list; the chat's wording unless the caller names it. */
   emptyText?: string;
+  /** Show the Clear finished action; false for a narrowed view that must not
+   *  clear rows it does not list. */
+  allowClearFinished?: boolean;
   /** A card to open on the shell's behalf. */
   focus?: TaskFocus | null;
   /**
@@ -695,14 +698,16 @@ export function BackgroundTasksPanel(props: {
                 <Chevron open={finishedOpen} />
                 {t("tasks.sectionFinished", { count: finished.length })}
               </button>
-              <button
-                type="button"
-                className="bgtask-section-action"
-                data-testid="bgtask-clear-finished"
-                onClick={props.onClearFinished}
-              >
-                {t("tasks.clearFinished")}
-              </button>
+              {props.allowClearFinished !== false ? (
+                <button
+                  type="button"
+                  className="bgtask-section-action"
+                  data-testid="bgtask-clear-finished"
+                  onClick={props.onClearFinished}
+                >
+                  {t("tasks.clearFinished")}
+                </button>
+              ) : null}
             </div>
 
             {finishedOpen ? (

@@ -496,6 +496,16 @@ export function countTasks(tasks: readonly BackgroundTask[]): {
   return { running, total };
 }
 
+/** A user-visible subagent run: an agent task, not the runtime's system child. */
+export function isSubagentTask(task: BackgroundTask): boolean {
+  return isAgentTask(task) && !task.agent?.system;
+}
+
+/** How many subagent runs a chat has, as its header counts them. */
+export function countSubagents(tasks: readonly BackgroundTask[]): number {
+  return tasks.filter(isSubagentTask).length;
+}
+
 /** The running half of `countTasks`. */
 export function countRunningTasks(tasks: readonly BackgroundTask[]): number {
   return countTasks(tasks).running;

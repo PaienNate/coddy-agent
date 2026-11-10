@@ -1349,6 +1349,9 @@ export const messagesEn: Record<string, string> = {
   "mcp.origin.home": "~/.coddy/mcp.json",
   "mcp.origin.project": "./.coddy/mcp.json",
   // Settings -> Subagents: the definition catalog
+  "subagents.header.aria": "Subagents: {count}",
+  "subagents.panelTitle": "Subagents",
+  "subagents.panelEmpty": "No subagents in this chat yet",
   "subagents.settings.legend": "Subagent settings",
   "subagents.settings.description":
     "The rules of the delegation pool: whether definitions that came with the checkout may run, how many runs go at once, how deep spawning nests, and how much time and how many rounds one run gets when its definition and the call leave them out.",

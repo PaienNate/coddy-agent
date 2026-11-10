@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useT } from "../i18n/I18nProvider";
-import { countTasks } from "../tasks/taskStatus";
+import { countSubagents, countTasks } from "../tasks/taskStatus";
 import type { BackgroundTask } from "../tasks/types";
 import { filesShortcutLabel } from "../files/filesHotkey";
 
@@ -19,6 +19,10 @@ export function ChatHeader(props: {
   onOpenTasks?: () => void;
   /** The Tasks panel is showing. */
   tasksOpen?: boolean;
+  /** Opens the subagent runs of this chat. */
+  onOpenSubagents?: () => void;
+  /** The Subagents panel is showing. */
+  subagentsOpen?: boolean;
   /** Opens the window of the session's files. */
   onOpenFiles?: () => void;
   /** The files window is open. */
@@ -106,6 +110,12 @@ export function ChatHeader(props: {
           tasks={props.tasks ?? []}
           onOpenTasks={props.onOpenTasks}
           tasksOpen={props.tasksOpen === true}
+          {...(props.onOpenSubagents
+            ? {
+                onOpenSubagents: props.onOpenSubagents,
+                subagentsOpen: props.subagentsOpen === true,
+              }
+            : {})}
           {...(props.onOpenFiles ? { onOpenFiles: props.onOpenFiles } : {})}
           filesOpen={props.filesOpen === true}
         />
@@ -114,7 +124,7 @@ export function ChatHeader(props: {
   );
 }
 
-type ViewId = "tasks" | "files";
+type ViewId = "tasks" | "files" | "subagents";
 
 /**
  * The views of a chat in its header - its files, its background tasks - as a
@@ -134,11 +144,14 @@ function HeaderViews(props: {
   tasks: BackgroundTask[];
   onOpenTasks: () => void;
   tasksOpen: boolean;
+  onOpenSubagents?: () => void;
+  subagentsOpen?: boolean;
   onOpenFiles?: () => void;
   filesOpen: boolean;
 }) {
   const { t } = useT();
   const { running, total } = countTasks(props.tasks);
+  const subagents = countSubagents(props.tasks);
   const live = running > 0;
   const tasksName =
     total === 0
@@ -157,6 +170,14 @@ function HeaderViews(props: {
       name: t("chat.views.filesTitle", { key: filesShortcutLabel() }),
       pressed: props.filesOpen,
       run: props.onOpenFiles,
+    });
+  }
+  if (props.onOpenSubagents) {
+    views.push({
+      id: "subagents",
+      name: t("subagents.header.aria", { count: subagents }),
+      pressed: props.subagentsOpen === true,
+      run: props.onOpenSubagents,
     });
   }
   views.push({
@@ -180,7 +201,12 @@ function HeaderViews(props: {
             className={[
               "chat-view-btn",
               view.id === "tasks" ? "chat-view-btn--tasks" : "",
-              view.id === "files" || total === 0 ? "chat-view-btn--icon" : "",
+              view.id === "subagents" ? "chat-view-btn--subagents" : "",
+              view.id === "files" ||
+              (view.id === "tasks" && total === 0) ||
+              (view.id === "subagents" && subagents === 0)
+                ? "chat-view-btn--icon"
+                : "",
               view.pressed ? "is-active" : "",
               view.id === "tasks" && live ? "is-running" : "",
             ]
@@ -200,6 +226,8 @@ function HeaderViews(props: {
                   className={`bgtask-dot ${live ? "bgtask-dot--running" : "bgtask-dot--muted"}`}
                   aria-hidden="true"
                 />
+              ) : view.id === "subagents" ? (
+                <SubagentIcon />
               ) : (
                 <FilesIcon />
               )}
@@ -212,6 +240,15 @@ function HeaderViews(props: {
                   {t("tasks.header.counts", { running, total })}
                 </span>
               ) : null}
+              {view.id === "subagents" && subagents > 0 ? (
+                <span
+                  className="chat-view-count"
+                  data-testid="chat-views-subagents-count"
+                  aria-hidden="true"
+                >
+                  {subagents}
+                </span>
+              ) : null}
             </span>
           </button>
           <span className="chat-view-tip" role="tooltip">
@@ -220,6 +257,29 @@ function HeaderViews(props: {
         </span>
       ))}
     </div>
+  );
+}
+
+/** The Subagents view: two branches of one conversation. */
+function SubagentIcon() {
+  return (
+    <svg
+      className="chat-view-icon"
+      width={18}
+      height={18}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.3}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <circle cx="4" cy="4" r="1.8" />
+      <circle cx="12" cy="8" r="1.8" />
+      <circle cx="4" cy="12" r="1.8" />
+      <path d="M5.8 4.8l4.4 2.4M5.8 11.2l4.4-2.4" />
+    </svg>
   );
 }
 

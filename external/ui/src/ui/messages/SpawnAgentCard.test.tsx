@@ -77,6 +77,11 @@ test("spawn_agent displays identity and bottom model/reasoning/timeout metadata"
     />,
   );
   expect(screen.getByLabelText("Agent details")).toBeInTheDocument();
+  // The row opens to the prompt on demand; the transcript does not start with
+  // the subagent's body in the reader's face.
+  expect(
+    (screen.getByTestId("tool-details-spawn-1") as HTMLDetailsElement).open,
+  ).toBe(false);
   // The agent is named twice on purpose: on the collapsed summary row and on the card.
   expect(screen.getByTestId("tool-summary-target")).toHaveTextContent(
     "explore",
@@ -94,9 +99,9 @@ test("spawn_agent displays identity and bottom model/reasoning/timeout metadata"
   expect(meta).toHaveTextContent("Timeout 120s");
   expect(meta.querySelector("svg")).toBeNull();
   expect(screen.queryByTestId("permission-preview-viewport")).toBeNull();
-  expect(screen.getByLabelText("Tool result")).toHaveTextContent(
-    "Found 12 tests.",
-  );
+  // The run's output is the Subagents panel's job, not a second body inside
+  // the transcript card.
+  expect(screen.queryByLabelText("Tool result")).toBeNull();
 });
 
 test("spawn agent prompt expands through the shared localized overflow control", () => {
@@ -130,6 +135,21 @@ test("spawn agent prompt expands through the shared localized overflow control",
   fireEvent.click(screen.getByRole("button", { name: "Less" }));
   expect(prompt).toHaveClass("spawn-agent-prompt--collapsed");
   expect(prompt).toHaveAttribute("aria-expanded", "false");
+});
+
+test("the spawn card leaves the run's output to the subagents panel", () => {
+  render(
+    <ToolCallMessage
+      toolCallId="spawn-output"
+      title="spawn_agent"
+      status="completed"
+      argsText={args}
+      resultText="SPAWN_RESULT_BELONGS_IN_THE_PANEL"
+    />,
+  );
+  fireEvent.click(screen.getByLabelText("Tool summary"));
+  expect(screen.getByLabelText("Agent prompt")).toBeInTheDocument();
+  expect(screen.queryByText("SPAWN_RESULT_BELONGS_IN_THE_PANEL")).toBeNull();
 });
 
 test("the card of a spawn does not lead to the transcript: the task's card does", () => {

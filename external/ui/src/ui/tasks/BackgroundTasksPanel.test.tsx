@@ -206,6 +206,15 @@ test("Clear is offered only when there is history to clear", () => {
   expect(onClearFinished).toHaveBeenCalled();
 });
 
+test("a narrowed panel does not offer to clear rows it does not show", () => {
+  renderPanel({
+    tasks: [task(), done("bg_2")],
+    allowClearFinished: false,
+  });
+  fireEvent.click(screen.getByTestId("bgtask-finished-toggle"));
+  expect(screen.queryByTestId("bgtask-clear-finished")).toBeNull();
+});
+
 test("the progress bar appears only when the model gave an estimate", () => {
   const { rerender, props } = renderPanel({ tasks: [task()] });
   expect(screen.queryByRole("progressbar")).toBeNull();

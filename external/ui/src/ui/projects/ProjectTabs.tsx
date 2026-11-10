@@ -135,6 +135,29 @@ export function ProjectTabs(props: Props) {
   );
   const stripRef = useRef<HTMLDivElement | null>(null);
 
+  // A mouse wheel over a long tab strip moves it sideways. A trackpad sends a
+  // horizontal delta of its own, so only a vertical wheel is translated; the
+  // native listener is non-passive because the strip must keep the page still
+  // while it scrolls.
+  useEffect(() => {
+    const el = stripRef.current;
+    if (!el) return;
+    const onWheel = (ev: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth || ev.ctrlKey) return;
+      if (Math.abs(ev.deltaY) <= Math.abs(ev.deltaX)) return;
+      const unit =
+        ev.deltaMode === WheelEvent.DOM_DELTA_LINE
+          ? 16
+          : ev.deltaMode === WheelEvent.DOM_DELTA_PAGE
+            ? el.clientWidth
+            : 1;
+      ev.preventDefault();
+      el.scrollLeft += ev.deltaY * unit;
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
   useEffect(() => {
     setMemory(readProjectTabMemory(props.project.id));
   }, [props.project.id]);

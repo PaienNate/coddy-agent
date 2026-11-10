@@ -98,6 +98,37 @@ test("a tab picks its conversation and its own close keeps the nearest survivor"
   expect(view.onSelectSession).toHaveBeenCalledWith("c");
 });
 
+test("a vertical wheel over an overflowing strip scrolls it sideways", async () => {
+  renderTabs();
+  await screen.findByText("Alpha");
+  const strip = screen.getByRole("tablist");
+  Object.defineProperty(strip, "scrollWidth", {
+    configurable: true,
+    value: 600,
+  });
+  Object.defineProperty(strip, "clientWidth", {
+    configurable: true,
+    value: 200,
+  });
+  strip.scrollLeft = 0;
+  const wheel = new WheelEvent("wheel", {
+    deltaY: 120,
+    bubbles: true,
+    cancelable: true,
+  });
+  strip.dispatchEvent(wheel);
+  expect(wheel.defaultPrevented).toBe(true);
+  expect(strip.scrollLeft).toBe(120);
+
+  const trackpad = new WheelEvent("wheel", {
+    deltaX: 120,
+    bubbles: true,
+    cancelable: true,
+  });
+  strip.dispatchEvent(trackpad);
+  expect(trackpad.defaultPrevented).toBe(false);
+});
+
 test("a pinned tab moves to the front and the choice survives a remount", async () => {
   const first = renderTabs();
   await screen.findByText("Beta");

@@ -539,6 +539,7 @@ export const ToolCallMessage = memo(function ToolCallMessage(props: {
 
   const canExpand =
     !isQuestionTool &&
+    !spawnAgent &&
     !loadsWholeSearch &&
     props.resultWasTruncated === true &&
     terminalStatus;
@@ -690,6 +691,7 @@ export const ToolCallMessage = memo(function ToolCallMessage(props: {
     !resultBody.trim().toLowerCase().startsWith("patch applied successfully");
   const showResult =
     !isQuestionTool &&
+    !spawnAgent &&
     !isPatchTool &&
     !structuredCard &&
     (!schedulerCard || searchLoading) &&

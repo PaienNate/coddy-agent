@@ -344,7 +344,7 @@ import {
   listBackgroundTasks,
   stopBackgroundTask,
 } from "./tasks/api";
-import { tasksPollIntervalMs } from "./tasks/taskStatus";
+import { isSubagentTask, tasksPollIntervalMs } from "./tasks/taskStatus";
 import {
   parseSubagentTranscriptMeta,
   type SubagentTranscriptMeta,
@@ -1523,6 +1523,9 @@ export function App() {
   const [schedulerRunsLoading, setSchedulerRunsLoading] = useState(false);
   const { open: tasksOpen, setOpen: setTasksOpen } = useRightDock(
     initialRoute.branch === "session" && initialRoute.tasksOpen,
+  );
+  const [tasksPanelView, setTasksPanelView] = useState<"tasks" | "subagents">(
+    "tasks",
   );
   // The Files window over the chat: open, and on which file and line. It is not
   // a face of the dock, whose tasks stay as they were under it.
@@ -2848,6 +2851,9 @@ export function App() {
         setFileLine(p.fileLine || 1);
       }
       setChangesViewerOpen(p.editsOpen === true);
+      if (p.tasksOpen) {
+        setTasksPanelView("tasks");
+      }
       if (p.tasksOpen && p.taskId) {
         // A link that names a task opens its card once; the address goes back to
         // saying only that the panel is showing.
@@ -7055,6 +7061,25 @@ export function App() {
     setSchedulerOpen(false);
     setSchedulerEditor(null);
     setSettingsRoute(false);
+    setTasksPanelView("tasks");
+    setTasksOpen(true);
+    if (isStackedShell()) {
+      setSessionTasksHash(sid);
+    }
+  }, [sessionId]);
+
+  /** The header's subagent control opens the same dock, narrowed to the runs
+   *  this chat spawned; a second press puts it away through onCloseSubagents. */
+  const openSubagentsFromNav = useCallback(() => {
+    const sid = sessionId.trim();
+    if (!sid) {
+      return;
+    }
+    setSessionsOpen(false);
+    setSchedulerOpen(false);
+    setSchedulerEditor(null);
+    setSettingsRoute(false);
+    setTasksPanelView("subagents");
     setTasksOpen(true);
     if (isStackedShell()) {
       setSessionTasksHash(sid);
@@ -7667,11 +7692,19 @@ export function App() {
     return byToolCall;
   }, [backgroundTasks]);
 
-  // The panel belongs to a chat, so it only exists when one is open.
-  const tasksPanelOpen = tasksOpen && !!sessionId.trim();
-  // The dock beside the chat holds the background tasks; `tasksOpen` is its
-  // open state, which every Escape path and stacked-shell rule speaks.
-  const dockOpen = tasksPanelOpen;
+  const subagentTasks = useMemo(
+    () => backgroundTasks.filter(isSubagentTask),
+    [backgroundTasks],
+  );
+  // The panel belongs to a chat, so it only exists when one is open. Its two
+  // header controls share the dock; `tasksPanelView` says which list is in it.
+  const tasksPanelOpen =
+    tasksOpen && tasksPanelView === "tasks" && !!sessionId.trim();
+  const subagentsPanelOpen =
+    tasksOpen && tasksPanelView === "subagents" && !!sessionId.trim();
+  // `tasksOpen` is the dock's open state, which every Escape path and
+  // stacked-shell rule speaks, whichever view is in it.
+  const dockOpen = tasksOpen && !!sessionId.trim();
 
   // What the turn waits for while the Files window covers the chat: a board
   // of a .canvas file shows the same cards and takes the same answers.
@@ -8546,7 +8579,16 @@ export function App() {
                 : null
             }
             onFocusHonoured={spendTasksFocus}
-            tasks={backgroundTasks}
+            tasks={
+              tasksPanelView === "subagents" ? subagentTasks : backgroundTasks
+            }
+            {...(tasksPanelView === "subagents"
+              ? {
+                  title: t("subagents.panelTitle"),
+                  emptyText: t("subagents.panelEmpty"),
+                  allowClearFinished: false,
+                }
+              : {})}
             loadOutput={loadBackgroundTaskOutput}
             listError={backgroundListError}
             loading={backgroundListLoading}
@@ -8658,6 +8700,9 @@ export function App() {
             filesOpen={filesOpen}
             backgroundTasks={backgroundTasks}
             onOpenBackgroundTasks={openTasksFromNav}
+            onOpenSubagents={openSubagentsFromNav}
+            onCloseSubagents={closeTasksDrawer}
+            subagentsOpen={subagentsPanelOpen}
             onBackgroundTasksChanged={() => {
               void refreshBackgroundTasks({ silent: true });
             }}
