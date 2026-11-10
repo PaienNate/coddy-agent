@@ -492,7 +492,8 @@ tools:
   # own instance and is the durable choice - it is not rate-limited against its owner and
   # is never served a decoy result set. See docs/features/web-search.md.
   # websearch:
-  #   engines: [brave, bing]        # merge order; brave, bing, ddg, google, searxng, deepseek
+  #   engines: [brave, bing]        # merge order; brave, bing, ddg, google, searxng, deepseek,
+                                  # exa, firecrawl, parallel, tinyfish, tavily
   #   engine_timeout_seconds: 8     # per-engine budget
   #   total_timeout_seconds: 20     # budget for the whole search
   #   max_concurrent_engines: 4     # how many engines are asked at once
@@ -503,6 +504,11 @@ tools:
   #                                 # empty reads BRAVE_API_KEY (environment or ~/.coddy/.env)
   #   deepseek_api_key: ""          # DeepSeek Search API; the deepseek engine needs a key -
   #                                 # empty reads DEEPSEEK_API_KEY (environment or ~/.coddy/.env)
+  #   exa_api_key: ""               # Exa; empty reads EXA_API_KEY or uses keyless
+  #   firecrawl_api_key: ""         # Firecrawl; empty reads FIRECRAWL_API_KEY or keyless
+  #   parallel_api_key: ""          # Parallel; empty reads PARALLEL_API_KEY or keyless
+  #   tinyfish_api_key: ""          # TinyFish; empty reads TINYFISH_API_KEY or keyless
+  #   tavily_api_key: ""            # Tavily; empty reads TAVILY_API_KEY or keyless
 
   # HTTP requests: the http_request tool is the agent's curl (any method, headers, bodies,
   # multipart uploads, downloads to a file, a proxy and the certificate check per request).

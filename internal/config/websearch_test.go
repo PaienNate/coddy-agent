@@ -247,3 +247,27 @@ func netParseIP(t *testing.T, raw string) net.IP {
 	}
 	return ip
 }
+
+func TestWebSearchOpenCodeKeysComeFromTheEnvironmentWhenTheConfigHasNone(t *testing.T) {
+	t.Setenv(WebSearchExaAPIKeyEnv, " exa-env ")
+	t.Setenv(WebSearchFirecrawlAPIKeyEnv, " fire-env ")
+	t.Setenv(WebSearchParallelAPIKeyEnv, " parallel-env ")
+	t.Setenv(WebSearchTinyFishAPIKeyEnv, " tiny-env ")
+	t.Setenv(WebSearchTavilyAPIKeyEnv, " tavily-env ")
+	var w ToolWebSearch
+	got := w.ToolSettings()
+	if got.ExaAPIKey != "exa-env" || got.FirecrawlAPIKey != "fire-env" || got.ParallelAPIKey != "parallel-env" || got.TinyFishAPIKey != "tiny-env" || got.TavilyAPIKey != "tavily-env" {
+		t.Fatalf("environment keys = %+v", got)
+	}
+	configured := ToolWebSearch{
+		ExaAPIKey:       "exa-config",
+		FirecrawlAPIKey: "fire-config",
+		ParallelAPIKey:  "parallel-config",
+		TinyFishAPIKey:  "tiny-config",
+		TavilyAPIKey:    "tavily-config",
+	}
+	got = configured.ToolSettings()
+	if got.ExaAPIKey != "exa-config" || got.FirecrawlAPIKey != "fire-config" || got.ParallelAPIKey != "parallel-config" || got.TinyFishAPIKey != "tiny-config" || got.TavilyAPIKey != "tavily-config" {
+		t.Fatalf("configured keys = %+v", got)
+	}
+}

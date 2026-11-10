@@ -761,10 +761,15 @@
                   "ddg",
                   "google",
                   "searxng",
-                  "deepseek"
+                  "deepseek",
+                  "exa",
+                  "firecrawl",
+                  "parallel",
+                  "tinyfish",
+                  "tavily"
                 ]
               },
-              "description": "Search engines to ask, in merge order. Unset asks brave then bing. \"ddg\" and \"google\" are not asked by default: measured from a server, DuckDuckGo answers every query with an anti-bot interstitial and Google renders its results in the browser. \"searxng\" needs searxng_url.",
+              "description": "Search engines to ask, in merge order. Unset asks brave then bing. \"ddg\" and \"google\" are not asked by default: measured from a server, DuckDuckGo answers every query with an anti-bot interstitial and Google renders its results in the browser. \"searxng\" needs searxng_url. \"exa\", \"firecrawl\", \"parallel\", \"tinyfish\" and \"tavily\" are the OpenCode-compatible providers; their keys are optional where keyless works.",
               "default": [
                 "brave",
                 "bing"
@@ -808,6 +813,31 @@
             "deepseek_api_key": {
               "type": "string",
               "description": "DeepSeek Search API key. The deepseek engine asks DeepSeek's Search API (POST /v1/tools/search), which has no public page to scrape, so without a key the engine is unavailable. Empty reads the DEEPSEEK_API_KEY environment variable (also from ${CODDY_HOME}/.env), so the key need not be stored here.",
+              "default": ""
+            },
+            "exa_api_key": {
+              "type": "string",
+              "description": "Exa API key. The exa engine asks Exa's hosted search MCP. Empty reads EXA_API_KEY, or uses the keyless tier.",
+              "default": ""
+            },
+            "firecrawl_api_key": {
+              "type": "string",
+              "description": "Firecrawl API key. The firecrawl engine asks Firecrawl's hosted search MCP. Empty reads FIRECRAWL_API_KEY, or uses the keyless tier.",
+              "default": ""
+            },
+            "parallel_api_key": {
+              "type": "string",
+              "description": "Parallel API key. The parallel engine asks Parallel's hosted search MCP. Empty reads PARALLEL_API_KEY, or uses the keyless tier.",
+              "default": ""
+            },
+            "tinyfish_api_key": {
+              "type": "string",
+              "description": "TinyFish API key. The tinyfish engine asks TinyFish's hosted search MCP. Empty reads TINYFISH_API_KEY, or uses the free keyless tier.",
+              "default": ""
+            },
+            "tavily_api_key": {
+              "type": "string",
+              "description": "Tavily API key. The tavily engine asks Tavily's search API. Empty reads TAVILY_API_KEY, or uses the keyless tier.",
               "default": ""
             }
           }

@@ -61,12 +61,17 @@ type Tools struct {
 
 // Search engine names accepted in tools.websearch.engines.
 const (
-	WebSearchEngineBrave    = "brave"
-	WebSearchEngineBing     = "bing"
-	WebSearchEngineDDG      = "ddg"
-	WebSearchEngineGoogle   = "google"
-	WebSearchEngineSearXNG  = "searxng"
-	WebSearchEngineDeepSeek = "deepseek"
+	WebSearchEngineBrave     = "brave"
+	WebSearchEngineBing      = "bing"
+	WebSearchEngineDDG       = "ddg"
+	WebSearchEngineGoogle    = "google"
+	WebSearchEngineSearXNG   = "searxng"
+	WebSearchEngineDeepSeek  = "deepseek"
+	WebSearchEngineExa       = "exa"
+	WebSearchEngineFirecrawl = "firecrawl"
+	WebSearchEngineParallel  = "parallel"
+	WebSearchEngineTinyFish  = "tinyfish"
+	WebSearchEngineTavily    = "tavily"
 )
 
 // Defaults for tools.websearch. A blocked engine answers fast - a challenge
@@ -92,6 +97,16 @@ const WebSearchBraveAPIKeyEnv = "BRAVE_API_KEY" //nolint:gosec // G101: the name
 // is no HTML page to scrape - so without a key the engine is unavailable.
 const WebSearchDeepSeekAPIKeyEnv = "DEEPSEEK_API_KEY" //nolint:gosec // G101: the name of an environment variable, not a credential
 
+// Environment variables for the OpenCode-compatible search providers. They use
+// the same names as OpenCode, so a key exported for either tool serves both.
+const (
+	WebSearchExaAPIKeyEnv       = "EXA_API_KEY"       //nolint:gosec // G101: the name of an environment variable, not a credential
+	WebSearchFirecrawlAPIKeyEnv = "FIRECRAWL_API_KEY" //nolint:gosec // G101: the name of an environment variable, not a credential
+	WebSearchParallelAPIKeyEnv  = "PARALLEL_API_KEY"  //nolint:gosec // G101: the name of an environment variable, not a credential
+	WebSearchTinyFishAPIKeyEnv  = "TINYFISH_API_KEY"  //nolint:gosec // G101: the name of an environment variable, not a credential
+	WebSearchTavilyAPIKeyEnv    = "TAVILY_API_KEY"    //nolint:gosec // G101: the name of an environment variable, not a credential
+)
+
 // WebSearchDefaultEngines is what the tool asks when the operator named no
 // engines: Brave first, Bing behind it. DuckDuckGo and Google are deliberately
 // absent - measured from a server, DuckDuckGo answers every query with an
@@ -108,6 +123,8 @@ func KnownWebSearchEngines() []string {
 	return []string{
 		WebSearchEngineBrave, WebSearchEngineBing, WebSearchEngineDDG,
 		WebSearchEngineGoogle, WebSearchEngineSearXNG, WebSearchEngineDeepSeek,
+		WebSearchEngineExa, WebSearchEngineFirecrawl, WebSearchEngineParallel,
+		WebSearchEngineTinyFish, WebSearchEngineTavily,
 	}
 }
 
@@ -154,6 +171,16 @@ type ToolWebSearch struct {
 	// public page to scrape, so this engine works only with a key - set either
 	// here or in the DEEPSEEK_API_KEY environment variable (or ${CODDY_HOME}/.env).
 	DeepSeekAPIKey string `yaml:"deepseek_api_key"`
+
+	// Keys for the OpenCode-compatible providers. Exa, Firecrawl, Parallel and
+	// Tavily accept a key; TinyFish, Tavily, Exa, Firecrawl and Parallel also
+	// answer keyless requests within their free limits. An empty field reads
+	// the matching environment variable (or ${CODDY_HOME}/.env).
+	ExaAPIKey       string `yaml:"exa_api_key"`
+	FirecrawlAPIKey string `yaml:"firecrawl_api_key"`
+	ParallelAPIKey  string `yaml:"parallel_api_key"`
+	TinyFishAPIKey  string `yaml:"tinyfish_api_key"`
+	TavilyAPIKey    string `yaml:"tavily_api_key"`
 }
 
 // validate rejects negative bounds and unknown engine names, and refuses an
@@ -503,8 +530,13 @@ func (w *ToolWebSearch) ToolSettings() ToolWebSearchSettings {
 		// Read when the settings are built, like the rest of the section, so a
 		// key exported for the process (or set in ${CODDY_HOME}/.env) is used
 		// without being written into config.yaml. A configured key wins.
-		BraveAPIKey:    strings.TrimSpace(os.Getenv(WebSearchBraveAPIKeyEnv)),
-		DeepSeekAPIKey: strings.TrimSpace(os.Getenv(WebSearchDeepSeekAPIKeyEnv)),
+		BraveAPIKey:     strings.TrimSpace(os.Getenv(WebSearchBraveAPIKeyEnv)),
+		DeepSeekAPIKey:  strings.TrimSpace(os.Getenv(WebSearchDeepSeekAPIKeyEnv)),
+		ExaAPIKey:       strings.TrimSpace(os.Getenv(WebSearchExaAPIKeyEnv)),
+		FirecrawlAPIKey: strings.TrimSpace(os.Getenv(WebSearchFirecrawlAPIKeyEnv)),
+		ParallelAPIKey:  strings.TrimSpace(os.Getenv(WebSearchParallelAPIKeyEnv)),
+		TinyFishAPIKey:  strings.TrimSpace(os.Getenv(WebSearchTinyFishAPIKeyEnv)),
+		TavilyAPIKey:    strings.TrimSpace(os.Getenv(WebSearchTavilyAPIKeyEnv)),
 	}
 	if w == nil {
 		return out
@@ -531,6 +563,20 @@ func (w *ToolWebSearch) ToolSettings() ToolWebSearchSettings {
 	if key := strings.TrimSpace(w.DeepSeekAPIKey); key != "" {
 		out.DeepSeekAPIKey = key
 	}
+	for _, key := range []struct {
+		value *string
+		dst   *string
+	}{
+		{&w.ExaAPIKey, &out.ExaAPIKey},
+		{&w.FirecrawlAPIKey, &out.FirecrawlAPIKey},
+		{&w.ParallelAPIKey, &out.ParallelAPIKey},
+		{&w.TinyFishAPIKey, &out.TinyFishAPIKey},
+		{&w.TavilyAPIKey, &out.TavilyAPIKey},
+	} {
+		if v := strings.TrimSpace(*key.value); v != "" {
+			*key.dst = v
+		}
+	}
 	return out
 }
 
@@ -547,6 +593,11 @@ type ToolWebSearchSettings struct {
 	SearXNGURL           string
 	BraveAPIKey          string
 	DeepSeekAPIKey       string
+	ExaAPIKey            string
+	FirecrawlAPIKey      string
+	ParallelAPIKey       string
+	TinyFishAPIKey       string
+	TavilyAPIKey         string
 }
 
 // CanvasCDNSources are the hosts a canvas frame may load libraries, styles and

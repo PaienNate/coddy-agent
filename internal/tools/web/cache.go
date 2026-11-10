@@ -71,11 +71,17 @@ func cacheKey(engine string, q Query, s Settings) string {
 	if strings.TrimSpace(s.BraveAPIKey) != "" {
 		b.WriteString("keyed")
 	}
-	if engine == EngineDeepSeek {
-		// A rotated credential must not inherit a cached authentication failure.
-		// Store only its fingerprint, never the credential itself.
+	for _, key := range []string{
+		s.DeepSeekAPIKey, s.ExaAPIKey, s.FirecrawlAPIKey,
+		s.ParallelAPIKey, s.TinyFishAPIKey, s.TavilyAPIKey,
+	} {
+		if strings.TrimSpace(key) == "" {
+			continue
+		}
+		// A rotated credential must not inherit a cached authentication
+		// failure. Store only its fingerprint, never the credential itself.
 		b.WriteByte('\n')
-		digest := sha256.Sum256([]byte(strings.TrimSpace(s.DeepSeekAPIKey)))
+		digest := sha256.Sum256([]byte(strings.TrimSpace(key)))
 		b.WriteString(hex.EncodeToString(digest[:]))
 	}
 	return b.String()

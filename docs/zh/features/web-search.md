@@ -53,6 +53,11 @@
 | `bing` | 否 | 默认引擎，第二个。会对它不喜欢的客户端返回一组无关结果，这会被下面的相关性闸门捕获。 |
 | `searxng` | 否，但需要 `searxng_url` | 你自己的实例，通过其 JSON API 查询。可靠之选：不受针对其所有者的速率限制，也永远不会收到诱饵结果。 |
 | `deepseek` | 是（`deepseek_api_key` 或 `DEEPSEEK_API_KEY`） | [DeepSeek Search API](https://api-docs.deepseek.com/guides/search)，默认禁用。需要密钥，且仅支持第 1 页。凭据缺失以及对后续页面的请求都会报告为 `blocked`。查询（包括任何 `site:` 限制）必须包含 1-128 个 Unicode 字符。 |
+| `exa` | 否（可选） | [Exa](https://exa.ai) 的托管搜索 MCP。设置 `exa_api_key` 或 `EXA_API_KEY` 时密钥通过 `exaApiKey` 查询参数发送；留空使用 Exa 的 keyless 层。仅支持第 1 页。 |
+| `firecrawl` | 否（可选） | [Firecrawl](https://firecrawl.dev) 的托管搜索 MCP，可选 Bearer 密钥（`firecrawl_api_key` 或 `FIRECRAWL_API_KEY`）。仅支持第 1 页。 |
+| `parallel` | 否（可选） | [Parallel](https://parallel.ai) 的托管搜索 MCP，可选 Bearer 密钥（`parallel_api_key` 或 `PARALLEL_API_KEY`）。仅支持第 1 页。 |
+| `tinyfish` | 否（可选） | [TinyFish](https://tinyfish.ai) 的免费搜索 MCP。未设置 `tinyfish_api_key` 或 `TINYFISH_API_KEY` 时使用 keyless 层；有密钥时先建立 MCP 会话。仅支持第 1 页。 |
+| `tavily` | 否（可选） | [Tavily](https://tavily.com) 的搜索 API。未设置 `tavily_api_key` 或 `TAVILY_API_KEY` 时使用 keyless 层；达到每日上限会以带原因的 `blocked` 报告。仅支持第 1 页。 |
 | `ddg` | 否 | 默认不查询。从服务器发起时，其两个端点都会对每个查询返回 HTTP 202 反爬页面，表现为 `blocked`；在 DuckDuckGo 仍能正常服务你的地方，它没有结果的查询会表现为 `empty`。 |
 | `google` | 否 | 默认不查询。提供给未获批准客户端的页面不含任何自然结果，无论使用何种用户代理；其结果在浏览器中渲染。 |
 
@@ -73,7 +78,8 @@ Bing 会对它不喜欢的客户端返回一个标题呼应查询、而十行结
 ```yaml
 tools:
   websearch:
-    engines: [brave, bing]        # merge order; brave, bing, ddg, google, searxng, deepseek
+    engines: [brave, bing]        # merge order; brave, bing, ddg, google, searxng, deepseek,
+                                  # exa, firecrawl, parallel, tinyfish, tavily
     engine_timeout_seconds: 8     # per-engine budget
     total_timeout_seconds: 20     # budget for the whole search
     max_concurrent_engines: 4     # how many engines are asked at once
@@ -82,9 +88,16 @@ tools:
     searxng_url: ""               # e.g. http://localhost:8080
     brave_api_key: ""             # official Brave Search API; or BRAVE_API_KEY
     deepseek_api_key: ""          # DeepSeek Search API; the deepseek engine needs a key
+    exa_api_key: ""               # Exa；留空读取 EXA_API_KEY 或使用 keyless
+    firecrawl_api_key: ""         # Firecrawl；留空读取 FIRECRAWL_API_KEY 或 keyless
+    parallel_api_key: ""          # Parallel；留空读取 PARALLEL_API_KEY 或 keyless
+    tinyfish_api_key: ""          # TinyFish；留空读取 TINYFISH_API_KEY 或 keyless
+    tavily_api_key: ""            # Tavily；留空读取 TAVILY_API_KEY 或 keyless
 ```
 
 要使用 DeepSeek，请在 `engines` 中添加 `deepseek`，并设置 `deepseek_api_key` 或导出 `DEEPSEEK_API_KEY`。已配置的密钥优先。API 以 Bearer 认证接收 `POST /v1/tools/search`，JSON 正文包含 `query` 和 `count`。它在第 1 页最多返回 `max_results` 行。后续页面会跳过 DeepSeek 而不发出 HTTP 请求，因此它无法在其他引擎的结果之前重复第一页的行。仅使用 DeepSeek 时，提示会要求使用更窄的查询，而不是翻到下一页。
+
+OpenCode 兼容的提供商也按同样方式使用：把 `exa`、`firecrawl`、`parallel`、`tinyfish` 或 `tavily` 加入 `engines`，密钥留空会读取对应环境变量；没有密钥的提供商直接走 keyless 层。TinyFish 是其中免费、最容易试的一个。这些 API 每次查询返回一组结果，后续页面会报告为 `blocked`，不会重复第一页。
 
 ![设置中的 DeepSeek Search API 密钥](../../assets/web-search-deepseek-settings-dark-1280.png)
 

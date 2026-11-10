@@ -148,7 +148,7 @@ func executeSearchWeb(ctx context.Context, argsJSON string, env *tooling.Env) (s
 		if run.report.Status == OutcomeEmpty {
 			healthy++
 		}
-		if run.name != EngineDeepSeek && run.report.Status == OutcomeOK && len(run.rows) > 0 {
+		if supportsPagination(run.name) && run.report.Status == OutcomeOK && len(run.rows) > 0 {
 			canPaginate = true
 		}
 		reports = append(reports, run.report)
@@ -159,7 +159,7 @@ func executeSearchWeb(ctx context.Context, argsJSON string, env *tooling.Env) (s
 	// is what stops the model concluding that the subject does not exist; the
 	// message names each engine so the operator can see what to fix.
 	if healthy == 0 && len(runs) > 0 {
-		return "", fmt.Errorf("every search engine was unavailable (%s). Search from this machine is degraded, not the subject: say so rather than concluding nothing exists. The operator can configure tools.websearch.searxng_url (a self-hosted SearXNG), a Brave Search API key (tools.websearch.brave_api_key, or the BRAVE_API_KEY environment variable) or a DeepSeek Search API key (tools.websearch.deepseek_api_key, or the DEEPSEEK_API_KEY environment variable) for a reliable backend",
+		return "", fmt.Errorf("every search engine was unavailable (%s). Search from this machine is degraded, not the subject: say so rather than concluding nothing exists. The operator can configure tools.websearch.searxng_url (a self-hosted SearXNG), or a key for Brave, DeepSeek, Exa, Firecrawl, Parallel, TinyFish or Tavily (the matching tools.websearch.*_api_key field or environment variable) for a reliable backend",
 			describeFailures(runs))
 	}
 
@@ -175,7 +175,7 @@ func executeSearchWeb(ctx context.Context, argsJSON string, env *tooling.Env) (s
 		if canPaginate {
 			out.Hint = "More results are available: call websearch again with page incremented, or narrow the query."
 		} else {
-			out.Hint = "DeepSeek does not support pagination; narrow the query for other results."
+			out.Hint = "The configured engines do not support pagination; narrow the query for other results."
 		}
 	}
 	if blockedNames := blockedEngines(runs); len(blockedNames) > 0 {
@@ -187,6 +187,18 @@ func executeSearchWeb(ctx context.Context, argsJSON string, env *tooling.Env) (s
 		return "", err
 	}
 	return string(b), nil
+}
+
+// supportsPagination reports whether an engine can answer a later page. The
+// OpenCode-compatible APIs and DeepSeek answer one result set per query, so a
+// turn asking for page 2 must narrow the query instead of repeating page 1.
+func supportsPagination(name string) bool {
+	switch name {
+	case EngineBrave, EngineBing, EngineDDG, EngineGoogle, EngineSearXNG:
+		return true
+	default:
+		return false
+	}
 }
 
 // describeFailures renders one line per engine for the all-blocked error.

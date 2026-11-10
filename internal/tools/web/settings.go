@@ -59,6 +59,16 @@ type Settings struct {
 	// HTML page to fall back on, so a missing key blocks the engine instead of
 	// degrading to a scraper.
 	DeepSeekAPIKey string
+	// ExaAPIKey is the Exa Search API key; empty asks keylessly.
+	ExaAPIKey string
+	// FirecrawlAPIKey is the Firecrawl Search API key; empty asks keylessly.
+	FirecrawlAPIKey string
+	// ParallelAPIKey is the Parallel Search API key; empty asks keylessly.
+	ParallelAPIKey string
+	// TinyFishAPIKey is the TinyFish API key; empty asks keylessly.
+	TinyFishAPIKey string
+	// TavilyAPIKey is the Tavily Search API key; empty asks keylessly.
+	TavilyAPIKey string
 }
 
 // ResolvedEngines returns the configured engine list, or the default set.

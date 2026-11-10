@@ -53,6 +53,11 @@ A search row in the transcript reads as what it found, not as the JSON above. It
 | `bing` | no | Default, second. Serves an unrelated result set to a client it dislikes, which the relevance gate below catches. |
 | `searxng` | no, but needs `searxng_url` | Your own instance, asked over its JSON API. The durable choice: not rate-limited against its owner, never served a decoy. |
 | `deepseek` | yes (`deepseek_api_key` or `DEEPSEEK_API_KEY`) | [DeepSeek Search API](https://api-docs.deepseek.com/guides/search), disabled by default. Requires a key and supports only page 1. Missing credentials and requests for later pages report `blocked`. The query, including any `site:` restriction, must contain 1-128 Unicode characters. |
+| `exa` | no (optional) | [Exa](https://exa.ai)'s hosted search MCP. With `exa_api_key` or `EXA_API_KEY` the key travels in the endpoint's `exaApiKey` query parameter; empty asks Exa's keyless tier. Supports page 1. |
+| `firecrawl` | no (optional) | [Firecrawl](https://firecrawl.dev)'s hosted search MCP, with an optional bearer key (`firecrawl_api_key` or `FIRECRAWL_API_KEY`). Supports page 1. |
+| `parallel` | no (optional) | [Parallel](https://parallel.ai)'s hosted search MCP, with an optional bearer key (`parallel_api_key` or `PARALLEL_API_KEY`). Supports page 1. |
+| `tinyfish` | no (optional) | [TinyFish](https://tinyfish.ai)'s free search MCP. Without `tinyfish_api_key` or `TINYFISH_API_KEY` it uses the keyless tier; a keyed request first opens the MCP session. Supports page 1. |
+| `tavily` | no (optional) | [Tavily](https://tavily.com)'s search API. Without `tavily_api_key` or `TAVILY_API_KEY` it uses the keyless tier; Tavily's keyless daily cap arrives as `blocked` with its reason. Supports page 1. |
 | `ddg` | no | Not asked by default. From a server, both its endpoints answer every query with an HTTP 202 anti-bot page, which arrives as `blocked`; where DuckDuckGo still serves you, a query it has nothing for arrives as `empty`. |
 | `google` | no | Not asked by default. The page served to an unapproved client carries no organic results for any user agent; the results are rendered in the browser. |
 
@@ -73,7 +78,8 @@ The judgement is batch-wide for the same reason. One row that misses every query
 ```yaml
 tools:
   websearch:
-    engines: [brave, bing]        # merge order; brave, bing, ddg, google, searxng, deepseek
+    engines: [brave, bing]        # merge order; brave, bing, ddg, google, searxng, deepseek,
+                                  # exa, firecrawl, parallel, tinyfish, tavily
     engine_timeout_seconds: 8     # per-engine budget
     total_timeout_seconds: 20     # budget for the whole search
     max_concurrent_engines: 4     # how many engines are asked at once
@@ -82,9 +88,16 @@ tools:
     searxng_url: ""               # e.g. http://localhost:8080
     brave_api_key: ""             # official Brave Search API; or BRAVE_API_KEY
     deepseek_api_key: ""          # DeepSeek Search API; the deepseek engine needs a key
+    exa_api_key: ""               # Exa; empty uses EXA_API_KEY or the keyless tier
+    firecrawl_api_key: ""         # Firecrawl; empty uses FIRECRAWL_API_KEY or keyless
+    parallel_api_key: ""          # Parallel; empty uses PARALLEL_API_KEY or keyless
+    tinyfish_api_key: ""          # TinyFish; empty uses TINYFISH_API_KEY or keyless
+    tavily_api_key: ""            # Tavily; empty uses TAVILY_API_KEY or keyless
 ```
 
 To use DeepSeek, add `deepseek` to `engines` and set `deepseek_api_key` or export `DEEPSEEK_API_KEY`. A configured key takes precedence. The API receives `POST /v1/tools/search` with bearer authentication and a JSON body containing `query` and `count`. It returns up to `max_results` rows on page 1. Later pages skip DeepSeek without an HTTP request, so it cannot repeat page-one rows ahead of other engines' results. With DeepSeek alone, the hint asks for a narrower query instead of another page.
+
+The OpenCode-compatible providers work the same way: add `exa`, `firecrawl`, `parallel`, `tinyfish` or `tavily` to `engines` and leave its key empty to use the matching environment variable, or omit the key entirely where the provider has a keyless tier. TinyFish is the free default among them and is the quickest one to try. These APIs return one result set per query; later pages are reported as `blocked` instead of repeating page one.
 
 ![DeepSeek Search API key in Settings](../assets/web-search-deepseek-settings-dark-1280.png)
 
@@ -125,7 +138,7 @@ One engine's answer to one query is remembered for `cache_ttl_seconds` (300 by d
 
 Failures are remembered far more briefly, and the two kinds differently. A challenge page is sticky - the engine serves it to the next call as well - so it is kept for 30 seconds: long enough to stop a retry inside one turn, short enough that a recovering engine is noticed. An engine that could not be reached at all is kept for 5 seconds, which spares one turn's worth of repeats without hiding a host that has come back.
 
-DeepSeek cache entries include a SHA-256 fingerprint of the API key, never the key itself. Replacing a key starts a fresh cache entry, so a cached authentication failure does not survive a credential change. Successful DeepSeek responses are limited to 4 MiB and must contain a `results` array; malformed answers report `blocked` instead of an empty search.
+Credentialed cache entries include a SHA-256 fingerprint of the API key, never the key itself. Replacing a key starts a fresh cache entry, so a cached authentication failure does not survive a credential change. Responses are limited to 4 MiB; malformed answers report `blocked` instead of an empty search.
 
 ## Arguments
 

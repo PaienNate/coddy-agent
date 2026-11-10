@@ -1784,7 +1784,7 @@
             },
             "engines": {
               "default": [],
-              "description": "Search engines to ask, in merge order (default: brave, bing). \"ddg\" and \"google\" are not asked by default: from a server DuckDuckGo answers with an anti-bot page and Google renders its results in the browser. \"searxng\" needs the address below.",
+              "description": "Search engines to ask, in merge order (default: brave, bing). \"ddg\" and \"google\" are not asked by default: from a server DuckDuckGo answers with an anti-bot page and Google renders its results in the browser. \"searxng\" needs the address below. \"exa\", \"firecrawl\", \"parallel\", \"tinyfish\" and \"tavily\" are the OpenCode-compatible providers; their keys are optional where keyless works.",
               "items": {
                 "enum": [
                   "brave",
@@ -1792,17 +1792,37 @@
                   "ddg",
                   "google",
                   "searxng",
-                  "deepseek"
+                  "deepseek",
+                  "exa",
+                  "firecrawl",
+                  "parallel",
+                  "tinyfish",
+                  "tavily"
                 ],
                 "type": "string"
               },
               "title": "Engines",
               "type": "array"
             },
+            "exa_api_key": {
+              "description": "The exa engine asks Exa's hosted search MCP. Leave empty to read EXA_API_KEY, or to use Exa's keyless tier.",
+              "title": "Exa API key",
+              "type": "string"
+            },
+            "firecrawl_api_key": {
+              "description": "The firecrawl engine asks Firecrawl's hosted search MCP. Leave empty to read FIRECRAWL_API_KEY, or to use its keyless tier.",
+              "title": "Firecrawl API key",
+              "type": "string"
+            },
             "max_concurrent_engines": {
               "description": "How many engines are asked at once (default 4).",
               "title": "Max concurrent engines",
               "type": "integer"
+            },
+            "parallel_api_key": {
+              "description": "The parallel engine asks Parallel's hosted search MCP. Leave empty to read PARALLEL_API_KEY, or to use its keyless tier.",
+              "title": "Parallel API key",
+              "type": "string"
             },
             "searxng_url": {
               "description": "Base address of your own SearXNG instance, asked over its JSON API (enable the json format in its settings.yml). localhost and LAN addresses are allowed.",
@@ -1813,6 +1833,16 @@
               "description": "Maximum characters of one result description (default 320).",
               "title": "Snippet length",
               "type": "integer"
+            },
+            "tavily_api_key": {
+              "description": "The tavily engine asks Tavily's search API. Leave empty to read TAVILY_API_KEY, or to use its keyless tier.",
+              "title": "Tavily API key",
+              "type": "string"
+            },
+            "tinyfish_api_key": {
+              "description": "The tinyfish engine asks TinyFish's hosted search MCP. Leave empty to read TINYFISH_API_KEY, or to use TinyFish's free keyless tier.",
+              "title": "TinyFish API key",
+              "type": "string"
             },
             "total_timeout_seconds": {
               "description": "Seconds the whole search may take, however many engines it asks (default 20).",
@@ -1831,7 +1861,12 @@
             "cache_ttl_seconds",
             "searxng_url",
             "brave_api_key",
-            "deepseek_api_key"
+            "deepseek_api_key",
+            "exa_api_key",
+            "firecrawl_api_key",
+            "parallel_api_key",
+            "tinyfish_api_key",
+            "tavily_api_key"
           ]
         }
       },

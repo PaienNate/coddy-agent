@@ -23,6 +23,11 @@
 | `ANTHROPIC_API_KEY` | `internal/config/config.go` | 针对 `anthropic` 提供商的相同引导，使用 `anthropic/claude-sonnet-4-6`，在 `OPENAI_API_KEY` 为空时尝试。 | [配置](../getting-started/configuration.md#完整配置-schema) |
 | `BRAVE_API_KEY` | `internal/config/tools.go`（`ToolSettings`） | 当 `tools.websearch.brave_api_key` 为空时的 Brave Search API 密钥；有了密钥，`brave` 引擎会使用官方 API 而不是公共结果页面。在轮次构建其工具设置时读取，因此无需写入 `config.yaml`。 | [Web 搜索](../features/web-search.md#brave-search-api-密钥) |
 | `DEEPSEEK_API_KEY` | `internal/config/tools.go`（`ToolSettings`） | 当 `tools.websearch.deepseek_api_key` 为空时的 DeepSeek Search API 密钥。`deepseek` 引擎没有可抓取的公共页面，因此没有密钥时它不可用。在轮次构建其工具设置时读取，因此无需写入 `config.yaml`。 | [Web 搜索](../features/web-search.md#引擎) |
+| `EXA_API_KEY` | `internal/config/tools.go`（`ToolSettings`） | 当 `tools.websearch.exa_api_key` 为空时的 Exa 搜索密钥；可选，两者都为空时使用 Exa 的 keyless 层。 | [Web 搜索](../features/web-search.md#引擎) |
+| `FIRECRAWL_API_KEY` | `internal/config/tools.go`（`ToolSettings`） | 当 `tools.websearch.firecrawl_api_key` 为空时的 Firecrawl 搜索密钥；可选，否则使用 keyless。 | [Web 搜索](../features/web-search.md#引擎) |
+| `PARALLEL_API_KEY` | `internal/config/tools.go`（`ToolSettings`） | 当 `tools.websearch.parallel_api_key` 为空时的 Parallel 搜索密钥；可选，否则使用 keyless。 | [Web 搜索](../features/web-search.md#引擎) |
+| `TINYFISH_API_KEY` | `internal/config/tools.go`（`ToolSettings`） | 当 `tools.websearch.tinyfish_api_key` 为空时的 TinyFish 搜索密钥；可选，否则使用免费 keyless 层。 | [Web 搜索](../features/web-search.md#引擎) |
+| `TAVILY_API_KEY` | `internal/config/tools.go`（`ToolSettings`） | 当 `tools.websearch.tavily_api_key` 为空时的 Tavily 搜索密钥；可选，否则使用 keyless。 | [Web 搜索](../features/web-search.md#引擎) |
 | `TELEGRAM_BOT_TOKEN` | `internal/config/gateway.go`（`EffectiveToken`） | 当 `gateways.telegram.token` 为空时的机器人令牌。 | [Telegram 网关](../surfaces/gateway.md#快速开始telegram) |
 | `PACHCA_BOT_TOKEN` | `internal/config/gateway.go`（`PachcaGatewayConfig.EffectiveToken`） | 当 `gateways.pachca.token` 为空时的 Pachca 机器人令牌。 | [Pachca 网关](../surfaces/pachca.md#配置) |
 | `KIMI_CODE_HOME` | `internal/llm/kimi_cli_auth.go` | 用于符合条件的订阅回退的 Kimi CLI 状态目录。默认 `~/.kimi-code`；Coddy 读取访问令牌但不修改它。 | [Kimi](../features/kimi.md#登录与-cli-回退) |

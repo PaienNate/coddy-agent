@@ -15,10 +15,14 @@ import (
 func stubEngines(t *testing.T) {
 	t.Helper()
 	oldBrave, oldBing, oldDDG, oldGoogle, oldSearx, oldDeep := braveSearchFunc, bingSearchFunc, ddgSearchFunc, googleSearchFunc, searxngSearchFunc, deepseekSearchFunc
+	oldExa, oldFirecrawl, oldParallel := exaSearchFunc, firecrawlSearchFunc, parallelSearchFunc
+	oldTinyFish, oldTavily := tinyFishSearchFunc, tavilySearchFunc
 	t.Cleanup(func() {
 		braveSearchFunc, bingSearchFunc = oldBrave, oldBing
 		ddgSearchFunc, googleSearchFunc, searxngSearchFunc = oldDDG, oldGoogle, oldSearx
 		deepseekSearchFunc = oldDeep
+		exaSearchFunc, firecrawlSearchFunc, parallelSearchFunc = oldExa, oldFirecrawl, oldParallel
+		tinyFishSearchFunc, tavilySearchFunc = oldTinyFish, oldTavily
 		searchCache.reset()
 	})
 	searchCache.reset()
@@ -27,6 +31,11 @@ func stubEngines(t *testing.T) {
 	googleSearchFunc = func(context.Context, Query, Settings) ([]Result, error) { return nil, nil }
 	searxngSearchFunc = func(context.Context, Query, Settings) ([]Result, error) { return nil, nil }
 	deepseekSearchFunc = func(context.Context, Query, Settings) ([]Result, error) { return nil, nil }
+	exaSearchFunc = func(context.Context, Query, Settings) ([]Result, error) { return nil, nil }
+	firecrawlSearchFunc = func(context.Context, Query, Settings) ([]Result, error) { return nil, nil }
+	parallelSearchFunc = func(context.Context, Query, Settings) ([]Result, error) { return nil, nil }
+	tinyFishSearchFunc = func(context.Context, Query, Settings) ([]Result, error) { return nil, nil }
+	tavilySearchFunc = func(context.Context, Query, Settings) ([]Result, error) { return nil, nil }
 }
 
 // envWith returns a tool environment carrying the given engine list, with the

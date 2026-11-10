@@ -231,6 +231,11 @@ type ToolWebSearchJSON struct {
 	SearXNGURL           string   `json:"searxng_url,omitempty"`
 	BraveAPIKey          string   `json:"brave_api_key,omitempty"`
 	DeepSeekAPIKey       string   `json:"deepseek_api_key,omitempty"`
+	ExaAPIKey            string   `json:"exa_api_key,omitempty"`
+	FirecrawlAPIKey      string   `json:"firecrawl_api_key,omitempty"`
+	ParallelAPIKey       string   `json:"parallel_api_key,omitempty"`
+	TinyFishAPIKey       string   `json:"tinyfish_api_key,omitempty"`
+	TavilyAPIKey         string   `json:"tavily_api_key,omitempty"`
 }
 
 // ToolHTTPRequestJSON mirrors ToolHTTPRequest for JSON APIs. DefaultHeaders

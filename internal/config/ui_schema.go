@@ -635,7 +635,7 @@ func UISchemaMap() map[string]interface{} {
 						"engines": map[string]interface{}{
 							"type":        "array",
 							"title":       "Engines",
-							"description": "Search engines to ask, in merge order (default: brave, bing). \"ddg\" and \"google\" are not asked by default: from a server DuckDuckGo answers with an anti-bot page and Google renders its results in the browser. \"searxng\" needs the address below.",
+							"description": "Search engines to ask, in merge order (default: brave, bing). \"ddg\" and \"google\" are not asked by default: from a server DuckDuckGo answers with an anti-bot page and Google renders its results in the browser. \"searxng\" needs the address below. \"exa\", \"firecrawl\", \"parallel\", \"tinyfish\" and \"tavily\" are the OpenCode-compatible providers; their keys are optional where keyless works.",
 							"items":       map[string]interface{}{"type": "string", "enum": KnownWebSearchEngines()},
 						},
 						"engine_timeout_seconds": intProp("Engine timeout (s)", "Seconds one engine may take before it is reported as unavailable (default 8)."),
@@ -658,8 +658,33 @@ func UISchemaMap() map[string]interface{} {
 							"title":       "DeepSeek Search API key",
 							"description": "The deepseek engine asks DeepSeek's Search API, which has no public page to scrape, so this key is required for the engine to work. Leave empty to read DEEPSEEK_API_KEY from the environment or ~/.coddy/.env.",
 						},
+						"exa_api_key": map[string]interface{}{
+							"type":        "string",
+							"title":       "Exa API key",
+							"description": "The exa engine asks Exa's hosted search MCP. Leave empty to read EXA_API_KEY, or to use Exa's keyless tier.",
+						},
+						"firecrawl_api_key": map[string]interface{}{
+							"type":        "string",
+							"title":       "Firecrawl API key",
+							"description": "The firecrawl engine asks Firecrawl's hosted search MCP. Leave empty to read FIRECRAWL_API_KEY, or to use its keyless tier.",
+						},
+						"parallel_api_key": map[string]interface{}{
+							"type":        "string",
+							"title":       "Parallel API key",
+							"description": "The parallel engine asks Parallel's hosted search MCP. Leave empty to read PARALLEL_API_KEY, or to use its keyless tier.",
+						},
+						"tinyfish_api_key": map[string]interface{}{
+							"type":        "string",
+							"title":       "TinyFish API key",
+							"description": "The tinyfish engine asks TinyFish's hosted search MCP. Leave empty to read TINYFISH_API_KEY, or to use TinyFish's free keyless tier.",
+						},
+						"tavily_api_key": map[string]interface{}{
+							"type":        "string",
+							"title":       "Tavily API key",
+							"description": "The tavily engine asks Tavily's search API. Leave empty to read TAVILY_API_KEY, or to use its keyless tier.",
+						},
 					},
-					[]string{"engines", "engine_timeout_seconds", "total_timeout_seconds", "max_concurrent_engines", "snippet_chars", "cache_ttl_seconds", "searxng_url", "brave_api_key", "deepseek_api_key"},
+					[]string{"engines", "engine_timeout_seconds", "total_timeout_seconds", "max_concurrent_engines", "snippet_chars", "cache_ttl_seconds", "searxng_url", "brave_api_key", "deepseek_api_key", "exa_api_key", "firecrawl_api_key", "parallel_api_key", "tinyfish_api_key", "tavily_api_key"},
 					nil),
 				"http_request": objectSchema("HTTP requests",
 					"Policy of the http_request tool, the agent's curl: where it goes without asking and the headers every request sends. Under ask and accept_edits a request asks unless its destination is allowed here or was approved in the session; bypass never asks.",

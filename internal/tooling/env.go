@@ -385,6 +385,16 @@ type WebSearchSettings struct {
 	BraveAPIKey string
 	// DeepSeekAPIKey is the DeepSeek Search API key.
 	DeepSeekAPIKey string
+	// ExaAPIKey is the Exa Search API key.
+	ExaAPIKey string
+	// FirecrawlAPIKey is the Firecrawl Search API key.
+	FirecrawlAPIKey string
+	// ParallelAPIKey is the Parallel Search API key.
+	ParallelAPIKey string
+	// TinyFishAPIKey is the TinyFish API key.
+	TinyFishAPIKey string
+	// TavilyAPIKey is the Tavily Search API key.
+	TavilyAPIKey string
 }
 
 // PreviewServerSettings is the resolved tools.preview_server section as the
