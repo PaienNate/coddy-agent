@@ -374,14 +374,14 @@ Desktop layout
 - Desktop nav is a **vertical panel** with rounding on the **right** edge (not a full-height center-pill). On **`min-width: 1920px`**, the wide rail header includes an icon with **horizontal lines** used **only** to **collapse** to narrow rail, not as a global navigation drawer.
 - Left rail opens **chat history** from **History** under the brand; brand click goes to the **start screen** (**new chat**), and so does **New Chat** (**`data-testid="nav-new-chat"`**): a plus under the brand in the narrow rail, a plus after it in the top bar and a labelled row above **History** in the wide rail.
 - **Brand**, **History**, **Scheduler** (when linked), **Settings**, and each row in the **History** list use real fragment **`href`** values (**`#/`**, **`#/history`**, **`#/scheduler`**, **`#/scheduler/new`** (new job editor), **`#/settings`**, **`#/s/<sessionId>`**) so **middle-click** or **Ctrl/Cmd-click** opens a **new browser tab** on the same origin while another tab can keep streaming.
-- Sessions list is **always** a **drawer overlay** with backdrop at **all** breakpoints and rail widths (**no** inline column beside the rail that would shrink the chat area). The panel heading and related chrome use the copy **History**. On the stacked shell the panel keeps the same band as the Scheduler's and Settings' drawers: 10 px from the sides, under the top strip, and 14 px from the foot or the screen's own bottom inset where there is one. The close control in its head and Escape are the ways back to the conversation.
+- On a desktop the sessions list is a persistent **History column** in the shell grid between the rail and the chat, so conversations stay in view while the chat changes. It is on by default and its close control hides it; **History** on the rail brings it back, and Escape closes it while `#/history` is the address. On the stacked shell (phones and tablets) it is the drawer overlay with backdrop: the same band as the Scheduler's and Settings' drawers, 10 px from the sides, under the top strip, and 14 px from the foot or the screen's own bottom inset where there is one.
 - Optional rail **narrow versus wide** (icons plus labels) only when **`min-width: 1920px`**, persisted in **`coddy_nav_rail`** cookie (**`narrow`** default)
 - Main chat area with streamed assistant output
 - Right rail is out of scope for the current milestone
 
 Wide screens
 
-- **`min-width: 1920px`** may enable the rail widen control and cookie-backed layout (**see DESIGN.md**). **History** remains a **floating drawer** next to the measured nav column (**`--rail-shell-track-width`**); do not fix **`left`** with a static pixel constant for wide rails.
+- **`min-width: 1920px`** may enable the rail widen control and cookie-backed layout (**see DESIGN.md**). The desktop **History** column follows the measured nav column (**`--rail-shell-track-width`**) in the shell grid; do not fix its offset with a static pixel constant for wide rails.
 
 Mobile layout
 
@@ -620,7 +620,7 @@ Functional checklist for **Settings -> Logical models -> Reasoning levels**
 
 *The shared confirmation dialog before a chat is deleted*
 
-- **History** panel lists sessions via `GET /coddy/sessions` (still a **drawer**, not a persistent second column).
+- **History** lists sessions via `GET /coddy/sessions` in a persistent desktop column, or in the drawer on the stacked shell.
 - Pagination uses `limit` and `cursor`, with **infinite scroll** for older rows.
 - Optional **`q`** query string (**title, workspace path, a tag, or the first **`user`** message content**, case insensitive substring; **not** full-chat search). Search input updates use client debouncing.
 - **Everything that decides what the list shows is one control**: the sliders button at the right end of the search row opens a menu of four rows (**`SessionsFilterMenu.tsx`**). It sits with the search because both narrow the list below; the drawer head keeps only its close button. Each row names its question and the answer in force, and its choices open beside it - hover a row with the mouse, or click or tap it, and the one before it folds; clicking the row the mouse has just opened keeps it open. The menu is rendered into the document rather than into the drawer, which clips what overflows it, so a submenu reaches past the drawer's edge. A list opens on whichever side has its whole width, the right first and the left near the window's edge; on a phone, where neither side has it, the choices fold out under their row inside the menu, and a tap on a row opens or folds it. The menu is never wider than the room left of its control, and with a list folded in it scrolls rather than run off the bottom of the screen.

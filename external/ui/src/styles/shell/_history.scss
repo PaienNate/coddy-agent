@@ -61,6 +61,33 @@
   display: none;
 }
 
+/* The desktop History column. It is part of the shell grid, between the rail
+   and the chat, so the conversation list stays in view while a conversation
+   changes. The stacked shell keeps the overlay drawer instead. */
+@media (min-width: 1200px) {
+  .shell.shell-history-docked {
+    grid-template-columns: auto minmax(260px, 320px) minmax(0, 1fr);
+  }
+
+  .sessions.dock {
+    position: relative;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+    height: auto;
+    min-height: 0;
+    margin: 14px 10px 14px 12px;
+    border-radius: var(--coddy-glass-panel-radius);
+    border: 1px solid var(--coddy-glass-panel-border);
+    background: var(--coddy-glass-panel-bg);
+    backdrop-filter: var(--coddy-glass-panel-backdrop);
+    -webkit-backdrop-filter: var(--coddy-glass-panel-backdrop);
+    box-shadow: var(--coddy-glass-panel-shadow);
+    overflow: hidden;
+  }
+}
+
 .sessions-search-row {
   display: flex;
   align-items: center;

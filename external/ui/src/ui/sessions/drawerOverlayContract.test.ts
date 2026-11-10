@@ -38,6 +38,13 @@ test("no dual-drawer beside-scheduler CSS positioning for History", () => {
   expect(css).not.toContain("shell-history-beside-scheduler");
   expect(css).not.toContain("sessions-drawer-beside-scheduler");
 });
+test("the desktop History column is a shell grid column, not an overlay", () => {
+  const css = cssText();
+  expect(css).toMatch(
+    /\.shell\.shell-history-docked\s*\{[^}]*grid-template-columns:\s*auto\s+minmax\([^)]*\)\s+minmax\(0,\s*1fr\)/s,
+  );
+  expect(css).toMatch(/\.sessions\.dock\s*\{[^}]*display:\s*flex/s);
+});
 
 // ── Nav rail z-index: stays above backdrop so drawers are switchable ──────
 

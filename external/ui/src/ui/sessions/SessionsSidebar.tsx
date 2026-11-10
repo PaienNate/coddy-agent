@@ -143,6 +143,8 @@ export function SessionsSidebar(props: {
    */
   rowErrors?: Readonly<Record<string, string>>;
   open?: boolean;
+  /** The persistent desktop sidebar, rather than the overlay drawer. */
+  dock?: boolean;
   /** Extra classes on the root aside (e.g. offset when Scheduler is docked). */
   className?: string;
   onClose?: () => void;
@@ -779,12 +781,16 @@ export function SessionsSidebar(props: {
 
   return (
     <aside
-      className={["sessions", "drawer", props.className || ""]
+      className={[
+        "sessions",
+        props.dock ? "dock" : "drawer",
+        props.className || "",
+      ]
         .filter(Boolean)
         .join(" ")}
       aria-label={t("sessions.history")}
       data-testid="sessions"
-      data-variant="drawer"
+      data-variant={props.dock ? "dock" : "drawer"}
     >
       <div className="sessions-head">
         <span>{t("sessions.history")}</span>

@@ -326,9 +326,9 @@ test("on desktop Tasks stays open across rail screens and uses local panel state
 });
 
 // Tasks belongs to the chat on screen, not to the rail: on desktop it stays
-// open while History picks another chat and shows that chat's tasks, and the
-// backdrop that takes History down leaves it where it was.
-test("on desktop Tasks follows the chat picked in History and outlives its backdrop", async () => {
+// open while the History column picks another chat and shows that chat's
+// tasks, and closing the column leaves the panel where it was.
+test("on desktop Tasks follows the chat picked in History and outlives the column", async () => {
   mountInChat();
   fireEvent.click(await screen.findByTestId("open-tasks"));
   await screen.findByTestId("bgtasks-panel");
@@ -350,7 +350,7 @@ test("on desktop Tasks follows the chat picked in History and outlives its backd
     ).toBe(true),
   );
 
-  fireEvent.click(document.querySelector(".backdrop.is-open")!);
+  fireEvent.click(screen.getByTestId("sessions-close"));
   await waitFor(() => expect(screen.queryByTestId("sessions")).toBeNull());
   await settle();
   expect(screen.getByTestId("bgtasks-panel")).toBeTruthy();

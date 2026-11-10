@@ -144,7 +144,10 @@ import { setHostShell } from "./chat/hostShell";
 import { NavRail } from "./nav/NavRail";
 import {
   phoneMaxWidthMediaQuery,
+  serverSnapshotShellStack,
   shellStackMaxWidthMediaQuery,
+  snapshotShellStack,
+  subscribeShellStack,
 } from "./shellBreakpoint";
 import { SwarmView } from "./swarm/SwarmView";
 import { probeSwarm } from "./swarm/api";
@@ -194,6 +197,10 @@ import {
 } from "./chat/reasoningCookie";
 import { pickReasoningLevel } from "./chat/reasoningSelection";
 import { SessionsSidebar } from "./sessions/SessionsSidebar";
+import {
+  readHistoryDockPreference,
+  writeHistoryDockPreference,
+} from "./sessions/historyDock";
 import { ProjectsView } from "./projects/ProjectsView";
 import { ProjectTabs } from "./projects/ProjectTabs";
 import {
@@ -1284,14 +1291,30 @@ export function App() {
       live = false;
     };
   }, []);
-  const [sessionsOpen, setSessionsOpen] = useState(
-    () =>
+  // The desktop History column. It is a sibling of the chat in the shell grid,
+  // not the overlay drawer: like a chat app's conversation list, it stays in
+  // view while the conversation changes. A small screen still uses the drawer.
+  const stackedShell = useSyncExternalStore(
+    subscribeShellStack,
+    snapshotShellStack,
+    serverSnapshotShellStack,
+  );
+  const [historyDockOpen, setHistoryDockOpen] = useState(
+    () => !isStackedShell() && readHistoryDockPreference(),
+  );
+  const [sessionsOpen, setSessionsOpen] = useState(() => {
+    // On a desktop the History address opens the column, never the overlay.
+    if (!isStackedShell()) {
+      return false;
+    }
+    return (
       initialRoute.branch === "history" ||
       ((initialRoute.branch === "session" ||
         initialRoute.branch === "draft" ||
         initialRoute.branch === "none") &&
-        initialRoute.historyOpen),
-  );
+        initialRoute.historyOpen)
+    );
+  });
 
   // The project registry and the project workspace. The list lives on the
   // server (CODDY_HOME/projects.json); this browser only remembers which
@@ -2728,6 +2751,18 @@ export function App() {
 
   const applyLocationHash = useCallback(() => {
     const p = parseAppHash();
+    // History is a column on a desktop and an overlay on a small screen. An
+    // address that asks for it opens whichever one this shell has.
+    const setHistoryFromRoute = (open: boolean) => {
+      if (stackedShell) {
+        setSessionsOpen(open);
+        return;
+      }
+      setSessionsOpen(false);
+      if (open) {
+        setHistoryDockOpen(true);
+      }
+    };
     // The Files and the edits windows have addresses of their own; any other
     // one puts them away.
     if (!(p.branch === "session" && p.filesOpen)) setFilesOpen(false);
@@ -2794,7 +2829,7 @@ export function App() {
           historySidebar: !!p.historyOpen,
         });
       }
-      setSessionsOpen(!!p.historyOpen);
+      setHistoryFromRoute(!!p.historyOpen);
       return;
     }
     if (p.branch === "draft") {
@@ -2810,7 +2845,7 @@ export function App() {
       );
       setDraft(row?.draftText || "");
       setItems([]);
-      setSessionsOpen(!!p.historyOpen);
+      setHistoryFromRoute(!!p.historyOpen);
       return;
     }
     if (p.branch === "history") {
@@ -2818,7 +2853,7 @@ export function App() {
       // The map lies over History in the stack of the rail's screens: opened
       // under it, the drawer would be out of sight.
       setSwarmRoute(false);
-      setSessionsOpen(true);
+      setHistoryFromRoute(true);
       setSchedulerOpen(false);
       setSchedulerEditor(null);
       if (isStackedShell()) setTasksOpen(false);
@@ -2878,8 +2913,8 @@ export function App() {
     setSchedulerOpen(false);
     setSchedulerEditor(null);
     setTasksOpen(false);
-    setSessionsOpen(!!p.historyOpen);
-  }, [schedulerHttpLinked]);
+    setHistoryFromRoute(!!p.historyOpen);
+  }, [schedulerHttpLinked, stackedShell]);
 
   const openSessionFromRoute = useCallback(
     (id: string, opts?: { historySidebar?: boolean; tasksOpen?: boolean }) => {
@@ -3557,6 +3592,19 @@ export function App() {
     ],
   );
 
+  // A desktop History column is already on screen when the address changes to
+  // #/history; the effect that loads on `sessionsOpen` would not run again, so
+  // ask for the list the route just opened.
+  useEffect(() => {
+    const onHash = () => {
+      if (!isStackedShell() && parseAppHash().branch === "history") {
+        void loadSessionsList(true);
+      }
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, [loadSessionsList]);
+
   useEffect(() => {
     void (async () => {
       const res = await fetchJSON<Record<string, unknown>>("/coddy/config", {
@@ -3842,11 +3890,11 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (!sessionsOpen) {
+    if (!sessionsOpen && !historyDockOpen) {
       return;
     }
     void loadSessionsList(true);
-  }, [sessionsOpen, sessionFilterQ, loadSessionsList]);
+  }, [sessionsOpen, historyDockOpen, sessionFilterQ, loadSessionsList]);
 
   /**
    * The messages revision each transcript returned by loadMessages was read at, for
@@ -4476,7 +4524,7 @@ export function App() {
     setActiveDraftId("");
     const keepTasksOpen =
       tasksOpen &&
-      sessionsOpen &&
+      (sessionsOpen || (historyDockOpen && !stackedShell)) &&
       !window.matchMedia(shellStackMaxWidthMediaQuery).matches;
     openSessionFromRoute(id, {
       historySidebar: sessionsOpen,
@@ -7469,6 +7517,14 @@ export function App() {
     closeToChat();
   }, [closeToChat]);
 
+  const closeHistoryDock = useCallback(() => {
+    setHistoryDockOpen(false);
+    writeHistoryDockPreference(false);
+    if (parseAppHash().branch === "history") {
+      closeToChat();
+    }
+  }, [closeToChat]);
+
   const openProjectsFromNav = useCallback(() => {
     setSchedulerOpen(false);
     setSchedulerEditor(null);
@@ -7545,12 +7601,19 @@ export function App() {
   const onOpenHistoryFromNav = useCallback(() => {
     setSchedulerOpen(false);
     setSchedulerEditor(null);
+    if (!stackedShell) {
+      setHistoryDockOpen(true);
+      writeHistoryDockPreference(true);
+      setSessionsOpen(false);
+      setHistoryHash();
+      return;
+    }
     if (isStackedShell()) setTasksOpen(false);
     setSettingsRoute(false);
     setSwarmRoute(false);
     setSessionsOpen(true);
     setHistoryHash();
-  }, []);
+  }, [stackedShell]);
 
   /** Background tasks indexed by the tool call that started them, so a
    *  transcript row can keep ticking after the tool itself returned. */
@@ -7600,6 +7663,16 @@ export function App() {
   // A window over the chat - the files, the edits or the canvas - is one more
   // layer the shell's backdrop covers the chat under.
   const chatWindowOpen = (filesOpen || changesViewerOpen) && !!sessionId.trim();
+  const historyDockVisible =
+    historyDockOpen &&
+    !stackedShell &&
+    !atSwarmRoot &&
+    !projectsRoute &&
+    !settingsRoute &&
+    !swarmRoute &&
+    docsRoute === null &&
+    !(schedulerOpen && schedulerHttpLinked === true);
+
   const shellBackdropOpen =
     chatWindowOpen ||
     sessionsOpen ||
@@ -7765,8 +7838,13 @@ export function App() {
 
   // Every screen of the rail, whether it is on screen and what Escape does to
   // it: the step its close control takes (nav/railEscape.ts).
+  const historyScreenOpen =
+    sessionsOpen || (historyDockVisible && parseAppHash().branch === "history");
   useRailScreenEscape({
-    history: { open: sessionsOpen, close: sessionPanelShared.onClose },
+    history: {
+      open: historyScreenOpen,
+      close: sessionsOpen ? sessionPanelShared.onClose : closeHistoryDock,
+    },
     projects: { open: projectsRoute, close: closeProjectsPage },
     scheduler: {
       open: schedulerOpen && schedulerHttpLinked === true,
@@ -8127,6 +8205,7 @@ export function App() {
       className={[
         "shell",
         viewportXL && railLabelsWide ? "shell-rail-wide" : "",
+        historyDockVisible ? "shell-history-docked" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -8138,7 +8217,10 @@ export function App() {
         // leads there as it leads an agent's page to a new chat.
         onNewChat={atSwarmRoot ? openSwarmFromNav : newChatFromNav}
         onOpenHistory={onOpenHistoryFromNav}
-        historyOpen={sessionsOpen}
+        historyOpen={
+          sessionsOpen ||
+          (historyDockVisible && parseAppHash().branch === "history")
+        }
         historyActiveCount={historyActiveCount}
         {...(atSwarmRoot
           ? {}
@@ -8164,6 +8246,15 @@ export function App() {
         railLabelsWide={railLabelsWide}
         onToggleRailLabels={toggleRailWidth}
       />
+
+      {historyDockVisible ? (
+        <SessionsSidebar
+          {...sessionPanelShared}
+          open
+          dock
+          onClose={closeHistoryDock}
+        />
+      ) : null}
 
       <div
         className={[
@@ -8204,7 +8295,9 @@ export function App() {
           aria-hidden={!shellBackdropOpen}
         />
 
-        {sessionsOpen ? <SessionsSidebar {...sessionPanelShared} /> : null}
+        {sessionsOpen && !historyDockVisible ? (
+          <SessionsSidebar {...sessionPanelShared} />
+        ) : null}
 
         {schedulerOpen && schedulerHttpLinked === true ? (
           <div
