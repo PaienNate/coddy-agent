@@ -28,7 +28,7 @@ https://github.com/user-attachments/assets/604d01bb-b730-4ca5-9955-a7a593891054
 
 *The Russian dictionary applied to the conversation: the chat header, the tool rows and the composer*
 
-- **Default:** dark theme on first visit; language resolves from **`navigator.language`** (RU if Russian, else EN).
+- **Default:** light theme on first visit; language resolves from **`navigator.language`** (RU if Russian, else EN).
 - **Theme cookie:** **`coddy_ui_theme`** with the eight theme ids (**`dark`**, **`light`**, **`midnight`**, **`solarized-dark`**, **`monokai`**, **`nord`**, **`rose-pine`**, **`neuraldeep`**; path **`/`**, **`SameSite=Lax`**, 1-year `Max-Age`).
 - **Theme picker:** **Settings** (**`#/settings`**) → **Appearance** → theme swatch grid (**`data-testid="theme-swatch-<id>"`** inside **`appearance-theme-picker`**). Selection applies immediately and is client-side only (no config save).
 - **Deployment defaults:** **`CODDY_UI_THEME`** names the theme a browser without the cookie opens on, and **`CODDY_UI_WALLPAPER`** a file of the server's wallpaper gallery shown until the person picks a background; both travel in **`GET /coddy/info`** and apply only while the browser has made no choice of its own.

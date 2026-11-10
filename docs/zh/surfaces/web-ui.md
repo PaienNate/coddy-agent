@@ -28,7 +28,7 @@ https://github.com/user-attachments/assets/604d01bb-b730-4ca5-9955-a7a593891054
 
 *应用于对话的俄语词典：聊天头部、工具行和输入框*
 
-- **默认：** 首次访问使用深色主题；语言从 **`navigator.language`** 解析（如果是俄语则为 RU，如果是中文则为 ZH，否则为 EN）。
+- **默认：** 首次访问使用浅色主题；语言从 **`navigator.language`** 解析（如果是俄语则为 RU，如果是中文则为 ZH，否则为 EN）。
 - **主题 cookie：** **`coddy_ui_theme`**，包含八个主题 id（**`dark`**、**`light`**、**`midnight`**、**`solarized-dark`**、**`monokai`**、**`nord`**、**`rose-pine`**、**`neuraldeep`**；路径 **`/`**，**`SameSite=Lax`**，有效期 1 年 `Max-Age`）。
 - **主题选择器：** **设置**（**`#/settings`**）→ **外观** → 主题色块网格（**`data-testid="theme-swatch-<id>"`** 位于 **`appearance-theme-picker`** 内）。选择立即生效，且仅在客户端生效（不保存配置）。
 - **部署默认值：** **`CODDY_UI_THEME`** 指定未携带 cookie 的浏览器打开时使用的主题，而 **`CODDY_UI_WALLPAPER`** 指定在用户选择背景之前显示的服务器壁纸库文件；两者都通过 **`GET /coddy/info`** 传递，并且仅在浏览器尚未做出自己的选择时生效。

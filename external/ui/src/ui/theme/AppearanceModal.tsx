@@ -182,7 +182,7 @@ export function AppearanceThemePicker(props: {
   const current = useSyncExternalStore(
     subscribeTheme,
     readAppliedUiTheme,
-    () => "dark" as UiThemeMode,
+    () => "light" as UiThemeMode,
   );
 
   const pick = useCallback((id: UiThemeMode) => {

@@ -6,7 +6,7 @@ import {
   writeUiThemeCookie,
 } from "./themeCookie";
 
-export const UI_THEME_DEFAULT: UiThemeMode = "dark";
+export const UI_THEME_DEFAULT: UiThemeMode = "light";
 
 export function resolveUiThemeMode(stored: UiThemeMode | null): UiThemeMode {
   if (stored !== null && (UI_THEME_IDS as string[]).includes(stored)) {

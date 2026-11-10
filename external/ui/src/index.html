@@ -6,8 +6,8 @@
       name="viewport"
       content="width=device-width, initial-scale=1, interactive-widget=resizes-content"
     />
-    <meta name="color-scheme" content="dark light" />
-    <meta name="theme-color" content="#0f0f10" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f8f8fa" />
     <title>Coddy Agent</title>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/coddy-favicon.svg" type="image/svg+xml" />
@@ -29,7 +29,7 @@
         };
         var m = document.cookie.match(/(?:^|;\s*)coddy_ui_theme=([^;]+)/);
         var t = m && decodeURIComponent(m[1].replace(/\+/g, " "));
-        var theme = t && VALID[t] ? t : "dark";
+        var theme = t && VALID[t] ? t : "light";
         document.documentElement.dataset.theme = theme;
         document.documentElement.style.colorScheme = LIGHT[theme]
           ? "light"

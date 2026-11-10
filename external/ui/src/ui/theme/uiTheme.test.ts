@@ -14,9 +14,9 @@ afterEach(() => {
   document.documentElement.style.removeProperty("color-scheme");
 });
 
-test("resolveUiThemeMode defaults to dark for null/unknown", () => {
-  expect(resolveUiThemeMode(null)).toBe("dark");
-  expect(resolveUiThemeMode("unknown" as never)).toBe("dark");
+test("resolveUiThemeMode defaults to light for null/unknown", () => {
+  expect(resolveUiThemeMode(null)).toBe("light");
+  expect(resolveUiThemeMode("unknown" as never)).toBe("light");
 });
 
 test("resolveUiThemeMode returns any valid theme unchanged", () => {
@@ -56,9 +56,9 @@ test("readAppliedUiTheme returns current data-theme", () => {
   }
 });
 
-test("readAppliedUiTheme defaults to dark when attribute absent", () => {
+test("readAppliedUiTheme defaults to light when attribute absent", () => {
   document.documentElement.removeAttribute("data-theme");
-  expect(readAppliedUiTheme()).toBe("dark");
+  expect(readAppliedUiTheme()).toBe("light");
 });
 
 test("setUiTheme persists cookie and applies theme", () => {
