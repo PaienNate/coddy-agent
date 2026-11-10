@@ -1555,6 +1555,9 @@ export const messagesEn: Record<string, string> = {
   "projects.card.sessions.one": "{count} session",
   "projects.card.sessions.other": "{count} sessions",
   "projects.card.open": "Open",
+  "projects.rail.aria": "Project switcher",
+  "projects.rail.all": "All projects",
+  "projects.rail.switch": "Switch to {name}",
   "projects.card.lastOpened": "Last opened {time}",
   "projects.delete.title": "Remove {name}?",
   "projects.delete.message":
@@ -1584,6 +1587,12 @@ export const messagesEn: Record<string, string> = {
   "projects.tabs.menuAria": "Tab actions",
   "projects.tabs.newChat": "New chat in this project",
 
+  "attention.page.aria": "Work waiting for you",
+  "attention.page.permission": "A tool needs your permission",
+  "attention.page.question": "The agent is waiting for your answer",
+  "attention.page.subagent": "{agent} is waiting for permission{extension}",
+  "attention.page.open": "Open conversation",
+  "attention.page.dismiss": "Dismiss notice",
   "sessions.history": "History",
   "sessions.closeHistory": "Close history",
   "sessions.searchPlaceholder": "Search by title or first message",

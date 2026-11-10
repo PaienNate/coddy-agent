@@ -1606,6 +1606,9 @@ export const messagesRu: Record<string, string> = {
   "projects.card.sessions.many": "{count} сеансов",
   "projects.card.sessions.other": "{count} сеансов",
   "projects.card.open": "Открыть",
+  "projects.rail.aria": "Переключатель проектов",
+  "projects.rail.all": "Все проекты",
+  "projects.rail.switch": "Перейти к проекту {name}",
   "projects.card.lastOpened": "Последнее открытие: {time}",
   "projects.delete.title": "Убрать {name}?",
   "projects.delete.message":
@@ -1635,6 +1638,12 @@ export const messagesRu: Record<string, string> = {
   "projects.tabs.menuAria": "Действия с вкладкой",
   "projects.tabs.newChat": "Новый чат в этом проекте",
 
+  "attention.page.aria": "Работа ждёт вас",
+  "attention.page.permission": "Инструменту нужно ваше разрешение",
+  "attention.page.question": "Агент ждёт вашего ответа",
+  "attention.page.subagent": "{agent} ждёт разрешения{extension}",
+  "attention.page.open": "Открыть диалог",
+  "attention.page.dismiss": "Скрыть уведомление",
   "sessions.history": "История",
   "sessions.closeHistory": "Закрыть историю",
   "sessions.searchPlaceholder": "Поиск по заголовку или первому сообщению",

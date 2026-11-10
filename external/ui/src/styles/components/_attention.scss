@@ -1,0 +1,127 @@
+@use "../abstracts" as *;
+
+/* Work waiting for a person, inside the page. The browser notification is for
+   a tab nobody is looking at; this stack is for the tab that is. */
+.page-attention-stack {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 46;
+  width: min(360px, calc(100vw - 36px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.page-attention-card {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 10px 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--sidebar) 88%, transparent);
+  box-shadow: var(--coddy-glass-panel-shadow);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+  transition:
+    border-color 120ms ease,
+    transform 120ms ease;
+}
+
+.page-attention-card:hover,
+.page-attention-card:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  transform: translateY(-1px);
+}
+
+.page-attention-card.is-question {
+  border-color: color-mix(in srgb, #f0a020 48%, transparent);
+}
+
+.page-attention-card.is-subagent {
+  border-color: color-mix(in srgb, #38bdf8 44%, transparent);
+}
+
+.page-attention-icon {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+}
+
+.page-attention-card.is-question .page-attention-icon {
+  color: #d98b10;
+  background: color-mix(in srgb, #f0a020 15%, transparent);
+}
+
+.page-attention-card.is-subagent .page-attention-icon {
+  color: #38bdf8;
+  background: color-mix(in srgb, #38bdf8 15%, transparent);
+}
+
+.page-attention-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.page-attention-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.page-attention-body {
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.page-attention-hint {
+  margin-top: 2px;
+  color: color-mix(in srgb, var(--accent) 82%, var(--text));
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.page-attention-close {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.page-attention-close:hover,
+.page-attention-close:focus-visible {
+  color: var(--text);
+  background: mix-text(8%);
+}
+
+@media (max-width: 900px) {
+  .page-attention-stack {
+    right: 10px;
+    bottom: 10px;
+    width: min(340px, calc(100vw - 20px));
+  }
+}

@@ -44,6 +44,8 @@ export type AttentionTrackerOptions = {
   sessionTitle: (sessionId: string) => string;
   /** Injectable for tests. */
   notify?: (notice: AttentionNotice) => boolean;
+  /** In-page notices follow every notice, focused tab or not. */
+  onNotice?: (notice: AttentionNotice) => void;
   setTimer?: (fn: () => void, ms: number) => unknown;
 };
 
@@ -98,7 +100,9 @@ export class AttentionTracker {
     this.setTimer(() => {
       const error = this.streamErrors.get(sid) ?? "";
       this.streamErrors.delete(sid);
-      this.notify(turnEndedNotice(sid, at, this.opts.sessionTitle(sid), error));
+      this.announce(
+        turnEndedNotice(sid, at, this.opts.sessionTitle(sid), error),
+      );
     }, TURN_END_SETTLE_MS);
   }
 
@@ -106,14 +110,20 @@ export class AttentionTracker {
     const sid = payload.sessionId.trim();
     if (!sid) return;
     const notice = permissionNotice(payload, this.opts.sessionTitle(sid));
-    if (this.firstTime(notice)) this.notify(notice);
+    if (this.firstTime(notice)) this.announce(notice);
   }
 
   question(payload: CoddyQuestionPayload): void {
     const sid = payload.sessionId.trim();
     if (!sid) return;
     const notice = questionNotice(payload, this.opts.sessionTitle(sid));
-    if (this.firstTime(notice)) this.notify(notice);
+    if (this.firstTime(notice)) this.announce(notice);
+  }
+
+  /** announce hands a notice to the system and to the page. */
+  private announce(notice: AttentionNotice): boolean {
+    this.opts.onNotice?.(notice);
+    return this.notify(notice);
   }
 
   /** firstTime remembers a prompt's notice and says whether it is new. */
@@ -142,7 +152,7 @@ export class AttentionTracker {
       return;
     }
     this.announcedPrompts.add(key);
-    this.notify(
+    this.announce(
       subagentPermissionNotice(parent, prompt, this.opts.sessionTitle(parent)),
     );
   }

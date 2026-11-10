@@ -4,7 +4,14 @@
  * and a click on a notification opens its chat.
  */
 import React from "react";
-import { act, cleanup, render, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { App } from "./App";
 import { ConfirmProvider } from "./components/useConfirm";
@@ -245,5 +252,48 @@ describe("notifications from the app", () => {
       "Permission needed: run_command: make test",
     );
     expect(Fake.instances[0]!.options.tag).toContain(`:${A}:permission:call_1`);
+  });
+  test("a permission request also waits inside the page, and a click opens its chat", async () => {
+    // The browser notification is for a hidden tab; this one is for the tab
+    // the person is looking at.
+    setPageAttention(true);
+    backend.activity.set(A, true);
+    await mount();
+    await waitFor(() =>
+      expect(backend.relays.some((r) => r.sid === A)).toBe(true),
+    );
+    const relay = backend.relays.find((r) => r.sid === A)!.stream;
+    await act(async () => {
+      relay.frame("permission", {
+        sessionId: A,
+        toolCall: {
+          toolCallId: "call_1",
+          title: "run_command: make test",
+          kind: "execute",
+        },
+        options: [
+          { optionId: "allow", name: "Allow", kind: "allow_once" },
+          { optionId: "deny", name: "Deny", kind: "reject_once" },
+        ],
+      });
+    });
+    const notice = await screen.findByTestId(`page-attention-permission-${A}`);
+    expect(notice).toHaveTextContent("Chat sess_a");
+    expect(notice).toHaveTextContent(
+      "Permission needed: run_command: make test",
+    );
+    expect(Fake.instances).toHaveLength(0);
+
+    await act(async () => {
+      history.replaceState(null, "", `/#/s/${B}`);
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    });
+    await waitFor(() => expect(window.location.hash).toBe(`#/s/${B}`));
+    fireEvent.click(notice);
+    await waitFor(() => expect(window.location.hash).toBe(`#/s/${A}`));
+    // Let the fading old transcript finish its timer inside the test.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    });
   });
 });

@@ -205,6 +205,7 @@ import {
   writeHistoryDockPreference,
 } from "./sessions/historyDock";
 import { ProjectsView } from "./projects/ProjectsView";
+import { ProjectRail } from "./projects/ProjectRail";
 import { ProjectTabs } from "./projects/ProjectTabs";
 import {
   createProject as createProjectRequest,
@@ -367,6 +368,11 @@ import { isTourSeen, markTourSeen, resetTour } from "./onboarding/tourState";
 import { wideRailMinWidthMediaQuery } from "./shellBreakpoint";
 import { AttentionTracker } from "./pwa/attentionTracker";
 import { onNotificationOpen } from "./pwa/notifications";
+import {
+  PageAttentionToasts,
+  type PageAttentionKind,
+  type PageAttentionNotice,
+} from "./attention/PageAttentionToasts";
 import type {
   CanvasChangedEvent,
   SubagentPermissionEvent,
@@ -679,6 +685,12 @@ export function App() {
   const [questionPendingSids, setQuestionPendingSids] = useState<Set<string>>(
     () => new Set(),
   );
+  const [subagentPending, setSubagentPending] = useState<
+    Map<string, { agent: string; tool: string }>
+  >(() => new Map());
+  const [dismissedPageAttention, setDismissedPageAttention] = useState<
+    Set<string>
+  >(() => new Set());
   const [tokenUsage, setTokenUsage] = useState<TokenUsage | null>(null);
   const [contextBreakdown, setContextBreakdown] = useState<NonNullable<
     SessionStats["contextBreakdown"]
@@ -892,6 +904,12 @@ export function App() {
   /** Session ids with an active client-side composer POST or GET relay. */
   const activeComposerSidRef = useRef<Set<string>>(new Set());
   const [composerActivityEpoch, setComposerActivityEpoch] = useState(0);
+  // Prompt notices this tab heard on a stream or the events socket. They give
+  // the in-page notice its own wording, while the History rows remain the
+  // fallback for work that was already waiting when the page loaded.
+  const [pageAttentionEvents, setPageAttentionEvents] = useState<
+    PageAttentionNotice[]
+  >([]);
   /** Session id currently shown in the transcript (updated synchronously on navigation). */
   const viewedSessionIdRef = useRef(
     initialRoute.branch === "session" ? initialRoute.sessionId.trim() : "",
@@ -906,6 +924,34 @@ export function App() {
     attentionRef.current = new AttentionTracker({
       viewedSessionId: () => viewedSessionIdRef.current,
       sessionTitle: (sid) => noticeTitleRef.current(sid),
+      onNotice: (notice) => {
+        const kind: PageAttentionKind | null =
+          notice.kind === "permission"
+            ? "permission"
+            : notice.kind === "question"
+              ? "question"
+              : notice.kind === "subagent_permission"
+                ? "subagent"
+                : null;
+        if (!kind) return;
+        const sid = notice.sessionId.trim();
+        if (!sid) return;
+        const id = `${kind}:${sid}:${notice.key}`;
+        setPageAttentionEvents((prev) =>
+          [
+            ...prev.filter(
+              (item) => !(item.sessionId === sid && item.kind === kind),
+            ),
+            {
+              id,
+              sessionId: sid,
+              kind,
+              title: notice.title,
+              body: notice.body,
+            },
+          ].slice(-20),
+        );
+      },
     });
   }
   const attention = attentionRef.current;
@@ -2088,6 +2134,11 @@ export function App() {
         next.delete(key);
         return next;
       });
+      setPageAttentionEvents((prev) =>
+        prev.filter(
+          (item) => !(item.kind === "question" && item.sessionId === key),
+        ),
+      );
       applyStreamItemsForSession(key, (prev) => {
         const next = prev.map((x) =>
           x.id === itemId && x.type === "question_prompt"
@@ -2119,6 +2170,11 @@ export function App() {
         next.delete(key);
         return next;
       });
+      setPageAttentionEvents((prev) =>
+        prev.filter(
+          (item) => !(item.kind === "permission" && item.sessionId === key),
+        ),
+      );
       applyStreamItemsForSession(key, (prev) => {
         const hit = prev.find(
           (x) => x.type === "permission_prompt" && x.id === itemId,
@@ -3840,6 +3896,9 @@ export function App() {
       const key = sid.trim();
       if (!key) return;
       attention.turnEnded(key, at);
+      setPageAttentionEvents((prev) =>
+        prev.filter((item) => item.sessionId !== key),
+      );
       if (
         key !== viewedSessionIdRef.current.trim() &&
         turnActivity.get(key) === undefined
@@ -3868,6 +3927,25 @@ export function App() {
       prompt: SubagentPermissionEvent,
     ) => {
       attention.subagentPermission(parentSid, prompt);
+      setSubagentPending((prev) => {
+        const key = parentSid.trim();
+        if (!key) return prev;
+        const next = new Map(prev);
+        if (prompt.phase === "asked") {
+          next.set(key, {
+            agent: (prompt.agentName || "").trim(),
+            tool: (prompt.toolTitle || "").trim(),
+          });
+        } else {
+          next.delete(key);
+          setPageAttentionEvents((prev) =>
+            prev.filter(
+              (item) => !(item.kind === "subagent" && item.sessionId === key),
+            ),
+          );
+        }
+        return next;
+      });
       if (parentSid.trim() === viewedSessionIdRef.current.trim()) {
         void refreshBackgroundTasks({ silent: true });
       }
@@ -8393,12 +8471,118 @@ export function App() {
     },
   );
 
+  const pageAttention = useMemo(() => {
+    const entries = new Map<
+      string,
+      {
+        kind: PageAttentionKind;
+        detail?: { agent: string; tool: string };
+        notice?: PageAttentionNotice;
+      }
+    >();
+    const rank: Record<PageAttentionKind, number> = {
+      permission: 3,
+      question: 2,
+      subagent: 1,
+    };
+    const add = (
+      sid: string,
+      kind: PageAttentionKind,
+      detail?: { agent: string; tool: string },
+      notice?: PageAttentionNotice,
+    ) => {
+      const key = sid.trim();
+      if (!key) return;
+      const current = entries.get(key);
+      if (
+        !current ||
+        rank[kind] > rank[current.kind] ||
+        (rank[kind] === rank[current.kind] && notice && !current.notice)
+      ) {
+        entries.set(key, {
+          kind,
+          ...(detail ? { detail } : {}),
+          ...(notice ? { notice } : {}),
+        });
+      }
+    };
+    pageAttentionEvents.forEach((notice) =>
+      add(notice.sessionId, notice.kind, undefined, notice),
+    );
+    permissionPendingSids.forEach((sid) => add(sid, "permission"));
+    questionPendingSids.forEach((sid) => add(sid, "question"));
+    for (const row of sessions) {
+      if (row.permissionPending) add(row.id, "permission");
+      else if (row.questionPending) add(row.id, "question");
+    }
+    subagentPending.forEach((detail, sid) => add(sid, "subagent", detail));
+
+    const title = (sid: string) =>
+      (sid === sessionId.trim() ? currentTitle : "") ||
+      sessions.find((row) => row.id === sid)?.title ||
+      t("notify.untitled");
+    const ids = new Set<string>();
+    const notices: PageAttentionNotice[] = [];
+    for (const [sid, entry] of entries) {
+      const id = entry.notice?.id ?? `${entry.kind}:${sid}`;
+      ids.add(id);
+      const body =
+        entry.notice?.body ??
+        (entry.kind === "permission"
+          ? t("attention.page.permission")
+          : entry.kind === "question"
+            ? t("attention.page.question")
+            : t("attention.page.subagent", {
+                agent: entry.detail?.agent || t("notify.subagentUnnamed"),
+                extension: entry.detail?.tool ? `: ${entry.detail.tool}` : "",
+              }));
+      notices.push({
+        id,
+        sessionId: sid,
+        kind: entry.kind,
+        title: entry.notice?.title || title(sid),
+        body,
+      });
+    }
+    notices.sort((a, b) => rank[b.kind] - rank[a.kind]);
+    return { ids, notices: notices.slice(0, 3) };
+  }, [
+    pageAttentionEvents,
+    permissionPendingSids,
+    questionPendingSids,
+    subagentPending,
+    sessions,
+    sessionId,
+    currentTitle,
+    t,
+  ]);
+
+  // The ids are rebuilt with the notices; prune a dismissed notice only when
+  // the set of waiting work really changes, not whenever the memo re-runs.
+  const activeAttentionKey = [...pageAttention.ids].sort().join("\u0000");
+  useEffect(() => {
+    const active = new Set(
+      activeAttentionKey ? activeAttentionKey.split("\u0000") : [],
+    );
+    setDismissedPageAttention((prev) => {
+      const next = new Set([...prev].filter((id) => active.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [activeAttentionKey]);
+
+  const visiblePageAttention = pageAttention.notices.filter(
+    (notice) => !dismissedPageAttention.has(notice.id),
+  );
+
+  const showProjectRail = !!activeProject && !projectsRoute && !atSwarmRoot;
+
   return (
     <div
       className={[
         "shell",
         viewportXL && railLabelsWide ? "shell-rail-wide" : "",
         historyDockVisible ? "shell-history-docked" : "",
+        showProjectRail ? "shell-project-rail" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -8439,6 +8623,15 @@ export function App() {
         railLabelsWide={railLabelsWide}
         onToggleRailLabels={toggleRailWidth}
       />
+
+      {showProjectRail && activeProject ? (
+        <ProjectRail
+          projects={projects}
+          activeProjectId={activeProject.id}
+          onSelect={openProjectWorkspace}
+          onOpenProjects={openProjectsFromNav}
+        />
+      ) : null}
 
       {historyDockVisible ? (
         <SessionsSidebar
@@ -9109,6 +9302,22 @@ export function App() {
           </Suspense>
         ) : null}
       </div>
+      <PageAttentionToasts
+        notices={visiblePageAttention}
+        onOpen={(sid) => {
+          setDismissedPageAttention((prev) => {
+            const next = new Set(prev);
+            for (const notice of pageAttention.notices) {
+              if (notice.sessionId === sid) next.add(notice.id);
+            }
+            return next;
+          });
+          openSessionInPlace(sid);
+        }}
+        onDismiss={(id) =>
+          setDismissedPageAttention((prev) => new Set(prev).add(id))
+        }
+      />
     </div>
   );
 }

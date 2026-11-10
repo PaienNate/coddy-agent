@@ -612,3 +612,126 @@
     opacity: 0.65;
   }
 }
+
+/* The project switcher beside the nav rail: one compact column of projects,
+   so a conversation can move to another project without leaving the chat. */
+.project-rail {
+  display: none;
+}
+
+@media (min-width: 1200px) {
+  .shell.shell-project-rail {
+    grid-template-columns: auto 112px minmax(0, 1fr);
+  }
+
+  .shell.shell-project-rail.shell-history-docked {
+    grid-template-columns: auto 112px minmax(260px, 320px) minmax(0, 1fr);
+  }
+
+  .project-rail {
+    position: relative;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+    min-height: 0;
+    width: 100%;
+    margin: 14px 8px 14px 0;
+    padding: 8px 7px;
+    border-radius: var(--coddy-glass-panel-radius);
+    border: 1px solid var(--coddy-glass-panel-border);
+    background: var(--coddy-glass-panel-bg);
+    backdrop-filter: var(--coddy-glass-panel-backdrop);
+    -webkit-backdrop-filter: var(--coddy-glass-panel-backdrop);
+    box-shadow: var(--coddy-glass-panel-shadow);
+    overflow: hidden;
+  }
+}
+
+.project-rail-all {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  margin: 0 auto 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid mix-text(10%);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.project-rail-all:hover,
+.project-rail-all:focus-visible {
+  color: var(--text);
+  background: mix-text(7%);
+}
+
+.project-rail-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  padding: 1px;
+}
+
+.project-rail-item {
+  flex: 0 0 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 3px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.project-rail-item:hover,
+.project-rail-item:focus-visible {
+  color: var(--text);
+  background: mix-text(6%);
+}
+
+.project-rail-item.is-active {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.project-rail-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.project-rail-item.is-active .project-rail-avatar {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.project-rail-name {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  font-size: 0.64rem;
+  line-height: 1.2;
+}
