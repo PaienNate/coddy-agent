@@ -107,7 +107,11 @@ func folderLabel(folder string) string {
 // does not pay for a menu it can never draw.
 func Available() bool { return platformAvailable() }
 
-// Start shows the tray and answers a function that takes it down. Platforms
-// without a tray, and a tray that cannot be shown, still answer a harmless
-// stop function: the server is the product, the icon is a convenience.
-func Start(ctx context.Context, opts Options) func() { return startPlatformTray(ctx, opts) }
+// Run shows the tray and runs serve beside it. On Windows the systray message
+// loop must own the calling goroutine, so the caller must be main and serve
+// runs in a goroutine. Platforms without a tray simply run serve on the calling
+// goroutine. The server is the product, the icon is a convenience: a tray that
+// cannot be shown leaves serve running.
+func Run(ctx context.Context, opts Options, serve func(context.Context) error) error {
+	return runPlatformTray(ctx, opts, serve)
+}

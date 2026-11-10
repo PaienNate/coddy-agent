@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 
@@ -40,26 +39,59 @@ type serveTray struct {
 	// clicks on a recent row must not create two chats while one dialog is
 	// still open.
 	opening sync.Mutex
+	// readyCh is closed once the notification icon and its menu exist. The
+	// caller uses it to tell a tray that started from one that could not.
+	readyCh   chan struct{}
+	readyOnce sync.Once
 }
 
-// startPlatformTray starts the Windows notification-area icon in its own
-// locked OS thread. The server keeps running when this package cannot show an
-// icon; every failure is logged rather than returned.
-func startPlatformTray(ctx context.Context, opts Options) func() {
+// runPlatformTray starts the Windows notification-area icon on the calling
+// goroutine. The systray message loop owns this OS thread: running it in a
+// goroutine makes Shell_NotifyIcon fail silently on Windows, which is why the
+// old Start implementation left the server up without an icon. The server runs
+// beside the tray, and a tray that cannot be shown leaves it running.
+func runPlatformTray(ctx context.Context, opts Options, serve func(context.Context) error) error {
 	if strings.TrimSpace(opts.URL) == "" {
-		return func() {}
+		return serve(ctx)
 	}
-	t := &serveTray{opts: opts, log: logger(opts.Log)}
+	t := &serveTray{
+		opts:    opts,
+		log:     logger(opts.Log),
+		readyCh: make(chan struct{}),
+	}
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
+	done := make(chan error, 1)
 	go func() {
-		runtime.LockOSThread()
-		systray.Run(t.ready, func() {})
+		done <- serve(runCtx)
+		select {
+		case <-t.readyCh:
+			systray.Quit()
+		case <-runCtx.Done():
+		}
 	}()
 	go func() {
-		<-ctx.Done()
+		<-runCtx.Done()
 		systray.Quit()
 	}()
-	return systray.Quit
+
+	systray.Run(t.readyTray, func() {})
+
+	// A tray that never became ready failed to initialise. The server is
+	// already running: leave it alone until its own context ends instead of
+	// cancelling it just because the icon could not be shown.
+	select {
+	case <-t.readyCh:
+		cancel()
+	default:
+	}
+	return <-done
+}
+
+func (t *serveTray) readyTray() {
+	t.ready()
+	t.readyOnce.Do(func() { close(t.readyCh) })
 }
 
 func logger(l *slog.Logger) *slog.Logger {

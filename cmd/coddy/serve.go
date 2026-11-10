@@ -316,8 +316,10 @@ func runServe(args []string) error {
 	// icon is a convenience around the same process: Open page hands the
 	// browser the root URL, Open project creates an ordinary chat in the
 	// folder the system chooser returned and opens that chat, and Exit goes
-	// through the same context a Ctrl+C cancels. Platforms without a serve
-	// tray answer a no-op, so nothing below is conditional on the icon.
+	// through the same context a Ctrl+C cancels. The tray is prepared here and
+	// started after the supervisor exists, because its message loop owns the
+	// main thread while serve runs beside it.
+	var trayOptions *serveui.Options
 	if webURL, ok := serveWebURL(httpAddr, enabled); ok && serveui.Available() {
 		newSession := func(folder string) (string, error) {
 			if rt.Mgr == nil {
@@ -344,7 +346,7 @@ func runServe(args []string) error {
 		} else {
 			defer stopControl()
 		}
-		stopTray := serveui.Start(ctx, serveui.Options{
+		trayOptions = &serveui.Options{
 			URL:           webURL,
 			Home:          paths.Home,
 			RecentFolders: recentWorkspaces(rt, log),
@@ -352,8 +354,7 @@ func runServe(args []string) error {
 			NewSession:    newSession,
 			Log:           log,
 			Quit:          stop,
-		})
-		defer stopTray()
+		}
 	}
 
 	reloads := make(chan *config.Config, 1)
@@ -382,7 +383,6 @@ func runServe(args []string) error {
 		Adjust:  applyProcessOverrides,
 		Log:     log,
 	}
-	go func() { _ = watcher.Run(ctx) }()
 
 	// The supervisor is handed every descriptor, not just the enabled ones, so
 	// a later configuration change can turn a surface on as well as off.
@@ -399,12 +399,20 @@ func runServe(args []string) error {
 	// agent starts from a tool call must not believe a dispatcher or systemd
 	// will bring it back.
 	_ = os.Unsetenv(serve.EnvRole)
-	err = sup.Run(ctx, cfg, reloads)
-	if errors.Is(err, serve.ErrRestartRequested) {
-		log.Info("exiting so the dispatcher or the service manager can start a process with the new listen settings")
-		return serve.ExitCodeError{Code: serve.ExitRestart, Err: err}
+
+	serveRun := func(runCtx context.Context) error {
+		go func() { _ = watcher.Run(runCtx) }()
+		err := sup.Run(runCtx, cfg, reloads)
+		if errors.Is(err, serve.ErrRestartRequested) {
+			log.Info("exiting so the dispatcher or the service manager can start a process with the new listen settings")
+			return serve.ExitCodeError{Code: serve.ExitRestart, Err: err}
+		}
+		return err
 	}
-	return err
+	if trayOptions != nil {
+		return serveui.Run(ctx, *trayOptions, serveRun)
+	}
+	return serveRun(ctx)
 }
 
 // offerNewest hands next to the supervisor through reloads, a channel with one

@@ -1,6 +1,7 @@
 package serveui
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -65,5 +66,19 @@ func TestFolderLabelHasNoNewlines(t *testing.T) {
 	folder := filepath.Join(root, "a\nb")
 	if strings.ContainsAny(folderLabel(folder), "\r\n") {
 		t.Fatalf("folderLabel(%q) carries a line break", folder)
+	}
+}
+
+func TestRunWithoutATrayStillRunsServe(t *testing.T) {
+	called := false
+	err := Run(context.Background(), Options{}, func(context.Context) error {
+		called = true
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Fatal("Run did not call serve")
 	}
 }
