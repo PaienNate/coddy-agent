@@ -176,6 +176,7 @@ jobs:
           build_target android arm64
           build_target android amd64
           build_target windows amd64
+          build_target windows arm64
           build_target darwin amd64
           build_target darwin arm64
 

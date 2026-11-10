@@ -17,6 +17,7 @@ CI 会在每个 SemVer tag **`X.Y.Z`** 上为每个平台发布一个归档包�
 | **`coddy_X.Y.Z_android_arm64.tar.gz`** | Android arm64，在 Termux 下（[Android](android.md)） |
 | **`coddy_X.Y.Z_android_amd64.tar.gz`** | Android x86_64，在 Termux 下 |
 | **`coddy_X.Y.Z_windows_amd64.zip`** | Windows x86_64（**`coddy.exe`**） |
+| **`coddy_X.Y.Z_windows_arm64.zip`** | Windows arm64（**`coddy.exe`**） |
 | **`coddy_X.Y.Z_darwin_amd64.tar.gz`** | macOS Intel |
 | **`coddy_X.Y.Z_darwin_arm64.tar.gz`** | macOS Apple Silicon |
 | **`coddy_X.Y.Z_linux_amd64.deb`** | Debian、Ubuntu 及衍生版，x86_64 |

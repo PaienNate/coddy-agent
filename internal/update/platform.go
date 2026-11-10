@@ -14,8 +14,9 @@ func AssetFileName(version, goos, goarch string) (string, error) {
 			return fmt.Sprintf("coddy_%s_%s_%s.tar.gz", version, goos, goarch), nil
 		}
 	case "windows":
-		if goarch == "amd64" {
-			return fmt.Sprintf("coddy_%s_windows_amd64.zip", version), nil
+		switch goarch {
+		case "amd64", "arm64":
+			return fmt.Sprintf("coddy_%s_windows_%s.zip", version, goarch), nil
 		}
 	case "android":
 		// Linked by the NDK against Bionic for the two 64-bit Android
