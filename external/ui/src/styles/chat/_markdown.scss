@@ -4,7 +4,8 @@
 @use "../abstracts" as *;
 
 /* A long link, path or identifier breaks where it has to rather than widening the
-   transcript. Tables keep their width (max-content) and scroll in their own box. */
+   transcript. A table takes the column's width and wraps its cells; its box scrolls
+   only for content that cannot shrink (a picture in a cell). */
 .md {
   color: mix-text(90%);
   line-height: 1.55;
@@ -92,15 +93,17 @@
   margin: 12px 0;
   overflow-x: auto;
   overflow-y: hidden;
+  scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
   border-radius: 14px;
   border: 1px solid mix-text(10%);
   background: var(--coddy-surface-muted);
 }
 
+/* The column's width, never the cells' unwrapped one: a cell holding a sentence
+   made every table wider than the transcript and left a scrollbar in its box. */
 .md-table-scroll table {
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   border: 0;
