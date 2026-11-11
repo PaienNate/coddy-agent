@@ -117,6 +117,24 @@ describe("an answer never widens the transcript", () => {
     expect(decl(rule(".md"), "overflow-wrap")).toBe("anywhere");
   });
 
+  // Regression: the table was sized `width: max-content`, so it took the width
+  // of its cells laid out unwrapped. A cell holding a sentence - and a Chinese
+  // one needs no spaces to be a sentence - made every table wider than the
+  // column, and nearly every table showed a horizontal scrollbar inside its own
+  // box. The table takes the column's width now, so its cells wrap, and the box
+  // scrolls only for content that genuinely cannot shrink (a picture in a cell).
+  test("a table takes the column's width instead of its unwrapped one", () => {
+    const table = rule(".md-table-scroll table");
+    expect(decl(table, "width")).toBe("100%");
+    expect(table).not.toMatch(/max-content/);
+  });
+
+  test("the table's box stays the fallback for content that cannot shrink", () => {
+    const box = rule(".md-table-scroll");
+    expect(decl(box, "overflow-x")).toBe("auto");
+    expect(decl(box, "max-width")).toBe("100%");
+  });
+
   test("a path an answer names breaks like the prose around it", () => {
     expect(decl(rule(".md a.md-file-link"), "overflow-wrap")).toBe("anywhere");
   });
