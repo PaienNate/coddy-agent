@@ -467,6 +467,9 @@ compaction.threshold_percent:
 compaction.keep_recent_turns:
   en: 'How many most recent user turns (each with the agent replies and tool activity after it) stay verbatim; only history before that boundary is summarized. 0 summarizes the whole window. When the window holds no more user turns than this, a compaction keeps fewer: the automatic trigger down to the prompt being answered, the manual command down to none.'
   zh: 保留多少最近的用户轮次（每轮包含其后的智能体回复和工具活动）逐字不变；只有该边界之前的历史会被总结。0 表示总结整个窗口。当窗口中的用户轮次不多于此值时，压缩保留得更少：自动触发保留到正在回答的提示词为止，手动命令保留到零。
+compaction.keep_tail_tokens:
+  en: "Absolute ceiling on the tail a compaction keeps verbatim, in estimated tokens: the newest turns that fit it stay, never more than keep_recent_turns and never fewer than one (none for a manual compaction that folds everything). It bounds what a wide window leaves behind, which the steps after the fold would otherwise pay for again. 0 turns the cap off, so keep_recent_turns alone decides."
+  zh: "压缩逐字保留的尾部在估算 token 上的绝对上限：能容得下的最新轮次会保留，最多 keep_recent_turns 个，至少一个（手动压缩折叠全部内容时为零个）。它限制宽窗口留下的尾部，否则折叠之后的每个步骤都要再次为它付费。0 表示关闭该上限，只由 keep_recent_turns 决定。"
 compaction.model:
   en: Optional models[].model used for the summarization call. Empty uses the session's effective model.
   zh: 可选，用于总结调用的 models[].model。为空则使用会话的有效模型。
@@ -488,6 +491,9 @@ compaction.result_eviction.min_result_bytes:
 compaction.result_eviction.start_percent:
   en: Evict only once the estimated context reaches this percent of the model's context window. Below it the replayed history is sent untouched, so the provider's prompt cache keeps it; a placeholder appearing mid-history invalidates every cached token behind it. 0 evicts from the first result. Read and grep results of a model without max_context_tokens are evicted from the first result; listing results measure against the window its provider reports, or the default 128000.
   zh: 仅当估算上下文达到模型上下文窗口的该百分比时才开始逐出。低于该值时，重放的历史记录会原样发送，因此提供商的提示词缓存会保留它；占位符出现在历史记录中间会使其后每个缓存 token 失效。0 表示从第一个结果开始逐出。没有 max_context_tokens 的模型的读取和 grep 结果会从第一个结果开始逐出；列表结果则按其提供商报告的窗口或默认 128000 来衡量。
+compaction.result_eviction.start_tokens:
+  en: "Absolute ceiling on the eviction gate: eviction starts at the smaller of start_percent of the window and this many conversation tokens. The conversation is measured without the request's own overhead (the system prompt, the tool definitions, the rules), which nothing can evict, so a large AGENTS.md cannot open the gate at the first result. 0 leaves start_percent alone."
+  zh: "逐出门槛的绝对上限：逐出在窗口的 start_percent 与这么多对话 token 中较小者处开始。对话的测量不计请求自身的开销（系统提示词、工具定义、规则），这些都无法逐出，因此很大的 AGENTS.md 不会在第一个结果处就打开门槛。0 表示只保留 start_percent。"
 memory:
   en: Optional memory subagent (implementation in external/memory; enable at runtime with memory.enable).
   zh: 可选的记忆子智能体（实现位于 external/memory；运行时通过 memory.enable 启用）。

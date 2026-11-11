@@ -42,7 +42,7 @@ Compaction is disabled in the configuration (compaction.enable: false).
 
 ### 少数几个长轮次
 
-当窗口容得下 `keep_recent_turns` 个用户轮次时，自动压缩会原样保留这么多轮次。当容不下时 - 例如由少数几个很长的智能体轮次组成的会话，上下文在没有很多提示词的情况下就超出了窗口 - 它会保留更少，最少保留到正在被回答的那个提示词，而它绝不会折叠该提示词。
+当窗口容得下 `keep_recent_turns` 个用户轮次时，自动压缩会原样保留这么多轮次。当容不下时 - 例如由少数几个很长的智能体轮次组成的会话，上下文在没有很多提示词的情况下就超出了窗口 - 它会保留更少，最少保留到正在被回答的那个提示词，而它绝不会折叠该提示词。这个尾部的规模在 token 上同样有上限：`keep_tail_tokens`（默认 15000）保留能容得下的最新轮次，因此宽窗口上的压缩落在约 15k，而不是落在它本应回收的那份窗口份额上。
 
 当窗口中只有该提示词时，就没有更早的轮次可折叠，而一个由单个提示词后跟几十个工具步骤组成的轮次 - 其中许多是并行的 `glob`、`grep` 或 `read` 调用，每个都返回数千字节 - 可能单凭自己就超出一个小窗口。此时触发器会折叠 **该轮次较早的步骤**。一个步骤是一条助手消息及其之后的工具结果，因此十个并行调用算一个步骤，一批调用绝不会在其调用与结果之间被切开。切点之前的步骤会像任何其他压缩一样交给同一个摘要器 - 同样的模型链、对大于一次请求的历史使用同样的阶段、同样的 `PreCompact` 和 `PostCompact` 钩子（它们看到的触发原因是 `auto`） - 而最新的步骤保持原样。
 
@@ -62,7 +62,7 @@ The text above is the message this turn started with, verbatim. Coddy compacted 
 
 在轮次运行期间你排队的消息是该轮次的后续消息，而不是它自己的轮次，Coddy 会在对话记录中标记它（`messages.json` 中的 `follow_up`）；由 [Stop 钩子](hooks.md#事件) 提交的后续消息也算一个。该标记用于区分正在被回答的提示词与其后的后续消息，即使某条后续消息逐字重复了提示词，而且它在 Coddy 重启后仍然保留。因此行首的文本始终是该轮次开始时的那条消息。落入被折叠步骤中的后续消息会与它们一起被摘要，而处于最新步骤中的后续消息则作为普通消息留在原处。轮次的步骤从提示词开始计数，自动压缩绝不会在后续消息处切分，因此它无法把提示词折叠进普通摘要。在标记存在之前写入的对话记录没有标记，其最后一条用户消息被视为提示词。
 
-保留多少步骤由预算决定，上限为四个步骤。折叠的目标是让下一个请求达到触发压缩的窗口份额的一半 - 在 `threshold_percent: 80` 时即窗口的 40% - 减去每个请求除对话之外所携带的内容（系统提示词、工具定义、规则），减去窗口中已有的摘要行（[摘要构成一条链](#摘要构成一条链)），再减去行首的提示词。能容得下的最新步骤会保留，最多到上限，且最新的步骤始终保留。若没有这样的目标，一次保留了四个大步骤的折叠会使请求仍高于阈值，并在紧接着的下一步再次折叠。摘要本身不计入预算：目标留出的那一半用于支付它。只有一个步骤的轮次没有更早的内容可折叠，该轮次会记录一次并继续。折叠以及下文所述的恢复没有自己的开关：它们是自动压缩的一部分，`compaction.auto_enable: false` 会随之一并关闭它们。
+保留多少步骤由预算决定，上限为四个步骤。折叠的目标取两者中较小者：触发压缩的窗口份额的一半（`threshold_percent: 80` 时为窗口的 40%），以及每个请求除对话之外所携带的内容（系统提示词、工具定义、规则）加上 `keep_tail_tokens`。在宽窗口上起作用的是后者：1M 窗口配 120k 规则时目标是 135k，而不是 419k，这正是真正回收窗口与窗口依旧那么大之间的区别。随后目标再减去每个请求除对话之外所携带的内容，减去窗口中已有的摘要行（[摘要构成一条链](#摘要构成一条链)），再减去行首的提示词。能容得下的最新步骤会保留，最多到上限，且最新的步骤始终保留。若没有这样的目标，一次保留了四个大步骤的折叠会使请求仍高于阈值，并在紧接着的下一步再次折叠。摘要本身不计入预算：目标留出的那一半用于支付它。只有一个步骤的轮次没有更早的内容可折叠，该轮次会记录一次并继续。折叠以及下文所述的恢复没有自己的开关：它们是自动压缩的一部分，`compaction.auto_enable: false` 会随之一并关闭它们。
 
 当每个请求除对话之外所携带的内容（系统提示词、工具定义、规则）或最新步骤对窗口来说太大时，一次折叠可能使请求仍高于阈值，而下一步又会再次折叠：每一步都产生一次摘要器调用和一次摘要的摘要。因此每次自动折叠之后，Coddy 会估算下一个请求，当它仍然达到或高于阈值时，该轮次不再进行自动折叠；日志会带数字记录一次。轮次剩余部分交给下文所述的对被拒请求的恢复。触发器使用提供商对上次请求的自身计数来测量上下文，因此该估算以及上述折叠的目标都以同样方式缩放：按提供商为该请求所计数到的每个 Coddy 估算 token 的实际 token 数缩放。否则，计数比估算更密的提供商会看到一次折叠保留了实际已超过真实阈值的步骤。对于一个停止折叠的轮次，补救办法是更大的窗口、更高的 `threshold_percent`，或更少的工具和规则。
 
@@ -74,7 +74,7 @@ The text above is the message this turn started with, verbatim. Coddy compacted 
 - 已经向客户端流式传输了内容的请求绝不会再次请求，无论因何被拒。
 - 折叠的目标是在该拒绝所揭示的限制之下，以 Coddy 自己的单位计：窗口被下调到提供商指定的限制，按提供商计数比 Coddy 估算多出的比例缩放，且绝不高于被拒请求的估算值。目标仍是该限制下阈值份额的同一半。下限是完全没有步骤，而不是一个步骤：请求已超过限制，因此如果其他都放不下，连最新步骤也会被去掉。唯一的例外是输出限制截断、模型被要求继续的应答：其各部分及其后的空步骤保持原样，因为模型从文本的最后一个词继续，而轮次交付的应答会与各部分合并。当轮次中除了该应答别无他物时，不折叠任何内容，拒绝结束该轮次。
 - 当窗口中有更早的轮次，而进行中的轮次从其提示词开始能放进剩余空间时，Coddy 按常规压缩的方式折叠更早的轮次，提示词保持为普通消息。否则它按上述方式在轮次内部折叠。
-- [结果驱逐](#结果驱逐) 会立即为该轮次剩余部分启动，无论 `start_percent` 说什么：该门槛保护提供商的提示词缓存，而拒绝过请求的提供商对于它不会读取的内容的缓存毫无用处。下一轮次开始时门槛恢复。
+- [结果驱逐](#结果驱逐) 会立即为该轮次剩余部分启动，无论 `start_percent` 和 `start_tokens` 说什么：该门槛保护提供商的提示词缓存，而拒绝过请求的提供商对于它不会读取的内容的缓存毫无用处。下一轮次开始时门槛恢复。
 - 重试对每个步骤只有一次。成功的调用会重新开始计数，因此两个不同的步骤可以各自恢复，而同一步骤再次被拒则结束该轮次。会话日志会收到一条通知，说明请求被拒并已再次请求，智能体日志记录大小（`estimatedTokens`、`providerTokens`、`providerLimit`、`limitTokens`）。压缩期间的 Stop 会以停止方式结束轮次；关闭或截止时间会以拒绝的解释和 `(the compaction after the refusal was interrupted: ...)` 结束它。
 
 当没有任何可折叠的内容、钩子否决了压缩、摘要器失败、更小的请求也被拒，或 `compaction.auto_enable` 为 false 时，轮次会以一个说明此事的错误结束，替代提供商裸的应答：
@@ -83,7 +83,7 @@ The text above is the message this turn started with, verbatim. Coddy compacted 
 context window exceeded: the provider refused the request because it does not fit the model's context window (Coddy estimated about 38000 tokens; the window is 49152 tokens; the provider counted 51402 tokens against a limit of 49152); run /compact, start a new session or split the task into smaller steps: provider "local" (http://127.0.0.1:8080/v1): openai stream: ...
 ```
 
-该消息给出 Coddy 自己对请求的估算及其测量所依据的窗口，在提供商的应答包含大小信息时补充这些大小，并以提供商的原始应答结尾。在一次没有帮助的压缩之后，它还会显示 `Coddy compacted this turn and asked again, but the provider refused the smaller request too`。当提供商的限制低于 Coddy 所工作的窗口，或窗口从未设置而默认为 128000 时，它还会告诉你把 `models[].max_context_tokens` 设置为服务器实际提供的窗口，以便下一次压缩更早开始。提供商的状��保留在错误上，因此 HTTP API 会以和之前相同的 400 或 404 答复客户端。`/compact` 会折叠历史，包括正在被回答的提示词。[结果驱逐](#结果驱逐) 会在上下文达到 `start_percent` 后，把最旧的目录列表和网页结果从请求中去掉，因此一连串很长的 `glob` 和 `print_tree` 调用能更久地适应小窗口（issue #490）。
+该消息给出 Coddy 自己对请求的估算及其测量所依据的窗口，在提供商的应答包含大小信息时补充这些大小，并以提供商的原始应答结尾。在一次没有帮助的压缩之后，它还会显示 `Coddy compacted this turn and asked again, but the provider refused the smaller request too`。当提供商的限制低于 Coddy 所工作的窗口，或窗口从未设置而默认为 128000 时，它还会告诉你把 `models[].max_context_tokens` 设置为服务器实际提供的窗口，以便下一次压缩更早开始。提供商的状��保留在错误上，因此 HTTP API 会以和之前相同的 400 或 404 答复客户端。`/compact` 会折叠历史，包括正在被回答的提示词。[结果驱逐](#结果驱逐) 会在对话达到 `start_percent` 与 `start_tokens` 门槛后，把最旧的目录列表和网页结果从请求中去掉，因此一连串很长的 `glob` 和 `print_tree` 调用能更久地适应小窗口（issue #490）。
 
 ## 模型可以请求压缩
 
@@ -122,7 +122,7 @@ compaction LLM call: 400 Bad Request: this model's maximum context length is exc
 
 ## 保留什么、摘要什么
 
-边界是第 `keep_recent_turns` 条最近的用户消息（默认 2）。从该消息起的所有内容 - 用户轮次、各轮次之后的回复和工具活动 - 保持原样。它之前的一切作为扁平化的对话记录发送给摘要器，工具调用渲染为带标签的行，并在模型的视野中被插入到边界处的一行摘要取代。更早写下的摘要不会被再次摘要（[摘要构成一条链](#摘要构成一条链)）。`keep_recent_turns: 0` 会摘要整个窗口。当窗口中只有正在被回答的那个轮次时，边界改为该轮次的一个步骤，如 [少数几个长轮次](#少数几个长轮次) 所述。自动边界始终是在正在被回答的提示词之前开始的用户轮次：你在该轮次期间排队的消息是它的一部分，压缩不会在那里切分。
+边界是第 `keep_recent_turns` 条最近的用户消息（默认 2）；如果它会保留的轮次超过 `keep_tail_tokens`（默认 15000），边界就向前移动：保留能容进该预算的最新轮次，最多 `keep_recent_turns` 个，至少一个，因此宽窗口留下 15k 的尾部，而不是自身的一份份额。从该边界起的所有内容 - 用户轮次、各轮次之后的回复和工具活动 - 保持原样。它之前的一切作为扁平化的对话记录发送给摘要器，工具调用渲染为带标签的行，并在模型的视野中被插入到边界处的一行摘要取代。更早写下的摘要不会被再次摘要（[摘要构成一条链](#摘要构成一条链)）。`keep_recent_turns: 0` 会摘要整个窗口，无论尾部预算怎么说；`keep_tail_tokens: 0` 关闭绝对上限，只由轮次数量决定。当窗口中只有正在被回答的那个轮次时，边界改为该轮次的一个步骤，如 [少数几个长轮次](#少数几个长轮次) 所述。自动边界始终是在正在被回答的提示词之前开始的用户轮次：你在该轮次期间排队的消息是它的一部分，压缩不会在那里切分。
 
 摘要会向 `compaction.model` 请求（若已设置），否则向会话的模型请求，使用固定的系统提示词，依次要求：用户的目标与约束、已做出的决定与被否决的方法、工作的状态、重要的确切路径、名称、命令和值，以及未决问题与后续步骤。下文的结果驱逐投影会先应用于历史，因此模型已经越过的分页、搜索或列表不会被完整摘要。
 
@@ -183,7 +183,7 @@ Web 界面还会从任一流中的 `usage_update.size` 更新会话的上下文�
 
 列表重新请求的成本很低，因此它没有标记，其窗口按步骤计数。一个步骤是一条助手消息及其所发出每个调用的结果：十个并行的 `glob` 和 `print_tree` 调用算一个步骤。含有列表的最近三个步骤的结果保持完整；更早步骤的结果折叠为占位符，重复该模式、查询或 URL，并说明结果有多少行。含有列表的最新步骤始终保留其结果，因此模型刚请求的列表能到达它，而不是在下一次请求中被折叠并再次请求。两个窗口相互独立：列表不占用读取和 grep 的 `keep_recent` 窗口中的位置，读取也不会把列表挤出步骤窗口。`glob` 或 `print_tree` 结果也会过期，然后即使在窗口内也会以 "stale after" 占位符折叠，因为列表可能已不再与磁盘匹配。在 `glob` 或 `print_tree` 所列文件夹之下的任何成功写入、对该文件夹本身或其周围文件夹的写入（在其下写入、编辑、创建或删除文件，移动或删除该文件夹）都会使该列表过期。搜索或分页描述的是网络，不是工作区，没有任何写入会使它过期。大小等于或小于 `min_result_bytes` 的结果在这里也不是候选。过期比较路径时区分大小写，Windows 除外，因此在大小写不敏感的 macOS 卷上，以不同大小写拼写的写入不会使更早的读取、grep 或列表过期。
 
-`run_command` 和 MCP 结果绝不会被驱逐：命令或远程服务器第二次可能给出不同应答，或者可能因运行而改变了某些东西，因此占位符可能隐藏重复调用也无法带回的内容。列表工具及其三步窗口是固定的：开关是 `result_eviction.enable`，而 `start_percent` 决定它们何时开始，就像对读取和 grep 一样。
+`run_command` 和 MCP 结果绝不会被驱逐：命令或远程服务器第二次可能给出不同应答，或者可能因运行而改变了某些东西，因此占位符可能隐藏重复调用也无法带回的内容。列表工具及其三步窗口是固定的：开关是 `result_eviction.enable`，而 `start_percent` 与 `start_tokens` 决定它们何时开始，就像对读取和 grep 一样。
 
 驱逐是对同一历史的第二层投影：持久化的对话记录完整保留每一份结果，而 `GET /coddy/sessions/{id}/tool-calls/{toolCallId}` 提供它。它补充了 `tools.output_limits`，即结果产生时对其大小设限的每工具行数上限（[config.yaml 参考](../reference/config.md#toolsoutput_limits)）。
 
@@ -195,6 +195,7 @@ compaction:
   auto_enable: true        # false keeps manual compaction; no threshold trigger, no fold inside a turn, no retry after a refusal
   threshold_percent: 80    # auto-compact at this percent of the model's context window (1..100)
   keep_recent_turns: 2     # user turns kept verbatim; 0 summarises everything
+  keep_tail_tokens: 15000  # absolute ceiling on that tail; 0 leaves keep_recent_turns alone
   model: ""                # models[].model for the summariser; empty = the session's model
   fallback_models: []      # summarisers tried in order when the one before fails; the session's model is always in the chain
   result_eviction:
@@ -202,6 +203,7 @@ compaction:
     keep_recent: 2         # most recent read/grep results kept intact
     min_result_bytes: 2000 # results at or below this size are never evicted
     start_percent: 50      # evict only once the context reaches this percent of the window
+    start_tokens: 60000    # ...or this many tokens of conversation, whichever comes first
 ```
 
 | 键 | 默认值 | 含义 |
@@ -216,18 +218,19 @@ compaction:
 | `result_eviction.keep_recent` | `2` | 保留为工作窗口的最近 `read` 和 `grep` 结果 |
 | `result_eviction.min_result_bytes` | `2000` | 大小等于或小于此值的结果保持原样 |
 | `result_eviction.start_percent` | `50` | 驱逐开始前上下文必须有多满；`0` 表示从第一个结果起就驱逐 |
+| `result_eviction.start_tokens` | `60000` | 同一门槛的对话 token 形式；两者中较小者开始驱逐；`0` 只保留 `start_percent` |
 
-`start_percent` 之所以存在，是因为驱逐和提供商的提示词缓存方向相反。占位符被写入 **重放历史的中部**，而提供商按前缀缓存请求，因此一个被折叠的结果会丢弃其后每条消息的缓存副本。在滑动工作窗口下，这几乎在每一步都会发生，于是长对话会以全价重新处理，只为省下窗口尚未短缺的几千个 token。因此在该标记以下，历史完全按提供商已有的样子发出；在该标记以上，空间比缓存更重要。没有 `max_context_tokens` 的模型条目无法被测量，会像以往一样从第一个结果起驱逐读取和 grep；此类条目的列表会等待会话所工作的窗口的 `start_percent`，即 [上下文窗口](#上下文窗口) 所解析的那个窗口。关于同一故事的另一半 - Coddy 出于同样原因不再放入系统提示词的内容 - 见 [react-agent.md](../contributing/react-agent.md) 中的 *The turn context block*。
+`start_percent` 之所以存在，是因为驱逐和提供商的提示词缓存方向相反。占位符被写入 **重放历史的中部**，而提供商按前缀缓存请求，因此一个被折叠的结果会丢弃其后每条消息的缓存副本。在滑动工作窗口下，这几乎在每一步都会发生，于是长对话会以全价重新处理，只为省下窗口尚未短缺的几千个 token。因此在该标记以下，历史完全按提供商已有的样子发出；在该标记以上，空间比缓存更重要。`start_tokens`（默认 60000）是同一门槛的 token 形式：宽窗口的一半远在死结果真正开始碍事之前，因此驱逐在窗口的 `start_percent` 与 `start_tokens` 中较小者处开始。门槛只测量对话：系统提示词、工具定义和规则不计入，因为它们无法被驱逐，而很大的 `AGENTS.md` 否则会在第一个结果处就打开门槛。没有 `max_context_tokens` 的模型条目无法被测量，会像以往一样从第一个结果起驱逐读取和 grep；此类条目的列表会等待会话所工作的窗口的 `start_percent`，即 [上下文窗口](#上下文窗口) 所解析的那个窗口。关于同一故事的另一半 - Coddy 出于同样原因不再放入系统提示词的内容 - 见 [react-agent.md](../contributing/react-agent.md) 中的 *The turn context block*。
 
 带类型和验证的字段表在 [config.yaml 参考](../reference/config.md#compaction) 中；这些键是普通设置，可在 Web 界面设置中的 **Context compaction** 标签页编辑，该标签页跟在 **ReAct loop** 之后，因为它就是决定向模型发送什么内容的同一个循环（`#/settings/compaction`）。阈值所依据的窗口属于模型条目：它的 `max_context_tokens`，否则是其提供商报告的窗口，再否则是 128000（[上下文窗口](#上下文窗口)）。
 
 ## 测试
 
-- `features/` 中的可执行测试规格：`context_compaction.feature`（保留的轮次、下一次请求中的摘要、经 ACP 的更小上下文、分阶段折叠的历史及客户端观察到的行、被以过大为由拒绝并减少内容再次请求的摘要请求、在 Coddy 压缩该轮次并再次请求后提供商仍以大于窗口为由拒绝请求时以解释结束的轮次，以及模型通过 `compact_context` 折叠自己的历史；框架 `internal/agent/bdd_compaction_test.go`）、`context_in_turn_compaction.feature`（一个由并行读取组成的长轮次，经多次折叠仍留在小窗口内，每个请求都携带提示词，该轮次中输入的后续消息绝不取代提示词，监督者启动的目标轮次其摘要行不把其指令称为用户请求，以及提供商以过大为由拒绝的请求被压缩并再次请求；框架 `internal/agent/bdd_in_turn_compaction_test.go`）、`context_compaction_command.feature`（提示词界面和 REST 端点上的 `/compact`；`external/httpserver/bdd_compaction_http_test.go`）、`context_compaction_auto.feature`（高于阈值的提示词在回复之前压缩，而没有 `max_context_tokens` 的模型在其提供商报告的窗口处压缩，即 `GET /v1/models` 所显示的窗口；`external/httpserver/bdd_compaction_auto_test.go`）、`context_result_eviction.feature`（被标记的分页和搜索保留，未标记的折叠，旧的目录列表折叠而最新步骤保留，输出限制；`internal/agent/bdd_result_eviction_test.go`）。
-- 单元测试：`internal/session/compaction_test.go`（拆分索引与可见窗口、摘要行的链及其起点、链和对其而言过长的链的 `@session:` 摘要，后者保留最新的行以及长轮次的请求）、`internal/agent/compact_chain_test.go`（在链之前写入的行由一个块延续、向摘要器展示且不重述的更早的行、链之后无内容可折叠、自第一次以来无内容的第二次 `/compact`、把更早的行作为最新一段发送给更小的摘要器）、`internal/agent/compact_merge_test.go`（一次合并重述多少行、进行中轮次的行最后合并、合并行去哪里、一次合并之后不会立即再次合并、失败的合并使压缩仍算完成、一个被折叠二十次的长轮次在其份额内保留且提示词只有一份、更早的行适配更小的摘要器、大于新窗口的链在压缩后合并、与其重述的行一样长的合并行仍使链保持在目标上、当合并带走携带轮次提示词的那一行时该提示词被计入）、`internal/session/compaction_turn_test.go`（轮次开头提示词在后续消息之后被找到及其标记在重启后仍保留、含并行批次的轮次的步骤边界绝不会被切开、自动拆分绝不在后续消息处切分、轮次内行的布局及所有读取方共享的边界、其 ACP 重放和监督者的摘要）、`internal/remote/follow_test.go`（控制台远程模式中的相同重放）、`internal/agent/compact_in_turn_test.go`（预算下边界的选择、自动触发器和恢复的下限、恢复偏好的常规拆分、提示词上限及其标记、跨链式折叠的一份提示词、触发器对轮次内折叠的回退、按提供商计数缩放的目标、一次仍高于阈值之后不再自动折叠、无内容可折叠时 `PreCompact` 钩子不运行、行的提示词所携带的规则）、`internal/agent/context_overflow_test.go`（消息及随之结束的轮次、拒绝所揭示的限制、每步骤一次的重试及其重置、流式输出后不重试、恢复期间的取消、强制驱逐及其范围、关闭恢复的开关）、`internal/agent/prompt_cache_compaction_test.go`（一个长轮次：在驱逐门槛以下历史只增长，在门槛以上只有列表结果变成占位符，而轮次内部的折叠是唯一的另一种重写；属于 `make test-cache`）、`internal/session/context_window_test.go`（解析顺序、询问哪些提供商、列表缓存及其有界等待）、`internal/llm/model_list_test.go`（列表的窗口字段）、`internal/llm/context_overflow_test.go`（OpenAI 和 Anthropic 客户端的拒绝按到达时读取、流内帧和仅有文本的错误、什么不算溢出、从拒绝中读出的大小、不重试）、`internal/agent/react_test.go`（阈值、更少的保留轮次、恢复的轮次）、`internal/agent/compact_fold_test.go`（阶段预算及其下限、阶段在哪里切分、因单独放不下而被省略的条目、对被以过大为由拒绝的某阶段的重试以及对任何其他拒绝的故障转移，以及正在被回答的提示词在 `keep_recent_turns: 0` 之后仍保留）、`internal/agent/result_eviction_test.go`（钉、过期、占位符；列表的步骤窗口及作为一步的扇出、它们在所列文件夹下写入后的过期、它们对会话所工作窗口的门槛、生成历史上的工具调用配对）、`internal/config/compaction_test.go`（默认值和验证）。
+- `features/` 中的可执行测试规格：`context_compaction.feature`（保留的轮次、下一次请求中的摘要、经 ACP 的更小上下文、分阶段折叠的历史及客户端观察到的行、被以过大为由拒绝并减少内容再次请求的摘要请求、在 Coddy 压缩该轮次并再次请求后提供商仍以大于窗口为由拒绝请求时以解释结束的轮次，以及模型通过 `compact_context` 折叠自己的历史；框架 `internal/agent/bdd_compaction_test.go`）、`context_in_turn_compaction.feature`（一个由并行读取组成的长轮次，经多次折叠仍留在小窗口内，每个请求都携带提示词，该轮次中输入的后续消息绝不取代提示词，监督者启动的目标轮次其摘要行不把其指令称为用户请求，提供商以过大为由拒绝的请求被压缩并再次请求，以及宽窗口上的折叠落在尾部预算上；框架 `internal/agent/bdd_in_turn_compaction_test.go`）、`context_compaction_command.feature`（提示词界面和 REST 端点上的 `/compact`；`external/httpserver/bdd_compaction_http_test.go`）、`context_compaction_auto.feature`（高于阈值的提示词在回复之前压缩，而没有 `max_context_tokens` 的模型在其提供商报告的窗口处压缩，即 `GET /v1/models` 所显示的窗口；`external/httpserver/bdd_compaction_auto_test.go`）、`context_result_eviction.feature`（被标记的分页和搜索保留，未标记的折叠，旧的目录列表折叠而最新步骤保留，输出限制；`internal/agent/bdd_result_eviction_test.go`）。
+- 单元测试：`internal/session/compaction_test.go`（拆分索引与可见窗口、摘要行的链及其起点、链和对其而言过长的链的 `@session:` 摘要，后者保留最新的行以及长轮次的请求）、`internal/agent/compact_chain_test.go`（在链之前写入的行由一个块延续、向摘要器展示且不重述的更早的行、链之后无内容可折叠、自第一次以来无内容的第二次 `/compact`、把更早的行作为最新一段发送给更小的摘要器）、`internal/agent/compact_merge_test.go`（一次合并重述多少行、进行中轮次的行最后合并、合并行去哪里、一次合并之后不会立即再次合并、失败的合并使压缩仍算完成、一个被折叠二十次的长轮次在其份额内保留且提示词只有一份、更早的行适配更小的摘要器、大于新窗口的链在压缩后合并、与其重述的行一样长的合并行仍使链保持在目标上、当合并带走携带轮次提示词的那一行时该提示词被计入）、`internal/session/compaction_turn_test.go`（轮次开头提示词在后续消息之后被找到及其标记在重启后仍保留、含并行批次的轮次的步骤边界绝不会被切开、自动拆分绝不在后续消息处切分、轮次内行的布局及所有读取方共享的边界、其 ACP 重放和监督者的摘要）、`internal/remote/follow_test.go`（控制台远程模式中的相同重放）、`internal/agent/compact_in_turn_test.go`（预算下边界的选择、受尾部预算限制的目标、自动触发器和恢复的下限、恢复偏好的常规拆分、提示词上限及其标记、跨链式折叠的一份提示词、触发器对轮次内折叠的回退、按提供商计数缩放的目标、一次仍高于阈值之后不再自动折叠、无内容可折叠时 `PreCompact` 钩子不运行、行的提示词所携带的规则）、`internal/agent/context_overflow_test.go`（消息及随之结束的轮次、拒绝所揭示的限制、每步骤一次的重试及其重置、流式输出后不重试、恢复期间的取消、强制驱逐及其范围、关闭恢复的开关）、`internal/agent/prompt_cache_compaction_test.go`（一个长轮次：在驱逐门槛以下历史只增长，在门槛以上只有列表结果变成占位符，而轮次内部的折叠是唯一的另一种重写；属于 `make test-cache`）、`internal/session/context_window_test.go`（解析顺序、询问哪些提供商、列表缓存及其有界等待）、`internal/llm/model_list_test.go`（列表的窗口字段）、`internal/llm/context_overflow_test.go`（OpenAI 和 Anthropic 客户端的拒绝按到达时读取、流内帧和仅有文本的错误、什么不算溢出、从拒绝中读出的大小、不重试）、`internal/agent/react_test.go`（阈值、更少的保留轮次、恢复的轮次）、`internal/agent/compact_fold_test.go`（阶段预算及其下限、阶段在哪里切分、因单独放不下而被省略的条目、对被以过大为由拒绝的某阶段的重试以及对任何其他拒绝的故障转移，正在被回答的提示词在 `keep_recent_turns: 0` 之后仍保留，以及尾部被削减到能容进 `keep_tail_tokens` 的轮次）、`internal/agent/result_eviction_test.go`（钉、过期、占位符；列表的步骤窗口及作为一步的扇出、它们在所列文件夹下写入后的过期、它们对会话所工作窗口与 `start_tokens` 的门槛、门槛只按对话测量、生成历史上的工具调用配对）、`internal/config/compaction_test.go`（默认值和验证、压缩与驱逐的绝对预算）。
 - 针对真实提供商的实机测试：
   - `examples/httpserver/http_e2e_compact_auto.py` 启动自己的 `coddy serve`，使用没有 `max_context_tokens` 的模型，检查 Web 界面的窗口、流的 `usage_update` 和触发器三者一致，以及会话在没有 `/compact` 的情况下压缩；
   - `examples/httpserver/http_e2e_compact_clients.py` 扮演一个会话的三个客户端 - 发送方、输入框流上的第二个标签页、统计上的空闲查看者 - 并检查它们在 `/compact` 之后、在 `POST .../compact` 之后（在 `GET /coddy/events` 上宣告）以及在一次自动压缩之后都读到上下文用量下降；
   - `examples/cli/cli_e2e_compact.py` 在 pty 中驱动控制台，并检查页脚的上下文百分比在 `/compact` 之后下降，并在下一轮次保持较低。
 
-<!-- docsgen:source sha256=4d00b68be8b8b3e0 -->
+<!-- docsgen:source sha256=8dcb32ec5149c3b7 -->
