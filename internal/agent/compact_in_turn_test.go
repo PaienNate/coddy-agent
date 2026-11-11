@@ -439,6 +439,42 @@ func TestInTurnTarget(t *testing.T) {
 
 // --- the prompt in front of the summary ----------------------------------------
 
+func TestInTurnTargetCappedByTheTailBudget(t *testing.T) {
+	if got := inTurnTargetWithTail(1_048_576, 80, 15_000, 120_000); got != 135_000 {
+		t.Fatalf("target = %d, want 135000: a wide window aims at the request's overhead plus the tail budget", got)
+	}
+}
+
+func TestInTurnTargetWithoutATailBudget(t *testing.T) {
+	if got, want := inTurnTargetWithTail(1_048_576, 80, 0, 120_000), inTurnTargetTokens(1_048_576, 80); got != want {
+		t.Fatalf("target = %d, want the share of the window %d when keep_tail_tokens is off", got, want)
+	}
+}
+
+func TestInTurnTargetBelowTheRequestOverheadKeepsTheFloor(t *testing.T) {
+	// The aim is the tail above the overhead, never the overhead plus a share:
+	// rules bigger than the window still leave a 10-token tail.
+	if got := inTurnTargetWithTail(1_048_576, 80, 10, 200_000); got != 200_010 {
+		t.Fatalf("target = %d, want 200010", got)
+	}
+	// A tail that the summary chain and the prompt already eat leaves a negative
+	// budget, and the fold takes its floor instead of failing.
+	turn := fixtureTurn("do the audit", 4, 2, 3000)
+	got, err := chooseInTurnSplit(splitRequest(turn, func(r *inTurnSplitRequest) { r.budget = -1 }))
+	if err != nil {
+		t.Fatalf("a negative budget must take the floor, got %v", err)
+	}
+	if got.keptSteps != 1 {
+		t.Fatalf("kept %d steps, want the floor of one", got.keptSteps)
+	}
+}
+
+func TestInTurnTargetWithoutAWindow(t *testing.T) {
+	if got := inTurnTargetWithTail(0, 80, 15_000, 120_000); got != 0 {
+		t.Fatalf("target = %d, want 0: no window to measure leaves no aim", got)
+	}
+}
+
 func TestInTurnPromptPrefix(t *testing.T) {
 	t.Run("a prompt within its share is kept verbatim", func(t *testing.T) {
 		prompt := "Fix the failing build.\n\nThen explain why it broke."

@@ -166,6 +166,23 @@ func inTurnTargetTokens(limit, thresholdPercent int) int {
 	return limit * thresholdPercent * inTurnAimPercent / 10000
 }
 
+// inTurnTargetWithTail is the size an in-turn fold aims the next request at: the
+// share of the window the trigger leaves, or what every request carries besides
+// the conversation (the system prompt, the tool definitions, the rules) plus
+// keep_tail_tokens when that is smaller. The tail budget is what makes a fold on
+// a wide window reclaim the window: the share alone leaves a tail as wide as the
+// window is. 0 turns the absolute cap off; with no window to measure the aim is
+// still 0.
+func inTurnTargetWithTail(limit, thresholdPercent, keepTailTokens, overhead int) int {
+	target := inTurnTargetTokens(limit, thresholdPercent)
+	if keepTailTokens > 0 && target > 0 {
+		if capped := overhead + keepTailTokens; capped < target {
+			return capped
+		}
+	}
+	return target
+}
+
 // inTurnPromptPrefix is what goes in front of the summary: the opening prompt,
 // verbatim when it fits its share of the limit, else cut in the middle with a
 // marker of its own that says so, so both ends of it survive.
@@ -266,7 +283,8 @@ type inTurnPlan struct {
 func (a *Agent) planInTurn(opts CompactOptions, msgs []llm.Message, viewOffset int, projected []llm.Message) (*inTurnPlan, error) {
 	comp := &a.cfg.Compaction
 	limit := a.promptShareLimit(opts.LimitTokens)
-	target := inTurnTargetTokens(limit, comp.EffectiveThresholdPercent())
+	overhead := a.requestOverhead()
+	target := inTurnTargetWithTail(limit, comp.EffectiveThresholdPercent(), comp.EffectiveKeepTailTokens(), overhead)
 	if !opts.Recovery {
 		// The trigger counts the provider's tokens and the budget below counts
 		// Coddy's estimate: a provider that counts denser would otherwise see a
@@ -276,7 +294,6 @@ func (a *Agent) planInTurn(opts CompactOptions, msgs []llm.Message, viewOffset i
 			target = int(float64(target) / s)
 		}
 	}
-	overhead := a.requestOverhead()
 
 	prefixTokens := 0
 	if prefix, ok := a.inTurnPrefix(msgs, len(msgs), limit); ok {
