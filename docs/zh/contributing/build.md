@@ -272,6 +272,7 @@ go build -tags=http,ui,scheduler,memory,cli,gateway,swarm,metrics,browser ...
 | **`coddy_X.Y.Z_android_arm64.tar.gz`**、**`coddy_X.Y.Z_android_amd64.tar.gz`** | Termux 下的 Android arm64 和 x86_64（参见 [上文](#androidtermux)） |
 | **`coddy_X.Y.Z_windows_amd64.zip`** | Windows x86_64（**`coddy.exe`**） |
 | **`coddy_X.Y.Z_windows_arm64.zip`** | Windows arm64（**`coddy.exe`**） |
+| **`coddy_X.Y.Z_windows_arm64.zip`** | Windows arm64（**`coddy.exe`**） |
 | **`coddy_X.Y.Z_darwin_amd64.tar.gz`** | macOS Intel |
 | **`coddy_X.Y.Z_darwin_arm64.tar.gz`** | macOS Apple Silicon |
 | **`coddy_X.Y.Z_linux_amd64.deb`**、**`coddy_X.Y.Z_linux_arm64.deb`** | Debian、Ubuntu 及其衍生版 |
@@ -317,4 +318,4 @@ go install github.com/EvilFreelancer/coddy-agent/cmd/coddy@latest
 
 这会编译模块默认内容，**不包含** 你的本地 **`TAGS`**。对于已知功能集（HTTP、UI、调度器、内存、控制台、消息网关），请克隆仓库并使用 **`make build TAGS="http ui scheduler memory cli gateway swarm metrics browser desktop"`**（或如上所述使用 **`go build -tags=...`**）。
 
-<!-- docsgen:source sha256=fe32871583c47efa -->
+<!-- docsgen:source sha256=a0fb1fcd772b8293 -->

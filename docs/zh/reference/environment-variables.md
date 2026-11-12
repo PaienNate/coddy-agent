@@ -23,6 +23,11 @@
 | `ANTHROPIC_API_KEY` | `internal/config/config.go` | 针对 `anthropic` 提供商的相同引导，使用 `anthropic/claude-sonnet-4-6`，在 `OPENAI_API_KEY` 为空时尝试。 | [配置](../getting-started/configuration.md#完整配置-schema) |
 | `BRAVE_API_KEY` | `internal/config/tools.go`（`ToolSettings`） | 当 `tools.websearch.brave_api_key` 为空时的 Brave Search API 密钥；有了密钥，`brave` 引擎会使用官方 API 而不是公共结果页面。在轮次构建其工具设置时读取，因此无需写入 `config.yaml`。 | [Web 搜索](../features/web-search.md#brave-search-api-密钥) |
 | `DEEPSEEK_API_KEY` | `internal/config/tools.go`（`ToolSettings`） | 当 `tools.websearch.deepseek_api_key` 为空时的 DeepSeek Search API 密钥。`deepseek` 引擎没有可抓取的公共页面，因此没有密钥时它不可用。在轮次构建其工具设置时读取，因此无需写入 `config.yaml`。 | [Web 搜索](../features/web-search.md#引擎) |
+| `EXA_API_KEY` | `internal/config/tools.go`（`ToolSettings`） | 当 `tools.websearch.exa_api_key` 为空时的 Exa 搜索密钥。可选：两者都未设置时使用免密钥层级。 | [Web 搜索](../features/web-search.md#引擎) |
+| `FIRECRAWL_API_KEY` | `internal/config/tools.go`（`ToolSettings`） | 当 `tools.websearch.firecrawl_api_key` 为空时的 Firecrawl 搜索密钥。可选：否则使用免密钥模式。 | [Web 搜索](../features/web-search.md#引擎) |
+| `PARALLEL_API_KEY` | `internal/config/tools.go`（`ToolSettings`） | 当 `tools.websearch.parallel_api_key` 为空时的 Parallel 搜索密钥。可选：否则使用免密钥模式。 | [Web 搜索](../features/web-search.md#引擎) |
+| `TINYFISH_API_KEY` | `internal/config/tools.go`（`ToolSettings`） | 当 `tools.websearch.tinyfish_api_key` 为空时的 TinyFish 搜索密钥。可选：否则使用免费的免密钥层级。 | [Web 搜索](../features/web-search.md#引擎) |
+| `TAVILY_API_KEY` | `internal/config/tools.go`（`ToolSettings`） | 当 `tools.websearch.tavily_api_key` 为空时的 Tavily 搜索密钥。可选：否则使用免密钥模式。 | [Web 搜索](../features/web-search.md#引擎) |
 | `EXA_API_KEY` | `internal/config/tools.go`（`ToolSettings`） | 当 `tools.websearch.exa_api_key` 为空时的 Exa 搜索密钥；可选，两者都为空时使用 Exa 的 keyless 层。 | [Web 搜索](../features/web-search.md#引擎) |
 | `FIRECRAWL_API_KEY` | `internal/config/tools.go`（`ToolSettings`） | 当 `tools.websearch.firecrawl_api_key` 为空时的 Firecrawl 搜索密钥；可选，否则使用 keyless。 | [Web 搜索](../features/web-search.md#引擎) |
 | `PARALLEL_API_KEY` | `internal/config/tools.go`（`ToolSettings`） | 当 `tools.websearch.parallel_api_key` 为空时的 Parallel 搜索密钥；可选，否则使用 keyless。 | [Web 搜索](../features/web-search.md#引擎) |
@@ -137,4 +142,4 @@
 | `SEC_SCANNERS`、`SEC_FAIL_TRIVY`、`SEC_FAIL_SEMGREP`、`SEC_FAIL_GOVULNCHECK`、`GOVULNCHECK_TAGS`、`SEC_DOCKER`、`SEMGREP_CONFIGS` | `scripts/security-scan.sh` | `make security` 运行哪些 AppSec 扫描器，门禁处于什么状态（trivy 漏洞/机密发现为 `CRITICAL`，semgrep 为关闭，govulncheck 为被调用的易受攻击函数），govulncheck 加载代码所用的构建标签，是否允许固定的 docker 回退，以及 semgrep 加载哪些注册表包。 | [AppSec 扫描](../contributing/security-scanning.md) |
 | `SEMGREP_APP_TOKEN` | `scripts/security-scan.sh`，传递给 semgrep | 可选的 Semgrep 注册表令牌：解除匿名速率限制并启用 Pro 规则。Fork 的拉取请求永远看不到它。 | [AppSec 扫描](../contributing/security-scanning.md) |
 
-<!-- docsgen:source sha256=e492af1e16cd6dd0 -->
+<!-- docsgen:source sha256=8b2777a26d41df56 -->

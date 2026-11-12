@@ -160,4 +160,4 @@ DeepSeek 的缓存条目包含 API 密钥的 SHA-256 指纹，绝不包含密钥
 [运行模式](modes.md) - `websearch` 和 `webfetch` 在每种模式下都会提供，包括只读的 `ask`；
 [HTTP 请求](http-requests.md) - `http_request`，智能体的 curl，以及 `webfetch` 所基于的客户端。
 
-<!-- docsgen:source sha256=c081528189644e39 -->
+<!-- docsgen:source sha256=02ead5710d4cd495 -->
