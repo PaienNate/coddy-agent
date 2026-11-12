@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/EvilFreelancer/coddy-agent/internal/config"
 	"github.com/EvilFreelancer/coddy-agent/internal/tooling"
 )
 
@@ -134,5 +135,18 @@ func TestSDDDoneRecordsNothingWhenTheCommandFails(t *testing.T) {
 	}
 	if !strings.Contains(string(body), "Task 1: complete (commits ") || !strings.Contains(string(body), "go version") {
 		t.Fatalf("ledger body = %q", body)
+	}
+}
+
+// A user who turns auto-discovery off still has /rpa-feat: an explicit slash
+// command injects the skill body without that switch, and the body calls sdd.
+func TestRegistryOffersSDDWhateverAutoDiscoverySays(t *testing.T) {
+	off := false
+	r := NewRegistryFor(&config.Config{Skills: config.Skills{AutoDiscovery: &off}})
+	if _, ok := r.Get(SDDToolName); !ok {
+		t.Fatal("sdd is missing with auto-discovery off: an explicit /rpa-feat would call a tool that is not there")
+	}
+	if _, ok := r.Get("load_skill"); ok {
+		t.Fatal("load_skill must stay behind auto-discovery")
 	}
 }

@@ -96,10 +96,19 @@ func (a *Agent) classifyCommand(ctx context.Context, subject llm.NeuralDeepDecis
 // exactly this command. A grant that matches by prefix - the command with
 // arguments added, a program-wide grant - leaves the command to the check.
 func commandAllowlisted(tc llm.ToolCall, env *tooling.Env, sessionGrants []string) bool {
-	if tc.Name != "run_command" {
+	cmd := ""
+	switch tc.Name {
+	case "run_command":
+		cmd = permission.ExtractRunCommand(tc.InputJSON)
+	case tools.SDDToolName:
+		// done runs a command like run_command, so an allowed command skips the
+		// decisions check for both.
+		if action, command := sddActionAndCommand(tc.InputJSON); action == tools.SDDActionDone {
+			cmd = command
+		}
+	default:
 		return false
 	}
-	cmd := permission.ExtractRunCommand(tc.InputJSON)
 	if env != nil && env.CommandAllowed(cmd) {
 		return true
 	}
@@ -139,15 +148,7 @@ func sddNeedsPermission(mode string, env *tooling.Env, sessionGrants []string, a
 	if command == "" {
 		return true
 	}
-	if env != nil && env.CommandAllowed(command) {
-		return false
-	}
-	for _, grant := range sessionGrants {
-		if strings.TrimSpace(grant) == command {
-			return false
-		}
-	}
-	return true
+	return !permission.CommandAllowedWithSession(env, sessionGrants, command)
 }
 
 // askAlwaysTurn reports whether the running turn keeps every prompt for its
@@ -187,6 +188,17 @@ func commandSafetySubject(toolName, argsJSON string, env *tooling.Env) (llm.Neur
 	case "ssh_run_command":
 		command, host := sshCommandAndHost(argsJSON)
 		return llm.NeuralDeepDecisionSubject{Command: command, Host: host}, command != ""
+	case tools.SDDToolName:
+		// done is a shell command with a different name: the check must see it.
+		action, command := sddActionAndCommand(argsJSON)
+		if action != tools.SDDActionDone || command == "" {
+			return llm.NeuralDeepDecisionSubject{}, false
+		}
+		cwd := ""
+		if env != nil {
+			cwd = env.CWD
+		}
+		return llm.NeuralDeepDecisionSubject{Command: command, CWD: cwd}, true
 	}
 	return llm.NeuralDeepDecisionSubject{}, false
 }

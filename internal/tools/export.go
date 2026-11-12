@@ -98,11 +98,12 @@ func NewRegistryForEnvironment(cfg *config.Config, environment platform.Environm
 	// Model-driven skill auto-discovery: offered unless explicitly disabled.
 	if cfg == nil || cfg.Skills.AutoDiscoveryEnabled() {
 		r.Register(LoadSkillTool())
-		// The workflow's artifacts: the plan workspace, task briefs, the
-		// progress ledger and review packages. Off with auto-discovery, since
-		// the skills that use it cannot load without it either.
-		r.Register(SDDTool())
 	}
+	// The workflow's artifacts: the plan workspace, task briefs, the progress
+	// ledger and review packages. Registered whatever auto-discovery says: an
+	// explicit /rpa-feat still injects its skill body with that switch off, and
+	// the body calls this tool.
+	r.Register(SDDTool())
 	// The switch between the configured models and reasoning levels the user
 	// asks the model for: offered when there is something to switch to.
 	if modelSwitchOffered(cfg) {
