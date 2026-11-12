@@ -280,6 +280,7 @@ VS Code（配合 YAML 扩展）、Zed、Neovim 和 Helix 会自动读取此注�
 | `compaction.auto_enable` | 布尔值 或 null | true | 自动压缩：达到 threshold_percent 时，较早的轮次被折叠为摘要，或者，当窗口中没有更早的轮次时，折叠正在回答的这一轮的较早步骤（此时摘要行以提示词本身逐字开头，最多保留最近四个步骤）；以及提供商以超出其上下文窗口为由拒绝的请求会被压缩一次并再次询问。设为 false 可保留手动 /compact 和“上下文”弹出框操作，但不启用上述任何行为。默认为 true。 |
 | `compaction.threshold_percent` | 整数 | 80 | 当估计的上下文用量达到有效模型上下文窗口的这一百分比（1..100）时触发自动压缩：即其 max_context_tokens，否则为其提供商的模型列表所报告的窗口，否则为 128000 - 也就是 Web 界面上下文圆环所显示的窗口。 |
 | `compaction.keep_recent_turns` | 整数 或 null | 2 | 保留多少最近的用户轮次（每轮包含其后的智能体回复和工具活动）逐字不变；只有该边界之前的历史会被总结。0 表示总结整个窗口。当窗口中的用户轮次不多于此值时，压缩保留得更少：自动触发保留到正在回答的提示词为止，手动命令保留到零。 |
+| `compaction.keep_tail_tokens` | 整数 或 null | 15000 | 压缩逐字保留的尾部在估算 token 上的绝对上限：能容得下的最新轮次会保留，最多 keep_recent_turns 个，至少一个（手动压缩折叠全部内容时为零个）。它限制宽窗口留下的尾部，否则折叠之后的每个步骤都要再次为它付费。0 表示关闭该上限，只由 keep_recent_turns 决定。 |
 | `compaction.model` | 字符串 | "" | 可选，用于总结调用的 models[].model。为空则使用会话的有效模型。 |
 | `compaction.fallback_models` | 字符串列表 |  | 当前一个失败时按顺序尝试的总结器模型（models[].model id）。无论是否列出，会话自身的模型都是最后手段，因此压缩不会因某个不可达的总结器而被阻塞。 |
 | `compaction.result_eviction` | 对象 |  | 在构建 LLM 请求时把已被取代的工具结果折叠为简短占位符（持久化的对话记录从不重写），使分页读取大文件、大范围搜索或目录列表的扇出无法在后续每个轮次中钉住失效的行。read 和 grep 结果在模型标记它们（keep_result，或 keep:true）或它们属于最近的结果时保留；glob、print_tree、websearch 和 webfetch 的列表在包含其一的最新三个步骤内保留（一个步骤是一条助手消息及其所有工具调用的全部结果）。一次写入会使其更改所覆盖的较早读取、grep 和文件列表失效。 |
@@ -287,6 +288,7 @@ VS Code（配合 YAML 扩展）、Zed、Neovim 和 Helix 会自动读取此注�
 | `compaction.result_eviction.keep_recent` | 整数 或 null | 2 | 多少最近的、可驱逐的 read 和 grep 结果（读取分页、grep 转储）保持完整作为工作窗口。0 表示不保留。列表结果不计入其中。默认值 2 使一个 read 和一个 grep 同时保持有效；设为 1 时，比较两个结果的模型会不断重新获取被另一个驱逐的那个。 |
 | `compaction.result_eviction.min_result_bytes` | 整数 或 null | 2000 | 小于或等于此大小的结果永远不会被逐出（太小，不值得使用占位符）。0 会使每个结果都成为候选对象。 |
 | `compaction.result_eviction.start_percent` | 整数 或 null | 50 | 仅当估算上下文达到模型上下文窗口的该百分比时才开始逐出。低于该值时，重放的历史记录会原样发送，因此提供商的提示词缓存会保留它；占位符出现在历史记录中间会使其后每个缓存 token 失效。0 表示从第一个结果开始逐出。没有 max_context_tokens 的模型的读取和 grep 结果会从第一个结果开始逐出；列表结果则按其提供商报告的窗口或默认 128000 来衡量。 |
+| `compaction.result_eviction.start_tokens` | 整数 或 null | 60000 | 逐出门槛的绝对上限：逐出在窗口的 start_percent 与这么多对话 token 中较小者处开始。对话的测量不计请求自身的开销（系统提示词、工具定义、规则），这些都无法逐出，因此很大的 AGENTS.md 不会在第一个结果处就打开门槛。0 表示只保留 start_percent。 |
 
 ### `memory`
 

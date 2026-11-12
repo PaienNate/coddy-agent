@@ -95,7 +95,7 @@ Runtime state refreshed by Coddy for this step. It is not a message from the use
 
 ### 另一半：结果驱逐
 
-冻结系统消息只是稳定前缀的一半。读取、grep 以及 `glob`、`print_tree`、`websearch` 和 `webfetch` 的列表结果驱逐（**`internal/agent/result_eviction.go`**）会把占位符写入重放历史的**中间**，这同样会从该点起使缓存失效。使用默认滑动工作窗口时，这过去几乎在每一步都会发生，因此即使提示词已冻结，对话每次都会被重新处理。**`compaction.result_eviction.start_percent`**（默认 50）会推迟投影，直到估计上下文达到模型 **`max_context_tokens`** 的该比例；低于该值时，历史完全按提供商已有的样子发出。该决定基于**未修剪**的消息进行衡量，因此修剪不会把估计值推回标记以下，从而使投影在两种形态之间来回切换。提供商因过大而拒绝的请求会在该轮剩余时间内打开门禁（**`Agent.evictionForced`**）：一旦提供商拒绝读取前缀，门禁所保护的缓存就无关紧要了。一轮内的折叠（**`compact_in_turn.go`**）也是同样的权衡：它只在压缩阈值处重写历史，而它写入的摘要行以提示词开头，因此重写后的前缀仍以模型被要求的内容开头。参见 [compaction.md](../features/compaction.md)。
+冻结系统消息只是稳定前缀的一半。读取、grep 以及 `glob`、`print_tree`、`websearch` 和 `webfetch` 的列表结果驱逐（**`internal/agent/result_eviction.go`**）会把占位符写入重放历史的**中间**，这同样会从该点起使缓存失效。使用默认滑动工作窗口时，这过去几乎在每一步都会发生，因此即使提示词已冻结，对话每次都会被重新处理。**`compaction.result_eviction.start_percent`**（默认 50）与 **`start_tokens`**（默认 60000）会推迟投影，直到对话达到模型 **`max_context_tokens`** 的该比例与此 token 数中较小者；低于该值时，历史完全按提供商已有的样子发出。门槛只统计对话，从不计入系统提示词、工具定义或规则。该决定基于**未修剪**的消息进行衡量，因此修剪不会把估计值推回标记以下，从而使投影在两种形态之间来回切换。提供商因过大而拒绝的请求会在该轮剩余时间内打开门禁（**`Agent.evictionForced`**）：一旦提供商拒绝读取前缀，门禁所保护的缓存就无关紧要了。一轮内的折叠（**`compact_in_turn.go`**）也是同样的权衡：它只在压缩阈值处重写历史，而它写入的摘要行以提示词开头，因此重写后的前缀仍以模型被要求的内容开头。参见 [compaction.md](../features/compaction.md)。
 
 ### 读取缓存命中
 
@@ -362,7 +362,7 @@ messages: [
      (**`maxOverflowRecoveries`**; a successful call resets it): earlier turns
      when a regular split fits the limit the refusal revealed, otherwise the
      steps of the turn itself, behind the prompt (**`internal/agent/compact_in_turn.go`**).
-     It forces result eviction past its **`start_percent`** gate for the rest
+     It forces result eviction past its **`start_percent`** and **`start_tokens`** gate for the rest
      of the turn (**`Agent.evictionForced`**), writes a **`notice`** row, and
      uses a normal **`max_turns`** iteration. A second refusal of the same
      step, a fold that fails or has nothing to fold, and
@@ -474,4 +474,4 @@ messages: [
 - 上下文过长：总结较早消息，并使用摘要继续
 - 已取消：中止所有操作，返回 `cancelled` 停止原因
 
-<!-- docsgen:source sha256=8addf0199dea7d5b -->
+<!-- docsgen:source sha256=663d0f5f2ccb61e6 -->

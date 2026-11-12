@@ -109,23 +109,13 @@ func (a *Agent) listingEvictionDue(msgs []llm.Message) bool {
 	if a.evictionForced {
 		return true
 	}
-	start := a.cfg.Compaction.ResultEviction.EffectiveStartPercent()
-	if start <= 0 {
-		return true
-	}
+	re := &a.cfg.Compaction.ResultEviction
 	window, _ := a.contextWindow()
-	if window <= 0 {
+	gate := evictionGate(re.EffectiveStartPercent(), window, re.EffectiveStartTokens())
+	if gate <= 0 {
 		return true
 	}
-	// The send boundary prunes the request with its system message in front,
-	// and the overhead below already counts the system prompt: measured as it
-	// comes, the gate would open one system prompt early and rewrite requests
-	// that are still below start_percent.
-	if len(msgs) > 0 && msgs[0].Role == llm.RoleSystem {
-		msgs = msgs[1:]
-	}
-	total := a.requestOverhead() + conversationTokens(msgs, a.modelReadsImages())
-	return total*100 >= start*window
+	return conversationTokens(withoutSystemMessage(msgs), a.modelReadsImages()) >= gate
 }
 
 // evictionDue reports whether the conversation has grown far enough into the
@@ -144,22 +134,43 @@ func (a *Agent) evictionDue(msgs []llm.Message) bool {
 		// request smaller (react.go, recoverFromContextOverflow).
 		return true
 	}
-	start := re.EffectiveStartPercent()
-	if start <= 0 {
-		return true
+	window := 0
+	if ent := a.cfg.FindModelEntry(a.state.EffectiveModelID(a.cfg)); ent != nil {
+		window = ent.MaxContextTokens
 	}
-	ent := a.cfg.FindModelEntry(a.state.EffectiveModelID(a.cfg))
-	if ent == nil || ent.MaxContextTokens <= 0 {
+	gate := evictionGate(re.EffectiveStartPercent(), window, re.EffectiveStartTokens())
+	if gate <= 0 {
 		// Nothing to measure against: keep the projection that protects the
 		// window, since overflowing it is the worse failure.
 		return true
 	}
-	// Everything the request carries besides the conversation - the system
-	// message, the tool definitions, the rules - read off the last estimate.
-	// It does not move with eviction, so it cannot make this decision flap.
-	overhead := a.requestOverhead()
-	total := overhead + conversationTokens(msgs, a.modelReadsImages())
-	return total*100 >= start*ent.MaxContextTokens
+	return conversationTokens(withoutSystemMessage(msgs), a.modelReadsImages()) >= gate
+}
+
+// evictionGate is the number of conversation tokens at which eviction starts:
+// the smaller of percent of the window and the absolute start budget, so a
+// window wide enough that half of it sits far past the point where dead results
+// matter does not wait for that half. 0 means from the first result, which is
+// also what a model with no window to measure against keeps.
+func evictionGate(percent, window, startTokens int) int {
+	if window <= 0 || percent <= 0 {
+		return 0
+	}
+	gate := percent * window / 100
+	if startTokens > 0 && startTokens < gate {
+		gate = startTokens
+	}
+	return gate
+}
+
+// withoutSystemMessage drops the system message a request carries in front: the
+// gate measures the conversation, and what every request carries besides it -
+// the system prompt, the tool definitions, the rules - cannot be evicted.
+func withoutSystemMessage(msgs []llm.Message) []llm.Message {
+	if len(msgs) > 0 && msgs[0].Role == llm.RoleSystem {
+		return msgs[1:]
+	}
+	return msgs
 }
 
 // evReadResult is a read tool result eligible for eviction.

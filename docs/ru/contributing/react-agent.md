@@ -141,8 +141,10 @@ Runtime state refreshed by Coddy for this step. It is not a message from the use
 отправляемой истории, и это так же надёжно сбрасывает кэш начиная с этого места. Со скользящим
 рабочим окном по умолчанию так раньше происходило почти на каждом шаге, и диалог обрабатывался
 заново каждый раз, даже при замороженном промпте. **`compaction.result_eviction.start_percent`** (по умолчанию 50)
-откладывает проекцию, пока оценка контекста не достигнет этой доли **`max_context_tokens`** модели;
-ниже порога история уходит ровно в том виде, в каком она уже есть у провайдера. Решение принимается
+и **`start_tokens`** (по умолчанию 60000) откладывают проекцию, пока диалог не достигнет меньшего из
+этой доли **`max_context_tokens`** модели и этого числа токенов; ниже порога история уходит ровно в том
+виде, в каком она уже есть у провайдера. Порог считает только диалог и никогда не учитывает системный
+промпт, определения инструментов или правила. Решение принимается
 по **необрезанным** сообщениям, поэтому обрезка не может вернуть оценку ниже отметки и заставить
 проекцию метаться между двумя формами. Запрос, который провайдер отклонил как слишком большой,
 открывает этот порог до конца хода (**`Agent.evictionForced`**): кэш, который порог защищает,
@@ -427,7 +429,7 @@ messages: [
      (**`maxOverflowRecoveries`**; a successful call resets it): earlier turns
      when a regular split fits the limit the refusal revealed, otherwise the
      steps of the turn itself, behind the prompt (**`internal/agent/compact_in_turn.go`**).
-     It forces result eviction past its **`start_percent`** gate for the rest
+     It forces result eviction past its **`start_percent`** and **`start_tokens`** gate for the rest
      of the turn (**`Agent.evictionForced`**), writes a **`notice`** row, and
      uses a normal **`max_turns`** iteration. A second refusal of the same
      step, a fold that fails or has nothing to fold, and
@@ -540,4 +542,4 @@ messages: [
 - Слишком длинный контекст - старые сообщения сжимаются в сводку, работа продолжается со сводкой;
 - Отмена - все операции прерываются, возвращается причина остановки `cancelled`.
 
-<!-- docsgen:source sha256=8addf0199dea7d5b -->
+<!-- docsgen:source sha256=663d0f5f2ccb61e6 -->

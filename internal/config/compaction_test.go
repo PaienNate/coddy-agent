@@ -228,3 +228,49 @@ func TestAutoEnableDescriptionsNameTheInTurnFoldAndTheRecovery(t *testing.T) {
 		}
 	}
 }
+
+func TestCompactionKeepTailTokens(t *testing.T) {
+	if got := (&Compaction{}).EffectiveKeepTailTokens(); got != CompactionDefaultKeepTailTokens {
+		t.Fatalf("keep_tail_tokens unset = %d, want the default %d", got, CompactionDefaultKeepTailTokens)
+	}
+	zero := 0
+	if got := (&Compaction{KeepTailTokens: &zero}).EffectiveKeepTailTokens(); got != 0 {
+		t.Fatalf("keep_tail_tokens: 0 = %d, want 0 (the absolute cap is off)", got)
+	}
+	forty := 40000
+	if got := (&Compaction{KeepTailTokens: &forty}).EffectiveKeepTailTokens(); got != forty {
+		t.Fatalf("keep_tail_tokens = %d, want %d", got, forty)
+	}
+	negative := -1
+	err := (&Compaction{ThresholdPercent: 80, KeepTailTokens: &negative}).Validate()
+	if err == nil || !strings.Contains(err.Error(), "compaction.keep_tail_tokens") {
+		t.Fatalf("negative keep_tail_tokens must be refused with its key in the message, got %v", err)
+	}
+	huge := 10_000_001
+	if err := (&Compaction{ThresholdPercent: 80, KeepTailTokens: &huge}).Validate(); err == nil {
+		t.Fatal("keep_tail_tokens above the ceiling must be refused")
+	}
+}
+
+func TestResultEvictionStartTokens(t *testing.T) {
+	if got := (&ResultEviction{}).EffectiveStartTokens(); got != ResultEvictionDefaultStartTokens {
+		t.Fatalf("start_tokens unset = %d, want the default %d", got, ResultEvictionDefaultStartTokens)
+	}
+	zero := 0
+	if got := (&ResultEviction{StartTokens: &zero}).EffectiveStartTokens(); got != 0 {
+		t.Fatalf("start_tokens: 0 = %d, want 0 (percent only)", got)
+	}
+	wide := 120000
+	if got := (&ResultEviction{StartTokens: &wide}).EffectiveStartTokens(); got != wide {
+		t.Fatalf("start_tokens = %d, want %d", got, wide)
+	}
+	negative := -1
+	err := (&ResultEviction{StartTokens: &negative}).Validate()
+	if err == nil || !strings.Contains(err.Error(), "compaction.result_eviction.start_tokens") {
+		t.Fatalf("negative start_tokens must be refused with its key in the message, got %v", err)
+	}
+	huge := 10_000_001
+	if err := (&ResultEviction{StartTokens: &huge}).Validate(); err == nil {
+		t.Fatal("start_tokens above the ceiling must be refused")
+	}
+}
