@@ -18,6 +18,7 @@
 | **`coddy_X.Y.Z_android_amd64.tar.gz`** | Android x86_64, в Termux |
 | **`coddy_X.Y.Z_windows_amd64.zip`** | Windows x86_64 (**`coddy.exe`**) |
 | **`coddy_X.Y.Z_windows_arm64.zip`** | Windows arm64 (**`coddy.exe`**) |
+| **`coddy_X.Y.Z_windows_arm64.zip`** | Windows arm64 (**`coddy.exe`**) |
 | **`coddy_X.Y.Z_darwin_amd64.tar.gz`** | macOS Intel |
 | **`coddy_X.Y.Z_darwin_arm64.tar.gz`** | macOS Apple Silicon |
 | **`coddy_X.Y.Z_linux_amd64.deb`** | Debian, Ubuntu и производные, x86_64 |
@@ -165,4 +166,4 @@ Full changelog: https://github.com/coddy-project/coddy-agent/compare/1.0.35...1.
 - путь через пакеты есть только на Linux (об установках через Homebrew Coddy сообщает, но сам их не обновляет), а пакетный менеджер работает неинтерактивно, поэтому обновление, которое удалило бы другой пакет, завершается ошибкой вместо вопроса. В этом случае запустите пакетный менеджер сами;
 - конфигурация в **`$CODDY_HOME`** не меняется; заменяется только бинарник или пакет, в котором он лежит.
 
-<!-- docsgen:source sha256=1e474fa4eea9e10f -->
+<!-- docsgen:source sha256=048072a557c38fbb -->

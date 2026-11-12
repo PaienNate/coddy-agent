@@ -4,7 +4,7 @@
 
 ## Требования
 
-- **Go** - **1.26** или новее, строка `go` из [`go.mod`](../../../go.mod). Строка `toolchain` рядом с ней (сейчас **`go1.27.3`**) задаёт самый старый релиз, с которым линкуется сборка при `GOTOOLCHAIN=auto` по умолчанию. CI и релизные архивы собираются ровно с ним, а более старый локальный `go` скачивает его при первом использовании. Более новый локальный Go или более новый патч в образе `golang:1.27`, с которого начинается Dockerfile, используется как есть, а это только добавляет исправления. С более старым релизом, вплоть до строки `go`, собирает только тулчейн при `GOTOOLCHAIN=local`. Поднимайте строку `toolchain` командой `go mod edit -toolchain=go1.27.N`, когда патч-релиз Go исправляет уязвимость, до которой доходит код (см. [Сканирование AppSec](security-scanning.md#инструментарий-go));
+- **Go** - **1.26** или новее, строка `go` из [`go.mod`](../../../go.mod). Строка `toolchain` рядом с ней (сейчас **`go1.27.4`**) задаёт самый старый релиз, с которым линкуется сборка при `GOTOOLCHAIN=auto` по умолчанию. CI и релизные архивы собираются ровно с ним, а более старый локальный `go` скачивает его при первом использовании. Более новый локальный Go или более новый патч в образе `golang:1.27`, с которого начинается Dockerfile, используется как есть, а это только добавляет исправления. С более старым релизом, вплоть до строки `go`, собирает только тулчейн при `GOTOOLCHAIN=local`. Поднимайте строку `toolchain` командой `go mod edit -toolchain=go1.27.N`, когда патч-релиз Go исправляет уязвимость, до которой доходит код (см. [Сканирование AppSec](security-scanning.md#инструментарий-go));
 - **Git** - Makefile встраивает строку версии из тегов или `git describe`, если они доступны;
 - **Node.js и npm** - нужны при сборке с **`http`** и **`ui`** вместе, потому что Makefile запускает **`ui-build`** (см. [`Makefile`](../../../Makefile)), чтобы получить ресурсы, которые подхватывает **`go:embed`**, а также для **`make test`** и **`make lint`**, которые запускают тесты vitest для SPA и его проверку TypeScript.
 
@@ -291,6 +291,7 @@ go build -tags=http,ui,scheduler,memory,cli,gateway,swarm,metrics,browser ...
 | **`coddy_X.Y.Z_android_arm64.tar.gz`**, **`coddy_X.Y.Z_android_amd64.tar.gz`** | Android arm64 и x86_64, под Termux (см. [выше](#android-termux)) |
 | **`coddy_X.Y.Z_windows_amd64.zip`** | Windows x86_64 (**`coddy.exe`**) |
 | **`coddy_X.Y.Z_windows_arm64.zip`** | Windows arm64 (**`coddy.exe`**) |
+| **`coddy_X.Y.Z_windows_arm64.zip`** | Windows arm64 (**`coddy.exe`**) |
 | **`coddy_X.Y.Z_darwin_amd64.tar.gz`** | macOS Intel |
 | **`coddy_X.Y.Z_darwin_arm64.tar.gz`** | macOS Apple Silicon |
 | **`coddy_X.Y.Z_linux_amd64.deb`**, **`coddy_X.Y.Z_linux_arm64.deb`** | Debian, Ubuntu и производные |
@@ -336,4 +337,4 @@ go install github.com/EvilFreelancer/coddy-agent/cmd/coddy@latest
 
 Так компилируется то, что модуль собирает по умолчанию, **без** ваших локальных **`TAGS`**. Чтобы получить известный набор возможностей (HTTP, веб-интерфейс, планировщик, память, консоль, шлюз мессенджеров), клонируйте репозиторий и используйте **`make build TAGS="http ui scheduler memory cli gateway swarm metrics browser desktop"`** (или **`go build -tags=...`**, как выше).
 
-<!-- docsgen:source sha256=fe32871583c47efa -->
+<!-- docsgen:source sha256=b6ac53ef60f6c08c -->

@@ -15,7 +15,7 @@ vi.mock("./api", () => ({
 }));
 
 import { ProjectTabs } from "./ProjectTabs";
-import { readProjectTabMemory } from "./projectTabs";
+import { readProjectTabMemory } from "./projectTabMemory";
 
 const project: Project = {
   id: "prj_1",

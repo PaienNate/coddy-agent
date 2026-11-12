@@ -27,7 +27,7 @@ import {
   visibleTabs,
   writeProjectTabMemory,
   type ProjectTabMemory,
-} from "./projectTabs";
+} from "./projectTabMemory";
 import type { Project } from "./types";
 
 type Props = {
