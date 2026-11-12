@@ -441,6 +441,9 @@ export const messagesZh: Record<string, string> = {
   "settings.schema.providers.name.ph": "my-provider",
   "settings.schema.providers.name.desc":
     "此提供商模型 id 的前缀，例如 provider/model-id。允许字母、数字、连字符和下划线，并以字母开头。",
+  "settings.schema.providers.display_name.label": "显示名称",
+  "settings.schema.providers.display_name.desc":
+    "该提供商的可选界面标签，在标注提供商的位置（设置行、模型菜单）显示。id 仍是标识符：models[].model、agent.model 以及 providers/<name> 下的所有路径继续使用 name。",
   "settings.schema.providers.type.label": "提供商类型",
   "settings.schema.providers.type.desc":
     "此提供商条目的通信协议。官方 DeepSeek API 使用 deepseek，以获得思考控制、提示词缓存统计和 V4 Flash/Pro 预设；其他 OpenAI 兼容端点使用 openai。",

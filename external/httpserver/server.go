@@ -480,6 +480,10 @@ func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 		// Toolset is the toolsets[] preset the model names (models[].toolset):
 		// what a new chat on it is offered until it picks another.
 		Toolset string `json:"toolset,omitempty"`
+		// ProviderDisplayName is the provider row's display_name, when one is
+		// set: a label for the UI to group and list models by. OwnedBy keeps
+		// the id, which stays the identifier everywhere.
+		ProviderDisplayName string `json:"provider_display_name,omitempty"`
 		// Limits is what a request on this row may carry, so a client sizes
 		// one before it sends it instead of losing a turn to a 400.
 		Limits modelLimits `json:"limits"`
@@ -538,6 +542,10 @@ func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			window := s.contextWindowFor(cfg, mid)
+			providerDisplayName := ""
+			if p := cfg.FindProvider(ent.ProviderName()); p != nil {
+				providerDisplayName = strings.TrimSpace(p.DisplayName)
+			}
 			out.Data = append(out.Data, modelObj{
 				ID:               mid,
 				Object:           "model",
@@ -550,7 +558,9 @@ func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 				ReasoningDefault: cfg.DefaultReasoningLevelFor(ent),
 				Default:          defaultModel != "" && mid == defaultModel,
 				Toolset:          ent.Toolset,
-				Limits:           limits,
+				// ProviderDisplayName: label only; OwnedBy stays the id.
+				ProviderDisplayName: providerDisplayName,
+				Limits:              limits,
 			})
 		}
 	}

@@ -446,6 +446,8 @@ function toolSseShowsTruncatedPreview(u: ToolCallStatusUpdate): boolean {
 type ModelInfo = {
   id: string;
   ownedBy?: string;
+  /** The provider row's display_name, when one is set: a UI label only. */
+  providerDisplayName?: string;
   maxContextTokens?: number | undefined;
   multimodal?: boolean;
   reasoningLevels?: string[];
@@ -3437,6 +3439,7 @@ export function App() {
         data?: Array<{
           id?: string;
           owned_by?: string;
+          provider_display_name?: string;
           max_context_tokens?: number;
           multimodal?: boolean;
           reasoning_levels?: string[];
@@ -3451,6 +3454,7 @@ export function App() {
         .map((d) => ({
           id: (d.id || "").trim(),
           ownedBy: (d.owned_by || "").trim(),
+          providerDisplayName: (d.provider_display_name || "").trim(),
           ...(d.max_context_tokens !== undefined
             ? { maxContextTokens: d.max_context_tokens }
             : {}),
@@ -3466,6 +3470,7 @@ export function App() {
         const m: ModelInfo = {
           id: d.id,
           ownedBy: d.ownedBy,
+          providerDisplayName: d.providerDisplayName,
           multimodal: d.multimodal,
           reasoningLevels: d.reasoningLevels,
           reasoningDefault: d.reasoningDefault,
@@ -6828,6 +6833,20 @@ export function App() {
     return out;
   }, [modelInfos]);
 
+  // Provider display names for the model menu's vendor groups: keyed by the
+  // provider id (owned_by), the first row that carries a label wins.
+  const providerLabels = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const m of modelInfos) {
+      const by = (m.ownedBy ?? "").trim();
+      const label = (m.providerDisplayName ?? "").trim();
+      if (by !== "" && label !== "" && out[by] === undefined) {
+        out[by] = label;
+      }
+    }
+    return out;
+  }, [modelInfos]);
+
   const llmReasoningLevels = useMemo(() => {
     const row = modelInfos.find((m) => m.id === llmModel);
     const levels = row?.reasoningLevels ?? [];
@@ -9082,6 +9101,7 @@ export function App() {
             }}
             mode={mode}
             modes={[...PROFILE_MODES]}
+            providerLabels={providerLabels}
             {...(llmModelIds.length > 0
               ? {
                   llmModels: llmModelIds,

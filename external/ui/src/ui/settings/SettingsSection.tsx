@@ -1018,7 +1018,7 @@ export function SettingsSection(props: {
         schema={sub}
         value={asArray(doc[key])}
         onChange={onArrayChange}
-        labelField={section.labelField}
+        labelFields={section.labelFields}
         fieldOverride={override}
         newItem={newItem}
         backLabel={section.label}

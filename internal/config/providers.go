@@ -35,12 +35,16 @@ var AllowedLLMProviderTypes = map[string]struct{}{
 
 // ProviderConfig is one entry under YAML key providers.
 type ProviderConfig struct {
-	Name         string `yaml:"name"`
-	Type         string `yaml:"type"`
-	Mode         string `yaml:"mode,omitempty"`
-	Region       string `yaml:"region,omitempty"`
-	KimiIdentity string `yaml:"kimi_identity,omitempty"`
-	APIBase      string `yaml:"api_base"`
+	Name string `yaml:"name"`
+	// DisplayName is an optional label for this row in the UI (settings rows,
+	// the model menu). It never replaces Name: models[].model, agent.model and
+	// every path under providers/<name> keep using Name.
+	DisplayName     string `yaml:"display_name,omitempty"`
+	Type            string `yaml:"type"`
+	Mode            string `yaml:"mode,omitempty"`
+	Region          string `yaml:"region,omitempty"`
+	KimiIdentity    string `yaml:"kimi_identity,omitempty"`
+	APIBase         string `yaml:"api_base"`
 	// UserAgent selects the SDK identity (empty, openai, anthropic) or Coddy.
 	// Only OpenAI-compatible and Anthropic-compatible providers use it.
 	UserAgent string `yaml:"user_agent,omitempty"`

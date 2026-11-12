@@ -21,6 +21,9 @@ providers:
   # coddy sends Coddy/<running version> to completions and model listing.
   - name: openai
     type: openai
+    # Optional label shown in the UI (settings rows, the model menu). The id stays
+    # the identifier: models[].model and agent.model keep using name.
+    # display_name: "OpenAI (work)"
     api_key: "${OPENAI_API_KEY}"
     # Optional credential helper: when api_key is empty, this command is run via the
     # shell and its trimmed stdout is used as the key (like git/docker credential

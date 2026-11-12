@@ -26,8 +26,9 @@ export type SectionDescriptor = {
   kind: SectionKind;
   /** Config key for array/object sections. */
   schemaKey?: string | undefined;
-  /** For array sections: which item field labels each row in the list. */
-  labelField?: string | undefined;
+  /** For array sections: which item fields label each row in the list, in
+   *  order of preference (the drawing and the search index agree on it). */
+  labelFields?: string[] | undefined;
   /** For group sections: config keys grouped under this tab. */
   childKeys?: string[] | undefined;
 };
@@ -126,12 +127,36 @@ export const SYSTEM_KEYS = ["prompts", "instructions"];
 /** The config section the Sessions tab edits above its table. */
 export const SESSIONS_CONFIG_KEY = "sessions";
 
-/** Array sections shown as master–detail lists, with the field used as the row label. */
-export const ARRAY_LABEL_FIELDS: Record<string, string> = {
-  providers: "name",
-  models: "model",
-  toolsets: "name",
+/** Array sections shown as master–detail lists, with the fields that label each
+ *  row, in order of preference: a provider's display name wins over its id, so
+ *  a row reads the way the operator named it. */
+export const ARRAY_LABEL_FIELDS: Record<string, string[]> = {
+  providers: ["display_name", "name"],
+  models: ["model"],
+  toolsets: ["name"],
 };
+
+/**
+ * The first of `fields` holding a non-empty value on `row`, else "". The row
+ * list and the search index both label a row this way, so a name found in the
+ * search is the name drawn on the row.
+ */
+export function arrayRowLabelValue(
+  row: unknown,
+  fields: readonly string[] | undefined,
+): string {
+  if (!fields || row === null || typeof row !== "object" || Array.isArray(row)) {
+    return "";
+  }
+  const obj = row as Record<string, unknown>;
+  for (const field of fields) {
+    const v = obj[field];
+    if (v !== undefined && v !== null && String(v).trim() !== "") {
+      return String(v).trim();
+    }
+  }
+  return "";
+}
 
 /**
  * deriveSettingsSections turns the root config JSON Schema into ordered tab
@@ -269,7 +294,7 @@ export function deriveSettingsSections(
         description: descFor(key, sub),
         kind: "array",
         schemaKey: key,
-        labelField: ARRAY_LABEL_FIELDS[key],
+        labelFields: ARRAY_LABEL_FIELDS[key],
       });
       return;
     }

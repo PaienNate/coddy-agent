@@ -274,8 +274,11 @@ func UISchemaMap() map[string]interface{} {
 	providerAPIKey := strProp("API key",
 		"A literal key, a ${ENV} reference expanded when the file is loaded, or empty to read the environment variable the placeholder names at call time.")
 	providerAPIKey["x-coddy-provider-api-key-env-placeholder"] = true
+	providerDisplayName := strProp("Display name",
+		"Optional label for this row in the UI (settings rows, the model menu). The id stays the identifier: models[].model, agent.model and every path under providers/<name> keep using name.")
 	providerProps := map[string]interface{}{
 		"name": providerName,
+		"display_name": providerDisplayName,
 		"type": map[string]interface{}{
 			"type":        "string",
 			"title":       "Provider type",
@@ -488,7 +491,7 @@ func UISchemaMap() map[string]interface{} {
 			"title":       "LLM providers",
 			"description": "API credentials and transport selection for upstream LLM vendors.",
 			"items": objectSchema("", "", providerProps,
-				[]string{"name", "type", "mode", "region", "kimi_identity", "acp", "api_base", "user_agent", "api_key", "api_key_command", "proxy", "timeout_ms", "usage_limits_panel"},
+				[]string{"name", "display_name", "type", "mode", "region", "kimi_identity", "acp", "api_base", "user_agent", "api_key", "api_key_command", "proxy", "timeout_ms", "usage_limits_panel"},
 				[]string{"name", "type"}),
 		},
 		"models": map[string]interface{}{

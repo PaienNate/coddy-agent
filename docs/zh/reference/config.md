@@ -51,6 +51,7 @@ VS Code（配合 YAML 扩展）、Zed、Neovim 和 Helix 会自动读取此注�
 |-----|------|--------|------|
 | `providers` | 对象列表 |  | 上游 LLM 供应商的 API 凭据和传输选择。当 api_key 为空时，运行时读取 NAME_API_KEY 环境变量（NAME 是提供商名称的大写形式，连字符映射为下划线）；type 为 "codex" 的行使用 ChatGPT 登录并且不读取密钥，Kimi 订阅也不读取 API 密钥。 |
 | `providers[].name` | 字符串 |  | 用作 models[].model 第一段的逻辑 id。ASCII 字母、数字、连字符、下划线；必须以字母开头。 |
+| `providers[].display_name` | 字符串 |  | 该提供商的可选显示名称，在界面中标注提供商的位置（设置行、模型菜单）显示。id 仍是标识符：models[].model、agent.model 以及 providers/<name> 下的所有路径继续使用 name。 |
 | `providers[].type` | 字符串，可选值：`openai`, `deepseek`, `anthropic`, `neuraldeep`, `opencode`, `codex`, `devin`, `kimi`, `acp` |  | 此提供商条目的通信协议。官方 DeepSeek API 使用 deepseek，以获得思考控制、提示词缓存统计和 V4 Flash/Pro 预设；其他 OpenAI 兼容端点使用 openai。 |
 | `providers[].mode` | 字符串，可选值：`""`, `subscription`, `platform` |  | Kimi 凭据模式。省略表示订阅。 |
 | `providers[].region` | 字符串，可选值：`""`, `global`, `china` |  | Kimi 区域。省略表示全球。 |
@@ -200,7 +201,7 @@ VS Code（配合 YAML 扩展）、Zed、Neovim 和 Helix 会自动读取此注�
 | `tools.canvas.allow_cdn` | 布尔值 或 null | true | 允许 frame 从常见 CDN 加载库、样式和字体：cdn.jsdelivr.net、unpkg.com、cdnjs.cloudflare.com、cdn.tailwindcss.com、fonts.googleapis.com 和 fonts.gstatic.com。 |
 | `tools.canvas.allowed_sources` | 字符串列表 |  | frame 可以从中加载和连接的更多主机，形式为 https://host 或 https://*.host，可带可选的端口和路径。画布上的页面可以将其文件夹下读取到的内容发送给其中任何一个。 |
 | `tools.websearch` | 对象 |  | websearch 工具询问哪些搜索引擎、其结果按什么顺序合并，以及它可为询问它们花费什么。每个引擎都在结果旁报告自己的结果，因此被阻止的后端会被点名，而不是被算作“网上没有内容”。 |
-| `tools.websearch.engines` | 字符串列表 | ["brave","bing"] | 要询问的搜索引擎，按合并顺序排列。未设置时先询问 brave 再询问 bing。默认不询问 "ddg" 和 "google"：从服务器上实测，DuckDuckGo 对每个查询都返回反机器人插页，而 Google 在浏览器中渲染其结果。"searxng" 需要 searxng_url。"exa"、"firecrawl"、"parallel"、"tinyfish" 和 "tavily" 是 OpenCode 兼容的提供商；支持 keyless 时密钥可选。 |
+| `tools.websearch.engines` | 字符串列表 | ["brave","bing"] | 要询问的搜索引擎，按合并顺序排列。未设置时先询问 brave 再询问 bing。默认不询问 "ddg" 和 "google"：从服务器上实测，DuckDuckGo 对每个查询都返回反机器人插页，而 Google 在浏览器中渲染其结果。"searxng" 需要 searxng_url。 |
 | `tools.websearch.engine_timeout_seconds` | 整数 | 8 | 一个引擎在被报告为不可用之前可花费的秒数。0 使用默认值。 |
 | `tools.websearch.total_timeout_seconds` | 整数 | 20 | 整个搜索可花费的秒数，无论询问多少个引擎。0 使用默认值。 |
 | `tools.websearch.max_concurrent_engines` | 整数 | 4 | 同时询问多少个引擎。0 使用默认值。 |
@@ -209,11 +210,11 @@ VS Code（配合 YAML 扩展）、Zed、Neovim 和 Helix 会自动读取此注�
 | `tools.websearch.searxng_url` | 字符串 | "" | 你自己的 SearXNG 实例的基础地址，通过其 JSON API 询问（在其 settings.yml 中启用 json 格式）。自托管的聚合器是被抓取的引擎遭拒时的持久答案；localhost 和局域网地址是特意允许的。 |
 | `tools.websearch.brave_api_key` | 字符串 | "" | Brave Search API 订阅令牌。有它时 brave 引擎使用官方 JSON API 而非读取公开结果页面，后者在 Brave 重新部署时没有可破坏的解析器。为空则读取 BRAVE_API_KEY 环境变量（也包括来自 ${CODDY_HOME}/.env 的），因此密钥无需存储在此处。 |
 | `tools.websearch.deepseek_api_key` | 字符串 | "" | DeepSeek Search API 密钥。deepseek 引擎询问 DeepSeek 的 Search API（POST /v1/tools/search），它没有可抓取的公开页面，因此没有密钥时该引擎不可用。为空则读取 DEEPSEEK_API_KEY 环境变量（也包括来自 ${CODDY_HOME}/.env 的），因此密钥无需存储在此处。 |
-| `tools.websearch.exa_api_key` | 字符串 | "" | Exa 搜索 MCP 密钥。为空则读取 EXA_API_KEY，或使用 Exa 的 keyless 层。 |
-| `tools.websearch.firecrawl_api_key` | 字符串 | "" | Firecrawl 搜索 MCP 密钥。为空则读取 FIRECRAWL_API_KEY，或使用其 keyless 层。 |
-| `tools.websearch.parallel_api_key` | 字符串 | "" | Parallel 搜索 MCP 密钥。为空则读取 PARALLEL_API_KEY，或使用其 keyless 层。 |
-| `tools.websearch.tinyfish_api_key` | 字符串 | "" | TinyFish 搜索 MCP 密钥。为空则读取 TINYFISH_API_KEY，或使用其免费 keyless 层。 |
-| `tools.websearch.tavily_api_key` | 字符串 | "" | Tavily 搜索 API 密钥。为空则读取 TAVILY_API_KEY，或使用其 keyless 层。 |
+| `tools.websearch.exa_api_key` | 字符串 | "" | Exa API key. The exa engine asks Exa's hosted search MCP. Empty reads EXA_API_KEY, or uses the keyless tier. |
+| `tools.websearch.firecrawl_api_key` | 字符串 | "" | Firecrawl API key. The firecrawl engine asks Firecrawl's hosted search MCP. Empty reads FIRECRAWL_API_KEY, or uses the keyless tier. |
+| `tools.websearch.parallel_api_key` | 字符串 | "" | Parallel API key. The parallel engine asks Parallel's hosted search MCP. Empty reads PARALLEL_API_KEY, or uses the keyless tier. |
+| `tools.websearch.tinyfish_api_key` | 字符串 | "" | TinyFish API key. The tinyfish engine asks TinyFish's hosted search MCP. Empty reads TINYFISH_API_KEY, or uses the free keyless tier. |
+| `tools.websearch.tavily_api_key` | 字符串 | "" | Tavily API key. The tavily engine asks Tavily's search API. Empty reads TAVILY_API_KEY, or uses the keyless tier. |
 | `tools.http_request` | 对象 |  | http_request 工具（智能体的 curl）的策略：它无需询问即可到达的目的地，以及每个请求都会发送的请求头。在 ask 和 accept_edits 权限模式下，除非请求的目的地已在此处允许或在会话中获批，否则会询问操作者；bypass 从不询问。参见 https://coddy.dev/docs/features/http-requests。 |
 | `tools.http_request.allowlist` | 字符串列表 | [] | 请求无需询问即可到达的目的地：主机（api.github.com）、子域通配符（*.example.com），二者均可带可选的 :port，或来源（http://localhost:8080），或地址前缀（https://api.example.com/v1/）。"*" 允许所有目的地。一个条目还覆盖请求上传的文件和未校验的证书；代理需要自己的条目，而响应保存到的文件遵循写入策略。 |
 | `tools.http_request.default_headers` | 字符串映射 | {} | 每次 http_request 调用都会发送的请求头，除非调用自身指定了该请求头：针对拒绝工具的站点的浏览器 User-Agent，内部服务所期望的 Accept。它们取代工具自身的默认值（其 coddy-agent User-Agent），调用的请求头取代它们 - 调用中的空值会移除其一 - 而此处的空值会让该请求头不出现在每个未设置它的调用中。名称由字母、数字、- 和 _ 组成，以字母开头。Host、Content-Type、Content-Length 和 Transfer-Encoding 描述单个请求，会被拒绝，逐跳请求头（Connection、Keep-Alive、Proxy-Connection、TE、Trailer、Upgrade）以及 Proxy-Authorization 同样会被拒绝，因为 https 请求会经由代理隧道把它们带到每个来源。这些请求头会发往该工具到达的每个目的地，因此此处的凭据会到达所有目的地；权限提示会点名它们，并仅显示描述客户端的那一个（User-Agent、Accept……）的值，config_get 会对模型隐藏它们的值，而 webfetch、URL 提及和模型提供商从不发送它们。参见 https://coddy.dev/docs/features/http-requests#default-headers。 |

@@ -22,6 +22,9 @@ providers:
 providers[].name:
   en: Logical id used as the first segment of models[].model. ASCII letters, digits, hyphen, underscore; must start with a letter.
   zh: 用作 models[].model 第一段的逻辑 id。ASCII 字母、数字、连字符、下划线；必须以字母开头。
+providers[].display_name:
+  en: "Optional display name for this provider, shown in the UI wherever a provider is labelled (settings rows, the model menu). The id stays the identifier: models[].model, agent.model and every path under providers/<name> keep using name."
+  zh: "该提供商的可选显示名称，在界面中标注提供商的位置（设置行、模型菜单）显示。id 仍是标识符：models[].model、agent.model 以及 providers/<name> 下的所有路径继续使用 name。"
 providers[].type:
   en: "Wire protocol for this provider entry. Use deepseek for the official DeepSeek API, with its thinking controls, prompt-cache accounting and V4 Flash/Pro presets; openai for any other OpenAI-compatible endpoint."
   zh: "此提供商条目的通信协议。官方 DeepSeek API 使用 deepseek，以获得思考控制、提示词缓存统计和 V4 Flash/Pro 预设；其他 OpenAI 兼容端点使用 openai。"

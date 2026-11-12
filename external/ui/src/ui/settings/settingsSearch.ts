@@ -27,6 +27,7 @@ import {
 } from "./SettingsSection";
 import {
   ARRAY_LABEL_FIELDS,
+  arrayRowLabelValue,
   landmarkAnchor,
   MCP_SECTION_ID,
   SESSIONS_CONFIG_KEY,
@@ -358,9 +359,11 @@ function text(v: unknown): string {
   return v === undefined || v === null ? "" : String(v);
 }
 
-/** A row's label as the list trims it (SettingsArraySection). */
-function rowLabel(row: unknown, field: string): string {
-  return text(asObject(row)[field]).trim();
+/** A row's label as the list draws it (SettingsArraySection): the first of its
+ *  label fields that holds a value, so a provider's display name wins over its
+ *  id in the index too. */
+function rowLabel(row: unknown, fields: readonly string[] | undefined): string {
+  return arrayRowLabelValue(row, fields);
 }
 
 /**
@@ -369,9 +372,9 @@ function rowLabel(row: unknown, field: string): string {
  */
 export function settingsIndexRowsKey(doc: PlainObject): string {
   return JSON.stringify(
-    Object.entries(ARRAY_LABEL_FIELDS).map(([key, field]) =>
+    Object.entries(ARRAY_LABEL_FIELDS).map(([key, fields]) =>
       asArray(doc[key]).map((row) => [
-        rowLabel(row, field),
+        rowLabel(row, fields),
         key === "providers" ? text(asObject(row)["type"]) : "",
       ]),
     ),
@@ -656,9 +659,9 @@ function tabForms(
 /** The rows of a list tab a name can open: trimmed, non-empty and unique. */
 function openableRows(
   list: unknown[],
-  labelField: string,
+  labelFields: readonly string[] | undefined,
 ): { label: string; row: PlainObject }[] {
-  const labels = list.map((row) => rowLabel(row, labelField));
+  const labels = list.map((row) => rowLabel(row, labelFields));
   const counts = new Map<string, number>();
   for (const label of labels) {
     counts.set(label, (counts.get(label) ?? 0) + 1);
@@ -705,7 +708,7 @@ export function buildSettingsSearchIndex(input: {
     }
     const key = section.schemaKey ?? section.id;
     for (const { label, row } of generated.rows
-      ? openableRows(asArray(input.doc[key]), section.labelField ?? "")
+      ? openableRows(asArray(input.doc[key]), section.labelFields)
       : []) {
       out.push(
         makeSearchEntry({

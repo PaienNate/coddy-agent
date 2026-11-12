@@ -1,5 +1,9 @@
 import { afterEach, expect, test } from "vitest";
-import { deriveSettingsSections, knownSectionLabel } from "./settingsSections";
+import {
+  arrayRowLabelValue,
+  deriveSettingsSections,
+  knownSectionLabel,
+} from "./settingsSections";
 import type { JsonSchema } from "./SchemaForm";
 import { initLocale } from "../i18n/i18n";
 
@@ -145,14 +149,29 @@ test("the scheduler is its own tab, out of System", () => {
   expect(byId.scheduler?.description).toBe("Scheduled jobs");
 });
 
-test("array sections carry their label field", () => {
+test("array sections carry their label fields, in order of preference", () => {
   const byId = Object.fromEntries(
     deriveSettingsSections(rootSchema).map((s) => [s.id, s]),
   );
   expect(byId.providers?.kind).toBe("array");
-  expect(byId.providers?.labelField).toBe("name");
+  expect(byId.providers?.labelFields).toEqual(["display_name", "name"]);
   expect(byId.models?.kind).toBe("array");
-  expect(byId.models?.labelField).toBe("model");
+  expect(byId.models?.labelFields).toEqual(["model"]);
+});
+
+test("arrayRowLabelValue takes the first field that holds a value", () => {
+  const fields = ["display_name", "name"];
+  expect(
+    arrayRowLabelValue({ display_name: "OpenAI (work)", name: "openai" }, fields),
+  ).toBe("OpenAI (work)");
+  expect(arrayRowLabelValue({ name: "openai" }, fields)).toBe("openai");
+  expect(
+    arrayRowLabelValue({ display_name: "   ", name: "openai" }, fields),
+  ).toBe("openai");
+  expect(arrayRowLabelValue({}, fields)).toBe("");
+  expect(arrayRowLabelValue(null, fields)).toBe("");
+  expect(arrayRowLabelValue("nope", fields)).toBe("");
+  expect(arrayRowLabelValue({ name: "x" }, undefined)).toBe("");
 });
 
 // The servers live in mcp.json files, not in the settings document, so no

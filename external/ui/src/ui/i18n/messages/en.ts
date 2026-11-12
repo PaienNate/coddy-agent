@@ -493,6 +493,9 @@ export const messagesEn: Record<string, string> = {
   "settings.schema.providers.name.ph": "my-provider",
   "settings.schema.providers.name.desc":
     "Prefix of this provider's model ids, as in provider/model-id. Letters, digits, hyphen and underscore, starting with a letter.",
+  "settings.schema.providers.display_name.label": "Display name",
+  "settings.schema.providers.display_name.desc":
+    "Optional label shown in the UI wherever a provider is labelled (settings rows, the model menu). The id stays the identifier: models[].model, agent.model and every path under providers/<name> keep using name.",
   "settings.schema.providers.type.label": "Provider type",
   "settings.schema.providers.type.desc":
     "Wire protocol for this provider entry. Use deepseek for the official DeepSeek API, with its thinking controls, prompt-cache accounting and V4 Flash/Pro presets; openai for any other OpenAI-compatible endpoint.",

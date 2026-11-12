@@ -502,6 +502,9 @@ export const messagesRu: Record<string, string> = {
   "settings.schema.providers.name.ph": "my-provider",
   "settings.schema.providers.name.desc":
     "Префикс идентификаторов моделей этого провайдера, как в provider/model-id. Латинские буквы, цифры, дефис и подчёркивание, первая буква.",
+  "settings.schema.providers.display_name.label": "Отображаемое имя",
+  "settings.schema.providers.display_name.desc":
+    "Необязательная метка для этой строки в интерфейсе - показывается везде, где провайдер подписан (строки настроек, меню моделей). Идентификатор остаётся идентификатором: models[].model, agent.model и все пути providers/<name> продолжают использовать name.",
   "settings.schema.providers.type.label": "Тип провайдера",
   "settings.schema.providers.type.desc":
     "Сетевой протокол для этой записи провайдера. Используйте deepseek для официального API DeepSeek с управлением рассуждением, учётом кэша промптов и пресетами V4 Flash/Pro; openai для любого другого OpenAI-совместимого эндпоинта.",

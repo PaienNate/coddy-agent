@@ -115,6 +115,8 @@ export function ChatScreen(props: {
   mode: string;
   modes: string[];
   llmModels?: string[];
+  /** Provider display names keyed by provider id, for the model menu. */
+  providerLabels?: Readonly<Record<string, string>>;
   llmModel?: string;
   onLlmModelChange?: (modelId: string) => void;
   /** Whether the currently selected model accepts image/file inputs. */
@@ -995,6 +997,7 @@ export function ChatScreen(props: {
                 props.onLlmModelChange !== undefined
                   ? {
                       llmModels: props.llmModels,
+                      providerLabels: props.providerLabels,
                       llmModel: props.llmModel,
                       onLlmModelChange: props.onLlmModelChange,
                       llmModelMultimodal: props.llmModelMultimodal,
@@ -1261,6 +1264,7 @@ export function ChatScreen(props: {
                   props.onLlmModelChange !== undefined
                     ? {
                         llmModels: props.llmModels,
+                        providerLabels: props.providerLabels,
                         llmModel: props.llmModel,
                         onLlmModelChange: props.onLlmModelChange,
                         llmModelMultimodal: props.llmModelMultimodal,

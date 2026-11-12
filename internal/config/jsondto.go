@@ -102,17 +102,19 @@ type InstructionsJSON struct {
 // ProviderJSON mirrors ProviderConfig for JSON APIs.
 // Field order and types must match ProviderConfig (direct struct conversion is used below).
 type ProviderJSON struct {
-	Name          string `json:"name"`
-	Type          string `json:"type"`
-	Mode          string `json:"mode,omitempty"`
-	Region        string `json:"region,omitempty"`
-	KimiIdentity  string `json:"kimi_identity,omitempty"`
-	APIBase       string `json:"api_base,omitempty"`
-	UserAgent     string `json:"user_agent,omitempty"`
-	APIKey        string `json:"api_key,omitempty"`
-	APIKeyCommand string `json:"api_key_command,omitempty"`
-	Proxy         string `json:"proxy,omitempty"`
-	TimeoutMS     int    `json:"timeout_ms,omitempty"`
+	Name string `json:"name"`
+	// DisplayName keeps the optional UI label; the id stays the identifier.
+	DisplayName     string `json:"display_name,omitempty"`
+	Type            string `json:"type"`
+	Mode            string `json:"mode,omitempty"`
+	Region          string `json:"region,omitempty"`
+	KimiIdentity    string `json:"kimi_identity,omitempty"`
+	APIBase         string `json:"api_base,omitempty"`
+	UserAgent       string `json:"user_agent,omitempty"`
+	APIKey          string `json:"api_key,omitempty"`
+	APIKeyCommand   string `json:"api_key_command,omitempty"`
+	Proxy           string `json:"proxy,omitempty"`
+	TimeoutMS       int    `json:"timeout_ms,omitempty"`
 	// UsageLimitsPanel keeps the three states of the YAML key: absent (on),
 	// true, false. omitempty leaves an unset switch out of the document.
 	UsageLimitsPanel *bool `json:"usage_limits_panel,omitempty"`

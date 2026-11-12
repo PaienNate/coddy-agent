@@ -62,8 +62,11 @@ func (noopSender) RequestQuestion(context.Context, acp.QuestionRequestParams) (*
 
 func TestGETModelsMergedOrderAndOwnedBy(t *testing.T) {
 	cfg := &config.Config{
-		Agent:  config.Agent{Model: "openai/gpt-4o"},
-		Models: []config.ModelEntry{{Model: "openai/gpt-4o", MaxTokens: 100, Temperature: 0.2}},
+		Agent:   config.Agent{Model: "openai/gpt-4o"},
+		Models:  []config.ModelEntry{{Model: "openai/gpt-4o", MaxTokens: 100, Temperature: 0.2}},
+		Providers: []config.ProviderConfig{
+			{Name: "openai", Type: "openai", DisplayName: "OpenAI (work)"},
+		},
 	}
 	runner := func(context.Context, *session.State, []acp.ContentBlock, acp.UpdateSender) (string, error) {
 		return "", nil
@@ -85,12 +88,13 @@ func TestGETModelsMergedOrderAndOwnedBy(t *testing.T) {
 	var body struct {
 		Object string `json:"object"`
 		Data   []struct {
-			ID               string `json:"id"`
-			Object           string `json:"object"`
-			OwnedBy          string `json:"owned_by"`
-			MaxContextTokens int    `json:"max_context_tokens"`
-			ContextLength    int    `json:"context_length"`
-			Default          bool   `json:"default"`
+			ID                 string `json:"id"`
+			Object             string `json:"object"`
+			OwnedBy            string `json:"owned_by"`
+			ProviderDisplayName string `json:"provider_display_name"`
+			MaxContextTokens   int    `json:"max_context_tokens"`
+			ContextLength      int    `json:"context_length"`
+			Default            bool   `json:"default"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
@@ -110,6 +114,13 @@ func TestGETModelsMergedOrderAndOwnedBy(t *testing.T) {
 	}
 	if !body.Data[3].Default {
 		t.Fatalf("the agent.model row is not marked default: %+v", body.Data[3])
+	}
+	// The provider's display name travels as a label only; owned_by keeps the id.
+	if body.Data[3].ProviderDisplayName != "OpenAI (work)" {
+		t.Fatalf("provider_display_name not carried from the provider row: %+v", body.Data[3])
+	}
+	if body.Data[0].ProviderDisplayName != "" {
+		t.Fatalf("profile rows carry no provider display name: %+v", body.Data[0])
 	}
 	for i, w := range want {
 		item := body.Data[i]
