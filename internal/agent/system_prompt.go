@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"sort"
 	"strings"
 	"time"
 
@@ -30,7 +31,39 @@ const loadSkillToolName = "load_skill"
 
 // loadSkillHint tells the model it may pull a catalogued skill's full instructions
 // into the turn on its own via the load_skill tool (model-driven auto-discovery).
+// It is what the prompt says when no skill declares a route.
 const loadSkillHint = "When the user's request matches one of the slash commands above, call the `load_skill` tool with that command's name to load its full instructions before acting."
+
+// flowRoutingHint names the skills that declare a `routes:` line, so the model
+// enters the flow without being told its slash command. The lines are data on
+// the skill, not a name in this file: an operator who replaces the flow skills
+// moves the routing with them.
+func flowRoutingHint(all []*skills.Skill) string {
+	type route struct{ name, when string }
+	seen := make(map[string]bool, len(all))
+	routes := make([]route, 0, 2)
+	for _, sk := range all {
+		if sk == nil || strings.TrimSpace(sk.Routes) == "" {
+			continue
+		}
+		name := skills.CanonicalCommandName(sk)
+		if name == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		routes = append(routes, route{name: name, when: strings.TrimSpace(sk.Routes)})
+	}
+	if len(routes) == 0 {
+		return loadSkillHint
+	}
+	sort.Slice(routes, func(i, j int) bool { return routes[i].name < routes[j].name })
+	parts := make([]string, 0, len(routes))
+	for _, r := range routes {
+		parts = append(parts, "`"+r.name+"` - "+r.when)
+	}
+	return "Before you create, change, debug or review code, load the flow skill that matches and follow it: " +
+		strings.Join(parts, "; ") + "."
+}
 
 // buildSkillsPromptMarkdown merges the slash catalog and bodies of context-matched non-command skills.
 // Slash-command bodies (invoked via /name) are NOT included here — they are injected directly into
@@ -61,7 +94,7 @@ func buildSkillsPromptMarkdown(allLoaded []*skills.Skill, active []*skills.Skill
 
 	catalog := skills.BuildSlashCatalogMarkdown(skillSums)
 	if autoDiscovery && len(skillSums) > 0 {
-		catalog = joinNonEmptyPromptBlocks(catalog, loadSkillHint)
+		catalog = joinNonEmptyPromptBlocks(catalog, flowRoutingHint(allLoaded))
 	}
 	section := skills.BuildSystemPromptSection(activeForSection)
 	return joinNonEmptyPromptBlocks(catalog, section)
