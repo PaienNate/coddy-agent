@@ -53,6 +53,13 @@ func GitAvailable() bool {
 	return err == nil
 }
 
+// Run executes git in dir and returns its trimmed output. It is the same
+// runner the worktree and change helpers use: credential prompts fail instead
+// of blocking an agent turn, and the command goes through platform.AdaptCommand.
+func Run(dir string, args ...string) (string, error) {
+	return runGit(dir, args...)
+}
+
 func runGit(dir string, args ...string) (string, error) {
 	return runGitEnv(dir, nil, args...)
 }

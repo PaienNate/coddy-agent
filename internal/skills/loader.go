@@ -42,6 +42,12 @@ type Skill struct {
 	// native, or that its body is inspected for well-known foreign tool names.
 	// "coddy" (or "native") explicitly marks a skill that needs no mapping.
 	Compat string
+
+	// Routes is one line saying when the flow this skill carries applies, such
+	// as "the user asks for a new feature". The system prompt lists the skills
+	// that declare one, so the model enters the flow without being told its
+	// slash command. Empty keeps the skill out of that list.
+	Routes string
 }
 
 // Loader discovers and loads skills from the filesystem.
@@ -297,6 +303,7 @@ func parseSkillFile(path string, data []byte) *Skill {
 			skill.Reasoning = strings.ToLower(strings.TrimSpace(fm.Effort))
 		}
 		skill.Compat = fm.compat()
+		skill.Routes = strings.TrimSpace(fm.Routes)
 	}
 
 	return skill
@@ -315,9 +322,11 @@ type frontmatter struct {
 	// the metadata map; still read for the files that carry it.
 	Version       string `yaml:"version"`
 	Compatibility string `yaml:"compatibility"`
-	Model         string `yaml:"model"`
-	Reasoning     string `yaml:"reasoning"`
-	Effort        string `yaml:"effort"`
+	// Routes is the one-line "use this when" the routing hint lists.
+	Routes    string `yaml:"routes"`
+	Model     string `yaml:"model"`
+	Reasoning string `yaml:"reasoning"`
+	Effort    string `yaml:"effort"`
 }
 
 // compat is the foreign tool vocabulary a skill declares. The Agent Skills

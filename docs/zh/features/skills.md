@@ -15,8 +15,8 @@ Coddy 在二进制文件中内置了一组技能，并在首次安装时将它�
 | **`/configure-coddy`** | 在你要求时更改 Coddy 自身配置：设置、提供商、模型、日志、权限、MCP 服务器和技能。它会验证上游来源，用带类型的 `config_get` / `config_set` 工具暂存 uci 风格编辑，并且只在你确认后提交，因此 `config_commit` 会一步应用并热重载这些更改；`config_rollback` 会回到提交前快照。从不回显密钥。 |
 | **`/crossreview`** | 向一组彼此不可见的评审者发送一份评审简报，包括外部控制台代码智能体（Claude Code、Codex、Coddy、Cursor Agent、Devin、OpenCode、Gemini CLI、Qwen Code、Kimi、Koda）和内部的 `explore` 子智能体；该过程通过随附的 `crossreview` 协调器进行，协调器收集每个答案，针对代码验证每个发现，并独自决定修复什么。首次运行（以及之后的 `/crossreview:setup`）会检测已安装的 CLI，询问要使用哪些智能体及其哪些模型，并将名单保留在项目中的 `.coddy/crossreview.json`，或保留在所有项目中的 `${CODDY_HOME}/crossreview.json`，早期版本也把它保存在那里。同一个技能可从 [EvilFreelancer/crossreview](https://github.com/EvilFreelancer/crossreview) 安装到其他智能体中。 |
 | **`/rpa-init`** | 预热仓库上下文：记录基线，读取代码、文档和测试代码，按项目文档设置开发环境，运行测试，区分通过/失败/不可用/受阻，并写一份基于证据的简短报告。无需简报。 |
-| **`/rpa-feat`** | 按意图、计划、RED-GREEN-REFACTOR、独立子智能体、完整测试套件、文档与示例、质量门控和证据式完成来添加功能。需要描述要构建的内容。 |
-| **`/rpa-bugfix`** | 按证据、单一可信根因、失败复现测试、最窄修复、完整测试套件、质量门控和简短报告来修复 bug。需要提供 bug 信息：预期行为与实际行为，以及如何复现。 |
+| **`/rpa-feat`** | 通过五道门添加功能：经确认的规格写入 `docs/superpowers/specs/`，经确认的计划写入 `docs/superpowers/plans/`，RED-GREEN-REFACTOR 并为每个完成的任​​务写一行账本，对每个任务的 diff 做独立审查，最后给出收尾菜单。构建步骤不变：意图、小任务、独立子智能体、完整测试套件、文档与示例、质量门控和证据式完成。需要描述要构建的内容。 |
+| **`/rpa-bugfix`** | 通过同一份账本和同样的审查门修复 bug：证据、单一可信根因、失败复现测试、最窄修复、记录任务、独立审查、完整测试套件、质量门控和简短报告。需要提供 bug 信息：预期行为与实际行为，以及如何复现。 |
 | **`/rpa-gen-rules`** | 根据仓库实际包含的内容，为 Cursor、Claude Code 和 Codex 编写或刷新项目的智能体规则。参见 [rules.md](rules.md#生成规则)。 |
 | **`/chinese-code-review`** | 中文代码审查参考：既不回避问题又不让人下不来台的表达方式、分级标注（必须修复/建议修改/仅供参考/问题）、中英混排注释和常见审查反模式。仅显式调用。 |
 | **`/chinese-commit-conventions`** | 中文 Conventional Commits 参考：类型与范围约定、subject/body 规则、破坏性变更、Issue 关联，以及 commitlint、husky 和 conventional-changelog 配置。仅显式调用。 |
@@ -40,6 +40,35 @@ Coddy 在二进制文件中内置了一组技能，并在首次安装时将它�
 Coddy 无法写入的主目录（只读镜像、受限账户）不是错误：二进制文件中的副本会以只读方式代为响应，只有需要其 `SKILL.md` 旁边文件的技能（`references/`，或 `crossreview` 的 `scripts/`）才会注意到差异。你删除的交付技能不在其中：回执说明它已被交付，因此二进制文件不会再次把它作为你无法删除的技能提供。
 
 `crossreview` 位于它自己的仓库中，因此同一个技能可在 Claude Code、Codex 或 Cursor 中工作，并由 **`make skills-vendor`** 内置到 `internal/skills/bundled/`（它的 `SKILL.md`、`references/` 和 `scripts/`）。`rpa-*` 工作流则在本仓库中维护，最初从其上游技能打包而来，以便 Coddy 把意图、计划、TDD、子智能体和验证门控融合进去；`scripts/bundled-skills.json` 将它们标记为本地技能，并说明 `crossreview` 的来源。
+
+### 产物与门禁
+
+两个流程技能把工作写到 superpowers 工作流约定的路径上。被任一工具处理过的仓库只保留一棵树，任一工具都能接着另一方的计划继续。
+
+```text
+docs/superpowers/specs/<日期>-<主题>-design.md   操作者在写代码前确认的规格
+docs/superpowers/plans/<日期>-<功能>.md          操作者在执行前确认的计划
+.superpowers/sdd/<计划名>/progress.md            账本：每个完成的任务一行
+                              task-<n>-brief.md  从计划中切出的一个任务
+                              task-<n>-tests.log 该任务测试命令的完整输出
+                              review-<base>..<head>.diff   一个范围的审查包
+```
+
+`.superpowers/` 会写自己的 `.gitignore`（内容为 `*`），因此这棵树不会出现在 `git status` 中，也不会改动检出里被跟踪的忽略文件。账本第一行写明计划，每个完成的任务追加一行 `Task <n>: complete (commits <base>..<head>, tests: <命令> → <最后一行>)`。
+
+五道门，每一道都是停下，而不是一个小标题：
+
+1. **规格。** 技能写下结果、非目标、可选方案与验收标准，然后等待回答。小到不值得单独写规格的改动，把同样的内容并入计划的第一节，也仍然在这里停下。
+2. **计划。** 计划为每个任务写明一个行为、一个测试和一条验证命令，在 **Review Focus** 下列出测试没有覆盖的失效模式，并做一次自检。然后再等一次。
+3. **证据。** 每个任务以简报和基准提交开始，以该任务的测试命令结束。只有命令以 0 退出时，账本行才会出现。
+4. **审查。** 范围 `base..HEAD` 变成一个审查包，由全新的审查子智能体按技能旁的简报（`reviewer-prompt.md`）阅读。Critical 和 Important 的发现用一轮修复，每条都先有失败测试；Minor 的发现作为延后项记入账本。
+5. **收尾。** 本地合并、推送并开 pull request，或保留分支。只有第一种会清理 worktree，而且只在合并结果通过测试之后。
+
+**`sdd`** 工具承载这些产物。它接收计划文件和一个动作：`workspace` 返回计划目录，`brief` 切出一个任务，`start` 做同样的事并返回基准提交，`done` 运行该任务的测试命令并记录结果，`review` 为一个范围写审查包。它运行命令的方式与 `run_command` 相同，只有 `done` 可能请求授权：已批准的测试命令也覆盖它。调用它的技能不需要 shell、CLI 或 `PATH` 条目，因此在控制台、HTTP、ACP 和子智能体中流程一致。
+
+账本能在上下文压缩或新会话之后保留下来。先读 `progress.md` 再判断还剩什么：没有账本行的任务不算完成，无论转录里看起来如何。
+
+2.1.0 是第一个带门禁的版本。`${CODDY_HOME}/skills` 中的 2.0.0 副本会被上面的交付规则替换；你自己的修改可以通过把 `metadata.version` 提高到高于发布版本来保留。
 
 ### 随附的市场
 
@@ -353,6 +382,18 @@ Full skill body here...
 
 **`name`** 设置规范斜杠命令标识符（例如 `/code-review`）。设置后，它会覆盖从文件系统推导出的名称。`description` 会在目录和设置 → 技能面板中显示。
 
+`routes` 是一行"何时使用"，它把技能放进系统提示词的路由提示。声明了它的技能会在斜杠命令目录之后一起列出，作为在创建、修改、调试或审查代码之前要加载的流程，因此模型不必等到自己的斜杠命令就能进入工作流：
+
+```markdown
+---
+name: rpa-feat
+description: Coddy 功能工作流，包含规格、计划、账本和审查。
+routes: 用户要求新功能、行为变更或重构
+---
+```
+
+没有 `routes` 的技能只会通过它的斜杠命令和 `load_skill` 提示提供。
+
 两个可选字段决定技能运行时所使用的内容。`model` 指定已配置的模型 id，`reasoning`（别名 `effort`）指定该模型提供的一个级别，`off` 或 `default`；当技能被调用时，无论是通过提示词中的 `/code-review`，还是通过模型的 `load_skill`，它们都会在该轮次剩余时间内生效，会话自身的设置会在下一轮恢复（[会话设置](session-settings.md#按请求更改模型)）：
 
 ```markdown
@@ -434,4 +475,4 @@ ACP 客户端会收到 `available_commands_update`，其时机在 `session/new` 
 - 规则（独立机制）：[rules.md](rules.md)
 - Web 界面：设置 → 技能（需要 `coddy serve`）
 
-<!-- docsgen:source sha256=74a9d358757305a7 -->
+<!-- docsgen:source sha256=9b46f2caf4abe74c -->
