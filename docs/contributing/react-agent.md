@@ -140,8 +140,10 @@ the listings of `glob`, `print_tree`, `websearch` and `webfetch`
 replayed history, which invalidates the cache from that point on just as surely. With the default
 sliding working window that used to happen on nearly every step, so the conversation was reprocessed
 each time even with the prompt frozen. **`compaction.result_eviction.start_percent`** (default 50)
-holds the projection off until the estimated context reaches that share of the model's
-**`max_context_tokens`**; below it the history goes out exactly as the provider already has it. The
+and **`start_tokens`** (default 60000) hold the projection off until the conversation reaches the
+smaller of that share of the model's **`max_context_tokens`** and that many tokens; below it the
+history goes out exactly as the provider already has it. The gate counts the conversation alone,
+never the system prompt, the tool definitions or the rules. The
 decision is measured on the **unpruned** messages, so pruning cannot push the estimate back under the
 mark and make the projection flap between two shapes. A request the provider
 refused as too large opens the gate for the rest of that turn
@@ -427,7 +429,7 @@ messages: [
      (**`maxOverflowRecoveries`**; a successful call resets it): earlier turns
      when a regular split fits the limit the refusal revealed, otherwise the
      steps of the turn itself, behind the prompt (**`internal/agent/compact_in_turn.go`**).
-     It forces result eviction past its **`start_percent`** gate for the rest
+     It forces result eviction past its **`start_percent`** and **`start_tokens`** gate for the rest
      of the turn (**`Agent.evictionForced`**), writes a **`notice`** row, and
      uses a normal **`max_turns`** iteration. A second refusal of the same
      step, a fold that fails or has nothing to fold, and

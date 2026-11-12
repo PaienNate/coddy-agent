@@ -60,3 +60,13 @@ Feature: Compaction inside a long turn
     And the turn ended with the model's answer
     And the transcript holds a summary row that starts with the prompt
     And the transcript still holds every original message
+
+  Scenario: A fold on a wide window lands at the tail budget
+    Given a model window of 1048576 tokens
+    And auto-compaction triggers at 20 percent of the window
+    And the tail budget is 15000 tokens
+    And result eviction is off, so only compaction can keep the turn inside the window
+    And a model that reads 4 files of 80 lines in parallel at each of 30 steps and then answers
+    When the user sends one prompt
+    Then the turn was folded
+    And every request after the fold carried at most the tail budget in conversation tokens

@@ -627,3 +627,77 @@ func TestElideToTokensCutsEvenWhenTheCorrectionRoundsToNothing(t *testing.T) {
 		}
 	}
 }
+
+// compactStateWithBigExchanges seeds a session whose messages are large enough
+// that a tail budget can be smaller than the turns keep_recent_turns asks for:
+// each message carries wordsPerMessage "word " tokens, about 1.7 estimated
+// tokens a word.
+func compactStateWithBigExchanges(t *testing.T, exchanges, wordsPerMessage int) *session.State {
+	t.Helper()
+	st := &session.State{
+		ID:   "sess_compact_budget",
+		CWD:  t.TempDir(),
+		Mode: session.ModeAgent,
+	}
+	body := strings.Repeat("word ", wordsPerMessage)
+	for i := 1; i <= exchanges; i++ {
+		st.AddMessage(llm.Message{Role: llm.RoleUser, Content: fmt.Sprintf("question %d %s", i, body)})
+		st.AddMessage(llm.Message{Role: llm.RoleAssistant, Content: fmt.Sprintf("answer %d %s", i, body)})
+	}
+	return st
+}
+
+func TestRegularCompactionKeepsOnlyTheTurnsThatFitTheTailBudget(t *testing.T) {
+	st := compactStateWithBigExchanges(t, 4, 600) // ~2000 tokens an exchange
+	keep, tail := 2, 2500
+	provider := &compactCannedProvider{t: t, summary: "SUMMARY"}
+	ag := compactTestAgent(t, st, config.Compaction{KeepRecentTurns: &keep, KeepTailTokens: &tail}, provider)
+
+	res, err := ag.CompactSession(context.Background(), CompactOptions{})
+	if err != nil {
+		t.Fatalf("compaction: %v", err)
+	}
+	if res.KeptMessages == 0 {
+		t.Fatal("nothing was kept, want the turn that fits the tail budget")
+	}
+	replayed := transcriptText(session.MessagesForLLM(st.GetMessages()))
+	if !strings.Contains(replayed, "question 4") {
+		t.Fatalf("the newest turn is missing from the replayed window: %q", replayed)
+	}
+	if strings.Contains(replayed, "question 3") {
+		t.Fatalf("two turns were kept although only one fits the 2500-token budget: %q", replayed)
+	}
+}
+
+func TestRegularCompactionKeepsThePromptWhenItAloneExceedsTheTailBudget(t *testing.T) {
+	st := compactStateWithBigExchanges(t, 3, 600)
+	keep, tail := 2, 10
+	provider := &compactCannedProvider{t: t, summary: "SUMMARY"}
+	ag := compactTestAgent(t, st, config.Compaction{KeepRecentTurns: &keep, KeepTailTokens: &tail}, provider)
+
+	res, err := ag.CompactSession(context.Background(), CompactOptions{})
+	if err != nil {
+		t.Fatalf("compaction: %v", err)
+	}
+	if res.KeptMessages != 2 {
+		t.Fatalf("kept %d messages, want the one turn the floor keeps when the budget cannot hold even it", res.KeptMessages)
+	}
+	if replayed := transcriptText(session.MessagesForLLM(st.GetMessages())); !strings.Contains(replayed, "question 3") {
+		t.Fatalf("the prompt being answered was folded: %q", replayed)
+	}
+}
+
+func TestKeepRecentTurnsZeroWinsOverTheTailBudget(t *testing.T) {
+	st := compactStateWithBigExchanges(t, 3, 600)
+	zero, tail := 0, 15000
+	provider := &compactCannedProvider{t: t, summary: "SUMMARY"}
+	ag := compactTestAgent(t, st, config.Compaction{KeepRecentTurns: &zero, KeepTailTokens: &tail}, provider)
+
+	res, err := ag.CompactSession(context.Background(), CompactOptions{Force: true})
+	if err != nil {
+		t.Fatalf("manual compaction: %v", err)
+	}
+	if res.KeptMessages != 0 {
+		t.Fatalf("kept %d messages, want keep_recent_turns: 0 to fold everything whatever the tail budget says", res.KeptMessages)
+	}
+}

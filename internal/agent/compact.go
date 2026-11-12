@@ -215,9 +215,23 @@ func (a *Agent) CompactSession(ctx context.Context, opts CompactOptions) (*Compa
 				last = open
 			}
 		}
-		idx, ok := session.CompactionSplitIndexUpTo(msgs, keep, last)
-		for k := keep - 1; !ok && k >= minKeep; k-- {
-			idx, ok = session.CompactionSplitIndexUpTo(msgs, k, last)
+		// The tail budget: the turns that stay are the newest ones that fit it,
+		// so a fold on a wide window reclaims what it costs instead of leaving a
+		// tail as wide as the window. The floor is taken even when it does not
+		// fit - folding the prompt being answered is worse than a tail that is
+		// too large, and the automatic trigger folds again at the next step.
+		keepTail := a.cfg.Compaction.EffectiveKeepTailTokens()
+		idx, ok := 0, false
+		for k := keep; k >= minKeep; k-- {
+			candidate, found := session.CompactionSplitIndexUpTo(msgs, k, last)
+			if !found {
+				continue
+			}
+			if k == minKeep || keepTail <= 0 ||
+				conversationTokens(project()[candidate-viewOffset:], a.modelReadsImages()) <= keepTail {
+				idx, ok = candidate, true
+				break
+			}
 		}
 		if !ok {
 			return nil, ErrNothingToCompact

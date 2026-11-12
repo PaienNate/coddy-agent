@@ -125,6 +125,11 @@ type inTurnFeatureState struct {
 	steps    int
 	fanOut   int
 	refuseAt int
+	// thresholdPercent and keepTailTokens are the compaction budgets of the
+	// scenario; 0 leaves the config default in place.
+	thresholdPercent int
+	keepTailTokens   int
+	lines            int
 	// followUp is a message the user types while the model is at step followUpAt.
 	followUp   string
 	followUpAt int
@@ -141,6 +146,7 @@ type inTurnFeatureState struct {
 func (s *inTurnFeatureState) reset() error {
 	s.close()
 	s.window, s.served, s.evictOff, s.steps, s.fanOut, s.refuseAt = 0, 0, false, 0, 0, 0
+	s.thresholdPercent, s.keepTailTokens, s.lines = 0, 0, 0
 	s.followUp, s.followUpAt, s.goalTurn = "", 0, nil
 	s.provider, s.st, s.ag, s.stop, s.runErr = nil, nil, nil, "", nil
 	return nil
@@ -177,6 +183,21 @@ func (s *inTurnFeatureState) evictionOff() error {
 	return nil
 }
 
+func (s *inTurnFeatureState) autoCompactionTriggersAt(percent int) error {
+	s.thresholdPercent = percent
+	return nil
+}
+
+func (s *inTurnFeatureState) theTailBudgetIs(tokens int) error {
+	s.keepTailTokens = tokens
+	return nil
+}
+
+func (s *inTurnFeatureState) modelReadsBigFiles(fanOut, lines, steps int) error {
+	s.fanOut, s.lines, s.steps = fanOut, lines, steps
+	return nil
+}
+
 func (s *inTurnFeatureState) modelReads(fanOut, steps int) error {
 	s.fanOut, s.steps = fanOut, steps
 	return nil
@@ -206,6 +227,13 @@ type inTurnLongTurn struct {
 	fanOut   int
 	refuseAt int
 	evictOff bool
+	// thresholdPercent and keepTailTokens are the compaction budgets; 0 leaves
+	// the config default in place.
+	thresholdPercent int
+	keepTailTokens   int
+	// lines is how many lines each file of a read step holds; 0 is the default
+	// of 40.
+	lines int
 	// followUp, when set, is queued as the model starts step followUpAt, the way
 	// a user types into a running turn.
 	followUp   string
@@ -228,10 +256,14 @@ type inTurnWorld struct {
 // few thousand characters, so a step of parallel reads costs a few thousand
 // tokens of context.
 func (d inTurnLongTurn) writeModules(cwd string) (func(step, k int) string, error) {
+	lines := d.lines
+	if lines <= 0 {
+		lines = 40
+	}
 	for step := 0; step < d.steps; step++ {
 		for k := 0; k < d.fanOut; k++ {
 			var b strings.Builder
-			for line := 1; line <= 40; line++ {
+			for line := 1; line <= lines; line++ {
 				fmt.Fprintf(&b, "module %02d-%d line %02d: this part of the project parses its input and hands the result on\n", step, k, line)
 			}
 			name := fmt.Sprintf("module_%02d_%d.txt", step, k)
@@ -273,6 +305,13 @@ func (d inTurnLongTurn) run(tempDir func() (string, error)) (*inTurnWorld, error
 		off := false
 		cfg.Compaction.ResultEviction.Enabled = &off
 	}
+	if d.thresholdPercent > 0 {
+		cfg.Compaction.ThresholdPercent = d.thresholdPercent
+	}
+	if d.keepTailTokens > 0 {
+		tail := d.keepTailTokens
+		cfg.Compaction.KeepTailTokens = &tail
+	}
 	w.st = &session.State{ID: "sess_bdd_in_turn", CWD: cwd, Mode: session.ModeAgent, SessionDir: sessionDir}
 	w.ag = NewAgent(cfg, w.st, resumePermissionSender{}, nil)
 	w.ag.providerFactory = func(llm.ProviderInput) (llm.Provider, error) { return w.provider, nil }
@@ -299,6 +338,7 @@ func (s *inTurnFeatureState) promptIsAGoalContinuation() error {
 func (s *inTurnFeatureState) userSendsOnePrompt() error {
 	w, err := inTurnLongTurn{
 		window: s.window, steps: s.steps, fanOut: s.fanOut, refuseAt: s.refuseAt, evictOff: s.evictOff,
+		thresholdPercent: s.thresholdPercent, keepTailTokens: s.keepTailTokens, lines: s.lines,
 		followUp: s.followUp, followUpAt: s.followUpAt, goalTurn: s.goalTurn,
 	}.run(s.tempDir)
 	if err != nil {
@@ -335,6 +375,45 @@ func (s *inTurnFeatureState) summaryRows() []llm.Message {
 		}
 	}
 	return rows
+}
+
+func (s *inTurnFeatureState) turnFolded() error {
+	if n := len(s.summaryRows()); n < 1 {
+		return fmt.Errorf("the transcript holds no summary row, want the turn folded")
+	}
+	return nil
+}
+
+// everyRequestAfterTheFoldFitsTheTailBudget checks the requests sent after a
+// fold: what they carry besides the system prompt and the tool definitions is
+// the tail budget plus the summary row and the prompt at its start.
+func (s *inTurnFeatureState) everyRequestAfterTheFoldFitsTheTailBudget() error {
+	if s.keepTailTokens <= 0 {
+		return fmt.Errorf("the scenario set no tail budget")
+	}
+	folded, rows := 0, 0
+	for _, req := range s.provider.accepted {
+		carried := 0
+		for _, m := range req {
+			if m.CompactionSummary {
+				carried++
+			}
+		}
+		// The first request after a fold is the one the fold aimed; the steps
+		// after it grow the tail again until the next fold.
+		if carried <= rows {
+			continue
+		}
+		rows, folded = carried, folded+1
+		conv := conversationTokens(withoutSystemMessage(req), false)
+		if limit := s.keepTailTokens + 3000; conv > limit {
+			return fmt.Errorf("the first request after a fold carried %d conversation tokens, want at most %d: the tail budget plus the summary and the prompt", conv, limit)
+		}
+	}
+	if folded == 0 {
+		return fmt.Errorf("no request was sent after a fold")
+	}
+	return nil
 }
 
 func (s *inTurnFeatureState) turnFoldedMoreThanOnce() error {
@@ -563,6 +642,11 @@ func initializeInTurnScenario(sc *godog.ScenarioContext) {
 	sc.Step(`^no request was refused$`, s.noRequestWasRefused)
 	sc.Step(`^the turn ended with the model's answer$`, s.turnEndedWithAnswer)
 	sc.Step(`^the turn was folded more than once$`, s.turnFoldedMoreThanOnce)
+	sc.Step(`^the turn was folded$`, s.turnFolded)
+	sc.Step(`^auto-compaction triggers at (\d+) percent of the window$`, s.autoCompactionTriggersAt)
+	sc.Step(`^the tail budget is (\d+) tokens$`, s.theTailBudgetIs)
+	sc.Step(`^a model that reads (\d+) files of (\d+) lines in parallel at each of (\d+) steps and then answers$`, s.modelReadsBigFiles)
+	sc.Step(`^every request after the fold carried at most the tail budget in conversation tokens$`, s.everyRequestAfterTheFoldFitsTheTailBudget)
 	sc.Step(`^every request carried the prompt verbatim$`, s.everyRequestCarriedThePrompt)
 	sc.Step(`^the first summary row starts with the prompt, not with the follow-up, and the later ones do not repeat it$`, s.firstSummaryRowStartsWithThePromptNotTheFollowUp)
 	sc.Step(`^every tool result in each request answers a call that request carries$`, s.everyToolResultAnswersACall)

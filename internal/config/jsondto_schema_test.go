@@ -328,13 +328,13 @@ func TestUISchemaCompactionOffersNoInTurnSection(t *testing.T) {
 	if _, ok := props["in_turn"]; ok {
 		t.Fatalf("compaction.in_turn = %#v, want no such section", props["in_turn"])
 	}
-	if got, want := order(compaction), []string{"enable", "auto_enable", "threshold_percent", "keep_recent_turns", "model", "result_eviction"}; !reflect.DeepEqual(got, want) {
+	if got, want := order(compaction), []string{"enable", "auto_enable", "threshold_percent", "keep_recent_turns", "keep_tail_tokens", "model", "result_eviction"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("compaction field order %v, want %v", got, want)
 	}
 
 	re := props["result_eviction"].(map[string]interface{})
 	reFields := re["properties"].(map[string]interface{})
-	want := []string{"enable", "keep_recent", "min_result_bytes", "start_percent"}
+	want := []string{"enable", "keep_recent", "min_result_bytes", "start_percent", "start_tokens"}
 	if got := order(re); !reflect.DeepEqual(got, want) || len(reFields) != len(want) {
 		t.Fatalf("result_eviction fields %v (order %v), want %v", reFields, got, want)
 	}
