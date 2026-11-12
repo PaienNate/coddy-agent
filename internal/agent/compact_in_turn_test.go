@@ -440,13 +440,13 @@ func TestInTurnTarget(t *testing.T) {
 // --- the prompt in front of the summary ----------------------------------------
 
 func TestInTurnTargetCappedByTheTailBudget(t *testing.T) {
-	if got := inTurnTargetWithTail(1_048_576, 80, 15_000, 120_000); got != 135_000 {
+	if got := inTurnTargetWithTail(1_048_576, 80, 15_000, 120_000, 1); got != 135_000 {
 		t.Fatalf("target = %d, want 135000: a wide window aims at the request's overhead plus the tail budget", got)
 	}
 }
 
 func TestInTurnTargetWithoutATailBudget(t *testing.T) {
-	if got, want := inTurnTargetWithTail(1_048_576, 80, 0, 120_000), inTurnTargetTokens(1_048_576, 80); got != want {
+	if got, want := inTurnTargetWithTail(1_048_576, 80, 0, 120_000, 1), inTurnTargetTokens(1_048_576, 80); got != want {
 		t.Fatalf("target = %d, want the share of the window %d when keep_tail_tokens is off", got, want)
 	}
 }
@@ -454,7 +454,7 @@ func TestInTurnTargetWithoutATailBudget(t *testing.T) {
 func TestInTurnTargetBelowTheRequestOverheadKeepsTheFloor(t *testing.T) {
 	// The aim is the tail above the overhead, never the overhead plus a share:
 	// rules bigger than the window still leave a 10-token tail.
-	if got := inTurnTargetWithTail(1_048_576, 80, 10, 200_000); got != 200_010 {
+	if got := inTurnTargetWithTail(1_048_576, 80, 10, 200_000, 1); got != 200_010 {
 		t.Fatalf("target = %d, want 200010", got)
 	}
 	// A tail that the summary chain and the prompt already eat leaves a negative
@@ -469,8 +469,22 @@ func TestInTurnTargetBelowTheRequestOverheadKeepsTheFloor(t *testing.T) {
 	}
 }
 
+func TestInTurnTargetCapsAfterTheProviderScale(t *testing.T) {
+	// The share of the window is in the provider's count and the cap is in
+	// Coddy's estimate: a provider that counts 1.2 tokens per estimated one
+	// leaves 1M * 80% * 50% / 1.2 = 349525 of share, and the 135000 cap is below
+	// it, so the aim is the cap and not the cap divided a second time.
+	if got := inTurnTargetWithTail(1_048_576, 80, 15_000, 120_000, 1.2); got != 135_000 {
+		t.Fatalf("target = %d, want 135000: the cap applies after the provider's count is converted", got)
+	}
+	// Below the cap the converted share still decides, as it always did.
+	if got := inTurnTargetWithTail(1_048_576, 80, 0, 120_000, 1.2); got != 349525 {
+		t.Fatalf("target = %d, want 349525: the share converted to the estimate", got)
+	}
+}
+
 func TestInTurnTargetWithoutAWindow(t *testing.T) {
-	if got := inTurnTargetWithTail(0, 80, 15_000, 120_000); got != 0 {
+	if got := inTurnTargetWithTail(0, 80, 15_000, 120_000, 1); got != 0 {
 		t.Fatalf("target = %d, want 0: no window to measure leaves no aim", got)
 	}
 }
@@ -1316,6 +1330,43 @@ func TestAutomaticInTurnFoldBudgetIsScaledByTheProvidersCount(t *testing.T) {
 	}
 	if len(provider.requests) != 1 {
 		t.Fatalf("the summarizer was asked %d times, want once", len(provider.requests))
+	}
+}
+
+// The tail budget is in Coddy's estimate and the share of the window is in the
+// provider's count: the cap is taken after the conversion, so a provider that
+// counts denser does not fold the tail twice as small. With the cap at 5500 and
+// 1500 of overhead the fold keeps 3 of the 8 steps; capping before dividing
+// would leave 700 and keep one.
+func TestInTurnFoldKeepsTheTailBudgetAfterTheProviderScale(t *testing.T) {
+	off := false
+	keepTail := 4000
+	comp := config.Compaction{
+		KeepTailTokens: &keepTail,
+		ResultEviction: config.ResultEviction{Enabled: &off},
+	}
+	msgs := fixtureTurn("Audit every module and report.", 8, 1, 3900)
+	st := stateOf(t, msgs)
+	provider := &compactCannedProvider{t: t, summary: "the first modules were audited"}
+	ag, _ := windowAgent(t, st, comp, provider, 1_048_576, 1500, conversationTokens(msgs, false))
+
+	// The cap binds on this wide window, so the provider's count no longer
+	// matters: the same steps stay whether it counts the estimate as it is or at
+	// two and a half times. Capping before dividing would keep fewer at 2.5.
+	plain, err := ag.planInTurn(CompactOptions{}, msgs, 0, msgs)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	const scale = 2.5
+	b := st.GetLastContextBreakdown()
+	b.ProviderInputTokens, b.ProviderEstimateTokens = int(scale*float64(b.EstimatedTotal)), b.EstimatedTotal
+	st.SetLastContextBreakdown(b)
+	scaled, err := ag.planInTurn(CompactOptions{}, msgs, 0, msgs)
+	if err != nil {
+		t.Fatalf("plan at scale %v: %v", scale, err)
+	}
+	if scaled.keptSteps != plain.keptSteps {
+		t.Fatalf("the fold kept %d steps at scale %v and %d without it: the tail budget is estimated and must not be divided by the provider's scale", scaled.keptSteps, scale, plain.keptSteps)
 	}
 }
 
