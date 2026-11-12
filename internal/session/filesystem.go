@@ -940,7 +940,7 @@ func (f *FileStore) appendBundleRow(out []SessionListEntry, dir, id, cwdFilter s
 	if !opts.IncludeSchedulerRuns && meta.ExcludedFromComposerSessionList(id) {
 		return out, false
 	}
-	if !opts.IncludeSubagents && meta.IsSubagentRun() && !(opts.IncludeImportedSubagents && hasTag(meta.Tags, "opencode")) {
+	if !opts.IncludeSubagents && meta.IsSubagentRun() && (!opts.IncludeImportedSubagents || !hasTag(meta.Tags, "opencode")) {
 		return out, true
 	}
 	if cwdFilter != "" && !matchesWorkspace(cwdFilter, meta.CWD) {

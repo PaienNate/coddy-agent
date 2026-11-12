@@ -74,6 +74,8 @@ func SaveConfig(home string, cfg Config) error {
 	if strings.TrimSpace(cfg.URL) == "" {
 		return errors.New("OpenCode URL is required")
 	}
+	//nolint:gosec // G117: writing this credential to the operator's own 0600
+	// config file is what this function is for; it is never logged or sent.
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err
