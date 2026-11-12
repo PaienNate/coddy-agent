@@ -336,8 +336,8 @@ tools.websearch:
   en: "Which search engines the websearch tool asks, in what order their results merge, and what it may spend asking them. Each engine reports its own outcome next to the results, so a blocked backend is named rather than counted as \"the web has nothing\"."
   ru: "Какие поисковые системы опрашивает инструмент websearch, в каком порядке объединяются их результаты и сколько он может потратить на опрос. Каждая система сообщает свой исход рядом с результатами, поэтому заблокированный бэкенд называется по имени, а не считается ответом \"в сети ничего нет\"."
 tools.websearch.engines:
-  en: "Search engines to ask, in merge order. Unset asks brave then bing. \"ddg\" and \"google\" are not asked by default: measured from a server, DuckDuckGo answers every query with an anti-bot interstitial and Google renders its results in the browser. \"searxng\" needs searxng_url."
-  ru: "Поисковые системы для опроса в порядке объединения результатов. Если не задано, опрашиваются brave, затем bing. \"ddg\" и \"google\" по умолчанию не опрашиваются - при замерах с сервера DuckDuckGo отвечает на любой запрос промежуточной страницей защиты от ботов, а Google отрисовывает результаты в браузере. Для \"searxng\" нужен searxng_url."
+  en: 'Search engines to ask, in merge order. Unset asks brave then bing. "ddg" and "google" are not asked by default: measured from a server, DuckDuckGo answers every query with an anti-bot interstitial and Google renders its results in the browser. "searxng" needs searxng_url. "exa", "firecrawl", "parallel", "tinyfish" and "tavily" are the OpenCode-compatible providers; their keys are optional where keyless works.'
+  ru: "Поисковые системы для опроса в порядке объединения результатов. Если не задано, опрашиваются brave, затем bing. \"ddg\" и \"google\" по умолчанию не опрашиваются - при замерах с сервера DuckDuckGo отвечает на любой запрос промежуточной страницей защиты от ботов, а Google отрисовывает результаты в браузере. Для \"searxng\" нужен searxng_url. \"exa\", \"firecrawl\", \"parallel\", \"tinyfish\" и \"tavily\" - провайдеры, совместимые с OpenCode; их ключи необязательны там, где работает режим без ключа."
 tools.websearch.engine_timeout_seconds:
   en: "Seconds one engine may take before it is reported as unavailable. 0 uses the default."
   ru: "Сколько секунд может занять одна система, прежде чем она будет отмечена недоступной. 0 берёт значение по умолчанию."
@@ -362,6 +362,21 @@ tools.websearch.brave_api_key:
 tools.websearch.deepseek_api_key:
   en: "DeepSeek Search API key. The deepseek engine asks DeepSeek's Search API (POST /v1/tools/search), which has no public page to scrape, so without a key the engine is unavailable. Empty reads the DEEPSEEK_API_KEY environment variable (also from ${CODDY_HOME}/.env), so the key need not be stored here."
   ru: "Ключ DeepSeek Search API. Движок deepseek опрашивает Search API DeepSeek (POST /v1/tools/search), у которого нет публичной страницы для парсинга, поэтому без ключа движок недоступен. Пусто - читается переменная окружения DEEPSEEK_API_KEY (в том числе из ${CODDY_HOME}/.env), поэтому ключ не обязательно хранить здесь."
+tools.websearch.exa_api_key:
+  en: "Exa API key. The exa engine asks Exa's hosted search MCP. Empty reads EXA_API_KEY, or uses the keyless tier."
+  ru: "Ключ Exa API. Движок exa обращается к размещённому у Exa поисковому MCP. Пустое значение читает EXA_API_KEY или использует тариф без ключа."
+tools.websearch.firecrawl_api_key:
+  en: "Firecrawl API key. The firecrawl engine asks Firecrawl's hosted search MCP. Empty reads FIRECRAWL_API_KEY, or uses the keyless tier."
+  ru: "Ключ Firecrawl API. Движок firecrawl обращается к размещённому у Firecrawl поисковому MCP. Пустое значение читает FIRECRAWL_API_KEY или использует тариф без ключа."
+tools.websearch.parallel_api_key:
+  en: "Parallel API key. The parallel engine asks Parallel's hosted search MCP. Empty reads PARALLEL_API_KEY, or uses the keyless tier."
+  ru: "Ключ Parallel API. Движок parallel обращается к размещённому у Parallel поисковому MCP. Пустое значение читает PARALLEL_API_KEY или использует тариф без ключа."
+tools.websearch.tinyfish_api_key:
+  en: "TinyFish API key. The tinyfish engine asks TinyFish's hosted search MCP. Empty reads TINYFISH_API_KEY, or uses the free keyless tier."
+  ru: "Ключ TinyFish API. Движок tinyfish обращается к размещённому у TinyFish поисковому MCP. Пустое значение читает TINYFISH_API_KEY или использует бесплатный тариф без ключа."
+tools.websearch.tavily_api_key:
+  en: "Tavily API key. The tavily engine asks Tavily's search API. Empty reads TAVILY_API_KEY, or uses the keyless tier."
+  ru: "Ключ Tavily API. Движок tavily обращается к поисковому API Tavily. Пустое значение читает TAVILY_API_KEY или использует тариф без ключа."
 tools.http_request:
   en: "Policy of the http_request tool, the agent's curl: the destinations it reaches without asking and the headers every request sends. Under the ask and accept_edits permission modes a request asks the operator unless its destination is allowed here or was approved in the session; bypass never asks. See https://coddy.dev/docs/features/http-requests."
   ru: "Политика инструмента http_request, curl агента, - адреса, к которым он обращается без вопроса, и заголовки, которые отправляет каждый запрос. В режимах разрешений ask и accept_edits запрос спрашивает оператора, если его адрес не разрешён здесь и не был одобрен в сессии; bypass не спрашивает никогда. См. https://coddy.dev/docs/features/http-requests."
@@ -470,6 +485,9 @@ compaction.threshold_percent:
 compaction.keep_recent_turns:
   en: "How many most recent user turns (each with the agent replies and tool activity after it) stay verbatim; only history before that boundary is summarized. 0 summarizes the whole window. When the window holds no more user turns than this, a compaction keeps fewer: the automatic trigger down to the prompt being answered, the manual command down to none."
   ru: "Сколько последних ходов пользователя (каждый с ответами агента и работой инструментов после него) остаются дословно; в сводку попадает только история до этой границы. 0 сворачивает в сводку всё окно. Если в окне не больше ходов пользователя, чем это число, сжатие оставляет меньше - автоматический запуск вплоть до промпта, на который идёт ответ, ручная команда вплоть до нуля."
+compaction.keep_tail_tokens:
+  en: "Absolute ceiling on the tail a compaction keeps verbatim, in estimated tokens: the newest turns that fit it stay, never more than keep_recent_turns and never fewer than one (none for a manual compaction that folds everything). It bounds what a wide window leaves behind, which the steps after the fold would otherwise pay for again. 0 turns the cap off, so keep_recent_turns alone decides."
+  ru: "Абсолютный предел хвоста, который сжатие оставляет дословно, в оценённых токенах: остаются самые новые ходы, которые в него помещаются, не больше keep_recent_turns и не меньше одного (ни одного при ручном сжатии, сворачивающем всё). Он ограничивает то, что оставляет широкое окно, иначе следующие шаги платили бы за это снова. 0 выключает предел, и решение остаётся за keep_recent_turns."
 compaction.model:
   en: "Optional models[].model used for the summarization call. Empty uses the session's effective model."
   ru: "Необязательная модель из models[].model для вызова, который составляет сводку. Пусто - действующая модель сессии."
@@ -491,6 +509,9 @@ compaction.result_eviction.min_result_bytes:
 compaction.result_eviction.start_percent:
   en: "Evict only once the estimated context reaches this percent of the model's context window. Below it the replayed history is sent untouched, so the provider's prompt cache keeps it; a placeholder appearing mid-history invalidates every cached token behind it. 0 evicts from the first result. Read and grep results of a model without max_context_tokens are evicted from the first result; listing results measure against the window its provider reports, or the default 128000."
   ru: "Вытеснять, только когда оценка контекста достигла этого процента окна контекста модели. Ниже порога история отправляется без изменений, и кэш промптов провайдера её сохраняет; заглушка, появившаяся посреди истории, делает недействительным каждый закэшированный токен после неё. 0 вытесняет с первого результата. Результаты read и grep модели без max_context_tokens вытесняются с первого результата; результаты просмотров меряются окном, которое сообщает её провайдер, или окном по умолчанию 128000."
+compaction.result_eviction.start_tokens:
+  en: "Absolute ceiling on the eviction gate: eviction starts at the smaller of start_percent of the window and this many conversation tokens. The conversation is measured without the request's own overhead (the system prompt, the tool definitions, the rules), which nothing can evict, so a large AGENTS.md cannot open the gate at the first result. 0 leaves start_percent alone."
+  ru: "Абсолютный предел порога вытеснения: вытеснение начинается по меньшему из start_percent окна и этого числа токенов диалога. Диалог измеряется без собственных накладных расходов запроса (системный промпт, определения инструментов, правила), которые вытеснить нельзя, поэтому большой AGENTS.md не открывает порог на первом результате. 0 оставляет только start_percent."
 memory:
   en: "Optional memory subagent (implementation in external/memory; enable at runtime with memory.enable)."
   ru: "Необязательный субагент памяти (реализация в external/memory; включается во время работы через memory.enable)."

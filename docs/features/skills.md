@@ -18,8 +18,8 @@ at a directory that does not exist.
 | **`/configure-coddy`** | Changes Coddy's own configuration when you ask: settings, providers, models, logging, permissions, MCP servers and skills. Verifies the upstream source, stages uci-style edits with the typed `config_get` / `config_set` tools, and commits only after you confirm, so `config_commit` applies and hot-reloads them in one step; `config_rollback` returns to the pre-commit snapshot. Never echoes secrets. |
 | **`/crossreview`** | Sends one review brief to a quorum of reviewers that stay blind to each other - external console code agents (Claude Code, Codex, Coddy, Cursor Agent, Devin, OpenCode, Gemini CLI, Qwen Code, Kimi, Koda) and internal `explore` children - through the bundled `crossreview` coordinator, which collects every answer, verifies each finding against the code and decides alone what to fix. The first run (and `/crossreview:setup` later) detects the installed CLIs, asks which agents and which of their models to use, and keeps the roster either for the project in `.coddy/crossreview.json` or for all projects in `${CODDY_HOME}/crossreview.json`, where earlier versions kept it too. The same skill installs in other agents from [EvilFreelancer/crossreview](https://github.com/EvilFreelancer/crossreview). |
 | **`/rpa-init`** | Warms up context on a repository: records the baseline, reads the code, the documentation and the test code, sets up the dev environment the project documents, runs the tests, distinguishes pass/fail/unavailable/blocked, and writes a short evidence-based report. Needs no brief. |
-| **`/rpa-feat`** | Adds a feature by intent, plan, RED-GREEN-REFACTOR, independent subagents, the full suite, documentation and examples, quality gates, and evidence-based completion. Needs a description of what to build. |
-| **`/rpa-bugfix`** | Fixes a bug by evidence, one credible root cause, a failing reproduction test, the narrowest fix, the full suite, quality gates, and a short report. Needs the bug: expected against actual, and how to reproduce it. |
+| **`/rpa-feat`** | Adds a feature through five gates: an approved spec in `docs/superpowers/specs/`, an approved plan in `docs/superpowers/plans/`, RED-GREEN-REFACTOR with a ledger line per finished task, an independent review of each task's diff, and a finish menu. The build steps stay the same: intent, small tasks, independent subagents, the full suite, documentation and examples, quality gates, and evidence-based completion. Needs a description of what to build. |
+| **`/rpa-bugfix`** | Fixes a bug through the same ledger and review gates: evidence, one credible root cause, a failing reproduction test, the narrowest fix, a recorded task, an independent review, the full suite, quality gates, and a short report. Needs the bug: expected against actual, and how to reproduce it. |
 | **`/rpa-gen-rules`** | Writes or refreshes the project's agent rules for Cursor, Claude Code and Codex from what the repository actually contains. See [rules.md](rules.md#generating-rules). |
 | **`/chinese-code-review`** | Chinese code-review reference: phrasing that stays direct without being hostile, severity tags (must fix / suggested / optional / question), mixed Chinese-English comments, and common review anti-patterns. Explicit invocation only. |
 | **`/chinese-commit-conventions`** | Chinese Conventional Commits reference: type and scope conventions, subject/body rules, breaking changes, issue links, commitlint, husky and conventional-changelog configuration. Explicit invocation only. |
@@ -72,6 +72,52 @@ and is vendored into `internal/skills/bundled/` (its `SKILL.md`, `references/` a
 packaged from their upstream skills, so Coddy can fuse its own intent, planning, TDD, subagent,
 and verification gates into them; `scripts/bundled-skills.json` marks them as local and says where
 `crossreview` comes from.
+
+### Artifacts and gates
+
+The two flow skills write their work down, at the paths the superpowers workflow standardizes on. A repository
+worked on by either tool keeps one tree, and either tool can resume the other's plan.
+
+```text
+docs/superpowers/specs/<date>-<topic>-design.md     the spec the operator approves before code
+docs/superpowers/plans/<date>-<feature>.md          the plan the operator approves before execution
+.superpowers/sdd/<plan-name>/progress.md            the ledger: one line per finished task
+                              task-<n>-brief.md     one task, sliced out of the plan
+                              task-<n>-tests.log    the whole output of that task's test command
+                              review-<base>..<head>.diff   one review package per range
+```
+
+`.superpowers/` writes its own `.gitignore` (`*`), so the tree stays out of `git status` without touching the
+checkout's tracked ignore file. The ledger's first line names the plan, and each finished task adds
+`Task <n>: complete (commits <base>..<head>, tests: <command> → <last line>)`.
+
+Five gates, each a stop and not a heading:
+
+1. **Spec.** The skill writes the outcome, non-goals, approaches and acceptance criteria, then waits for an
+   answer. A change small enough that a spec would be ceremony folds the same content into the plan's first
+   section, and still stops.
+2. **Plan.** The plan names one behavior, one test and one verification command per task, lists the failure
+   modes its tests do not cover under **Review Focus**, and is self-checked. Then it waits again.
+3. **Evidence.** Each task starts with a brief and a base commit, and ends with the task's test command. The
+   ledger line appears only when that command exits 0.
+4. **Review.** The range `base..HEAD` becomes a review package that a fresh reviewer subagent reads, with the
+   brief beside the skill (`reviewer-prompt.md`). Critical and Important findings are fixed in one round, each
+   behind a failing test; Minor ones are named in the ledger as deferred.
+5. **Finish.** Merge locally, push and open a pull request, or leave the branch. Only the first cleans up a
+   worktree, and only after the merged result passes.
+
+The **`sdd`** tool carries the artifacts. It takes the plan file and one action: `workspace` returns the plan's
+directory, `brief` slices a task, `start` does that and returns the base commit, `done` runs the task's test
+command and records the result, and `review` writes the package for a range. It runs the command the way
+`run_command` does, and only `done` can ask for permission: an approved test command covers it too. A skill
+that calls it does not need a shell, a CLI or a `PATH` entry, so the flow works the same in the console, over
+HTTP, in ACP and inside a subagent.
+
+The ledger is what survives a context compaction or a new session. Read `progress.md` before deciding what is
+left; a task with no line is not done, however it looks in the transcript.
+
+Version 2.1.0 is the first release carrying the gates. A 2.0.0 copy in `${CODDY_HOME}/skills` is replaced by
+the delivery rule above; an edit of your own survives by raising `metadata.version` above the release's.
 
 ### The marketplace that comes with it
 
@@ -533,6 +579,20 @@ Full skill body here...
 ```
 
 `name` sets the canonical slash-command identifier (e.g. `/code-review`). It overrides the filesystem-derived name when set. `description` is shown in the catalog and the Settings → Skills panel.
+
+`routes` is a one-line "use this when" that puts the skill into the system prompt's routing hint. Skills that
+declare one are listed together, after the slash catalog, as the flow to load before creating, changing,
+debugging or reviewing code, so the model enters the workflow without being told its slash command:
+
+```markdown
+---
+name: rpa-feat
+description: Coddy feature workflow with specs, plans, a ledger and reviews.
+routes: the user asks for a new feature, a behavior change, or a refactor
+---
+```
+
+A skill without `routes` is offered only by its slash command and the `load_skill` hint.
 
 Two optional fields pick what the skill runs on. `model` names a configured model id and `reasoning` (alias `effort`) a level that model offers, `off` or `default`; when the skill is invoked, by `/code-review` in a prompt or by the model's `load_skill`, they apply for the rest of that turn and the session's own settings return with the next one ([Session settings](session-settings.md#changing-the-model-on-request)):
 

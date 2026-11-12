@@ -201,7 +201,7 @@ VS Code（配合 YAML 扩展）、Zed、Neovim 和 Helix 会自动读取此注�
 | `tools.canvas.allow_cdn` | 布尔值 或 null | true | 允许 frame 从常见 CDN 加载库、样式和字体：cdn.jsdelivr.net、unpkg.com、cdnjs.cloudflare.com、cdn.tailwindcss.com、fonts.googleapis.com 和 fonts.gstatic.com。 |
 | `tools.canvas.allowed_sources` | 字符串列表 |  | frame 可以从中加载和连接的更多主机，形式为 https://host 或 https://*.host，可带可选的端口和路径。画布上的页面可以将其文件夹下读取到的内容发送给其中任何一个。 |
 | `tools.websearch` | 对象 |  | websearch 工具询问哪些搜索引擎、其结果按什么顺序合并，以及它可为询问它们花费什么。每个引擎都在结果旁报告自己的结果，因此被阻止的后端会被点名，而不是被算作“网上没有内容”。 |
-| `tools.websearch.engines` | 字符串列表 | ["brave","bing"] | 要询问的搜索引擎，按合并顺序排列。未设置时先询问 brave 再询问 bing。默认不询问 "ddg" 和 "google"：从服务器上实测，DuckDuckGo 对每个查询都返回反机器人插页，而 Google 在浏览器中渲染其结果。"searxng" 需要 searxng_url。 |
+| `tools.websearch.engines` | 字符串列表 | ["brave","bing"] | 要询问的搜索引擎，按合并顺序排列。未设置时先询问 brave 再询问 bing。默认不询问 "ddg" 和 "google"：从服务器上实测，DuckDuckGo 对每个查询都返回反机器人插页，而 Google 在浏览器中渲染其结果。"searxng" 需要 searxng_url。"exa"、"firecrawl"、"parallel"、"tinyfish" 和 "tavily" 是与 OpenCode 兼容的提供商；在支持免密钥时它们的密钥是可选的。 |
 | `tools.websearch.engine_timeout_seconds` | 整数 | 8 | 一个引擎在被报告为不可用之前可花费的秒数。0 使用默认值。 |
 | `tools.websearch.total_timeout_seconds` | 整数 | 20 | 整个搜索可花费的秒数，无论询问多少个引擎。0 使用默认值。 |
 | `tools.websearch.max_concurrent_engines` | 整数 | 4 | 同时询问多少个引擎。0 使用默认值。 |
@@ -210,11 +210,11 @@ VS Code（配合 YAML 扩展）、Zed、Neovim 和 Helix 会自动读取此注�
 | `tools.websearch.searxng_url` | 字符串 | "" | 你自己的 SearXNG 实例的基础地址，通过其 JSON API 询问（在其 settings.yml 中启用 json 格式）。自托管的聚合器是被抓取的引擎遭拒时的持久答案；localhost 和局域网地址是特意允许的。 |
 | `tools.websearch.brave_api_key` | 字符串 | "" | Brave Search API 订阅令牌。有它时 brave 引擎使用官方 JSON API 而非读取公开结果页面，后者在 Brave 重新部署时没有可破坏的解析器。为空则读取 BRAVE_API_KEY 环境变量（也包括来自 ${CODDY_HOME}/.env 的），因此密钥无需存储在此处。 |
 | `tools.websearch.deepseek_api_key` | 字符串 | "" | DeepSeek Search API 密钥。deepseek 引擎询问 DeepSeek 的 Search API（POST /v1/tools/search），它没有可抓取的公开页面，因此没有密钥时该引擎不可用。为空则读取 DEEPSEEK_API_KEY 环境变量（也包括来自 ${CODDY_HOME}/.env 的），因此密钥无需存储在此处。 |
-| `tools.websearch.exa_api_key` | 字符串 | "" | Exa API key. The exa engine asks Exa's hosted search MCP. Empty reads EXA_API_KEY, or uses the keyless tier. |
-| `tools.websearch.firecrawl_api_key` | 字符串 | "" | Firecrawl API key. The firecrawl engine asks Firecrawl's hosted search MCP. Empty reads FIRECRAWL_API_KEY, or uses the keyless tier. |
-| `tools.websearch.parallel_api_key` | 字符串 | "" | Parallel API key. The parallel engine asks Parallel's hosted search MCP. Empty reads PARALLEL_API_KEY, or uses the keyless tier. |
-| `tools.websearch.tinyfish_api_key` | 字符串 | "" | TinyFish API key. The tinyfish engine asks TinyFish's hosted search MCP. Empty reads TINYFISH_API_KEY, or uses the free keyless tier. |
-| `tools.websearch.tavily_api_key` | 字符串 | "" | Tavily API key. The tavily engine asks Tavily's search API. Empty reads TAVILY_API_KEY, or uses the keyless tier. |
+| `tools.websearch.exa_api_key` | 字符串 | "" | Exa API 密钥。exa 引擎询问 Exa 托管的搜索 MCP。留空读取 EXA_API_KEY，或使用免密钥层级。 |
+| `tools.websearch.firecrawl_api_key` | 字符串 | "" | Firecrawl API 密钥。firecrawl 引擎询问 Firecrawl 托管的搜索 MCP。留空读取 FIRECRAWL_API_KEY，或使用免密钥层级。 |
+| `tools.websearch.parallel_api_key` | 字符串 | "" | Parallel API 密钥。parallel 引擎询问 Parallel 托管的搜索 MCP。留空读取 PARALLEL_API_KEY，或使用免密钥层级。 |
+| `tools.websearch.tinyfish_api_key` | 字符串 | "" | TinyFish API 密钥。tinyfish 引擎询问 TinyFish 托管的搜索 MCP。留空读取 TINYFISH_API_KEY，或使用免费免密钥层级。 |
+| `tools.websearch.tavily_api_key` | 字符串 | "" | Tavily API 密钥。tavily 引擎询问 Tavily 的搜索 API。留空读取 TAVILY_API_KEY，或使用免密钥层级。 |
 | `tools.http_request` | 对象 |  | http_request 工具（智能体的 curl）的策略：它无需询问即可到达的目的地，以及每个请求都会发送的请求头。在 ask 和 accept_edits 权限模式下，除非请求的目的地已在此处允许或在会话中获批，否则会询问操作者；bypass 从不询问。参见 https://coddy.dev/docs/features/http-requests。 |
 | `tools.http_request.allowlist` | 字符串列表 | [] | 请求无需询问即可到达的目的地：主机（api.github.com）、子域通配符（*.example.com），二者均可带可选的 :port，或来源（http://localhost:8080），或地址前缀（https://api.example.com/v1/）。"*" 允许所有目的地。一个条目还覆盖请求上传的文件和未校验的证书；代理需要自己的条目，而响应保存到的文件遵循写入策略。 |
 | `tools.http_request.default_headers` | 字符串映射 | {} | 每次 http_request 调用都会发送的请求头，除非调用自身指定了该请求头：针对拒绝工具的站点的浏览器 User-Agent，内部服务所期望的 Accept。它们取代工具自身的默认值（其 coddy-agent User-Agent），调用的请求头取代它们 - 调用中的空值会移除其一 - 而此处的空值会让该请求头不出现在每个未设置它的调用中。名称由字母、数字、- 和 _ 组成，以字母开头。Host、Content-Type、Content-Length 和 Transfer-Encoding 描述单个请求，会被拒绝，逐跳请求头（Connection、Keep-Alive、Proxy-Connection、TE、Trailer、Upgrade）以及 Proxy-Authorization 同样会被拒绝，因为 https 请求会经由代理隧道把它们带到每个来源。这些请求头会发往该工具到达的每个目的地，因此此处的凭据会到达所有目的地；权限提示会点名它们，并仅显示描述客户端的那一个（User-Agent、Accept……）的值，config_get 会对模型隐藏它们的值，而 webfetch、URL 提及和模型提供商从不发送它们。参见 https://coddy.dev/docs/features/http-requests#default-headers。 |
@@ -281,6 +281,7 @@ VS Code（配合 YAML 扩展）、Zed、Neovim 和 Helix 会自动读取此注�
 | `compaction.auto_enable` | 布尔值 或 null | true | 自动压缩：达到 threshold_percent 时，较早的轮次被折叠为摘要，或者，当窗口中没有更早的轮次时，折叠正在回答的这一轮的较早步骤（此时摘要行以提示词本身逐字开头，最多保留最近四个步骤）；以及提供商以超出其上下文窗口为由拒绝的请求会被压缩一次并再次询问。设为 false 可保留手动 /compact 和“上下文”弹出框操作，但不启用上述任何行为。默认为 true。 |
 | `compaction.threshold_percent` | 整数 | 80 | 当估计的上下文用量达到有效模型上下文窗口的这一百分比（1..100）时触发自动压缩：即其 max_context_tokens，否则为其提供商的模型列表所报告的窗口，否则为 128000 - 也就是 Web 界面上下文圆环所显示的窗口。 |
 | `compaction.keep_recent_turns` | 整数 或 null | 2 | 保留多少最近的用户轮次（每轮包含其后的智能体回复和工具活动）逐字不变；只有该边界之前的历史会被总结。0 表示总结整个窗口。当窗口中的用户轮次不多于此值时，压缩保留得更少：自动触发保留到正在回答的提示词为止，手动命令保留到零。 |
+| `compaction.keep_tail_tokens` | 整数 或 null | 15000 | 压缩逐字保留的尾部在估算 token 上的绝对上限：能容得下的最新轮次会保留，最多 keep_recent_turns 个，至少一个（手动压缩折叠全部内容时为零个）。它限制宽窗口留下的尾部，否则折叠之后的每个步骤都要再次为它付费。0 表示关闭该上限，只由 keep_recent_turns 决定。 |
 | `compaction.model` | 字符串 | "" | 可选，用于总结调用的 models[].model。为空则使用会话的有效模型。 |
 | `compaction.fallback_models` | 字符串列表 |  | 当前一个失败时按顺序尝试的总结器模型（models[].model id）。无论是否列出，会话自身的模型都是最后手段，因此压缩不会因某个不可达的总结器而被阻塞。 |
 | `compaction.result_eviction` | 对象 |  | 在构建 LLM 请求时把已被取代的工具结果折叠为简短占位符（持久化的对话记录从不重写），使分页读取大文件、大范围搜索或目录列表的扇出无法在后续每个轮次中钉住失效的行。read 和 grep 结果在模型标记它们（keep_result，或 keep:true）或它们属于最近的结果时保留；glob、print_tree、websearch 和 webfetch 的列表在包含其一的最新三个步骤内保留（一个步骤是一条助手消息及其所有工具调用的全部结果）。一次写入会使其更改所覆盖的较早读取、grep 和文件列表失效。 |
@@ -288,6 +289,7 @@ VS Code（配合 YAML 扩展）、Zed、Neovim 和 Helix 会自动读取此注�
 | `compaction.result_eviction.keep_recent` | 整数 或 null | 2 | 多少最近的、可驱逐的 read 和 grep 结果（读取分页、grep 转储）保持完整作为工作窗口。0 表示不保留。列表结果不计入其中。默认值 2 使一个 read 和一个 grep 同时保持有效；设为 1 时，比较两个结果的模型会不断重新获取被另一个驱逐的那个。 |
 | `compaction.result_eviction.min_result_bytes` | 整数 或 null | 2000 | 小于或等于此大小的结果永远不会被逐出（太小，不值得使用占位符）。0 会使每个结果都成为候选对象。 |
 | `compaction.result_eviction.start_percent` | 整数 或 null | 50 | 仅当估算上下文达到模型上下文窗口的该百分比时才开始逐出。低于该值时，重放的历史记录会原样发送，因此提供商的提示词缓存会保留它；占位符出现在历史记录中间会使其后每个缓存 token 失效。0 表示从第一个结果开始逐出。没有 max_context_tokens 的模型的读取和 grep 结果会从第一个结果开始逐出；列表结果则按其提供商报告的窗口或默认 128000 来衡量。 |
+| `compaction.result_eviction.start_tokens` | 整数 或 null | 60000 | 逐出门槛的绝对上限：逐出在窗口的 start_percent 与这么多对话 token 中较小者处开始。对话的测量不计请求自身的开销（系统提示词、工具定义、规则），这些都无法逐出，因此很大的 AGENTS.md 不会在第一个结果处就打开门槛。0 表示只保留 start_percent。 |
 
 ### `memory`
 

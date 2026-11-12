@@ -499,3 +499,29 @@ func TestSearchRootsAreTheFoldersTheLoaderReads(t *testing.T) {
 		t.Fatalf("no workspace: roots %v", got)
 	}
 }
+
+func TestSkillReadsItsRoutesLine(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "routes-probe", "SKILL.md")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := "---\nname: routes-probe\nroutes: the user asks for a new feature\n---\n\nbody\n"
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := skills.NewLoader([]string{root}).LoadAll(root, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, sk := range loaded {
+		if sk.Name != "routes-probe" {
+			continue
+		}
+		if sk.Routes != "the user asks for a new feature" {
+			t.Fatalf("Routes = %q", sk.Routes)
+		}
+		return
+	}
+	t.Fatal("the skill was not loaded")
+}

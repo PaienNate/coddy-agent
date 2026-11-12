@@ -96,6 +96,7 @@ func parseSkillBytes(virtualPath string, data []byte) *Skill {
 		}
 		skill.Description = fm.Description
 		skill.Version = fm.version()
+		skill.Routes = strings.TrimSpace(fm.Routes)
 	}
 	return skill
 }

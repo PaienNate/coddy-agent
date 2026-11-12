@@ -1385,10 +1385,10 @@ func TestPrunedForLLMGatesListingsByTheResolvedWindow(t *testing.T) {
 }
 
 // The send boundary prunes the request as it goes out, its system message in
-// front (buildMessages), and the overhead the gate adds already counts the system
-// prompt. A request with a large system prompt that is below start_percent must
-// keep its listings, measured on the history or on the request alike.
-func TestListingGateCountsTheSystemPromptOnce(t *testing.T) {
+// front (buildMessages). The gate measures the conversation alone: the system
+// prompt, the tool definitions and the rules cannot be evicted, so counting them
+// would open the gate on a history that has said nothing yet.
+func TestListingGateDoesNotCountTheSystemPrompt(t *testing.T) {
 	half, one, on := 50, 1, true
 	comp := config.Compaction{ResultEviction: config.ResultEviction{Enabled: &on, StartPercent: &half, MinResultBytes: &one}}
 	f := newRecoveryFixture(t, &recoveryProvider{}, comp) // window 49152, gate 24576
@@ -1415,12 +1415,82 @@ func TestListingGateCountsTheSystemPromptOnce(t *testing.T) {
 	}
 	req := f.ag.buildMessages(sysText)
 	if f.ag.listingEvictionDue(req) {
-		t.Fatal("the request with its system message in front opens the gate: the system prompt is counted twice")
+		t.Fatal("the request with its system message in front opens the gate: only the conversation is measured")
 	}
 	out := f.ag.prunedForLLM(req)
 	for i := range req {
 		if out[i].Content != req[i].Content {
 			t.Fatalf("message %d was rewritten below start_percent: %q", i, firstChars(out[i].Content, 80))
 		}
+	}
+}
+
+// --- the absolute gate ---------------------------------------------------------
+
+func TestEvictionGateIsTheSmallerOfPercentAndTokens(t *testing.T) {
+	for _, tc := range []struct {
+		name                    string
+		percent, window, tokens int
+		want                    int
+	}{
+		{"a wide window waits for the absolute gate", 50, 1_048_576, 60_000, 60_000},
+		{"a small window keeps its percent", 50, 100_000, 60_000, 50_000},
+		{"a tight percent wins", 20, 100_000, 60_000, 20_000},
+		{"zero tokens leaves the percent alone", 50, 200_000, 0, 100_000},
+		{"zero percent evicts from the first result", 0, 200_000, 60_000, 0},
+		{"no window falls back to the old gate", 50, 0, 60_000, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := evictionGate(tc.percent, tc.window, tc.tokens); got != tc.want {
+				t.Fatalf("gate = %d, want %d", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestEvictionGateIgnoresTheRequestOverhead(t *testing.T) {
+	st := &session.State{ID: "sess_overhead", CWD: t.TempDir(), Mode: session.ModeAgent}
+	ag := compactTestAgent(t, st, config.Compaction{}, &compactCannedProvider{t: t})
+	ag.cfg.Models[0].MaxContextTokens = 262144
+	hist := listingGateHistory()
+	conv := conversationTokens(hist, false)
+	// Rules bigger than the conversation: counted, they clear half the window;
+	// measured as the conversation alone, nothing is dead yet.
+	rules := 150000
+	st.SetLastContextBreakdown(&session.ContextBreakdown{Rules: rules, Conversation: conv, EstimatedTotal: rules + conv})
+	if conv >= 60000 {
+		t.Fatalf("fixture: %d tokens of conversation are already over the absolute gate", conv)
+	}
+	if (rules+conv)*100 < config.ResultEvictionDefaultStartPercent*262144 {
+		t.Fatalf("fixture: %d rules + %d conversation must clear the percent gate", rules, conv)
+	}
+	out := ag.prunedForLLM(hist)
+	for i := range hist {
+		if out[i].Content != hist[i].Content {
+			t.Fatalf("message %d was rewritten although the conversation is under the absolute gate: %q", i, firstChars(out[i].Content, 80))
+		}
+	}
+}
+
+func TestEvictionGateWithoutAWindow(t *testing.T) {
+	st := &session.State{ID: "sess_no_window", CWD: t.TempDir(), Mode: session.ModeAgent}
+	zero := 0
+	ag := compactTestAgent(t, st, config.Compaction{ResultEviction: config.ResultEviction{StartTokens: &zero}}, &compactCannedProvider{t: t})
+	if ag.cfg.Models[0].MaxContextTokens != 0 {
+		t.Fatalf("fixture: max_context_tokens = %d", ag.cfg.Models[0].MaxContextTokens)
+	}
+	if !ag.evictionDue(listingGateHistory()) {
+		t.Fatal("a model with no window and no absolute gate must evict from the first result, as it always did")
+	}
+}
+
+func TestEvictionGateZeroTokensKeepsThePercentOnly(t *testing.T) {
+	st := &session.State{ID: "sess_percent", CWD: t.TempDir(), Mode: session.ModeAgent}
+	zero := 0
+	on := true
+	ag := compactTestAgent(t, st, config.Compaction{ResultEviction: config.ResultEviction{Enabled: &on, StartTokens: &zero}}, &compactCannedProvider{t: t})
+	ag.cfg.Models[0].MaxContextTokens = 200_000
+	if got := evictionGate(ag.cfg.Compaction.ResultEviction.EffectiveStartPercent(), 200_000, ag.cfg.Compaction.ResultEviction.EffectiveStartTokens()); got != 100_000 {
+		t.Fatalf("gate = %d, want half of the window when start_tokens is 0", got)
 	}
 }

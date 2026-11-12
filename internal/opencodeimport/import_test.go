@@ -24,17 +24,17 @@ func TestClientListsAndExports(t *testing.T) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		switch {
-		case r.URL.Path == "/api/info":
+		switch r.URL.Path {
+		case "/api/info":
 			_, _ = w.Write([]byte(`{"version":"2.1.0"}`))
-		case r.URL.Path == "/api/project":
+		case "/api/project":
 			_, _ = w.Write([]byte(`[{"id":"p1","worktree":"/tmp/project","name":"demo"}]`))
-		case r.URL.Path == "/api/session":
+		case "/api/session":
 			if r.URL.Query().Get("project") != "p1" {
 				t.Errorf("project query = %q", r.URL.Query().Get("project"))
 			}
 			_, _ = w.Write([]byte(`{"data":[{"id":"ses_1","projectID":"p1","title":"hello","location":{"directory":"/tmp/project"},"time":{"created":1000,"updated":2000}}],"cursor":{}}`))
-		case r.URL.Path == "/api/experimental/session/ses_1/export":
+		case "/api/experimental/session/ses_1/export":
 			_, _ = w.Write([]byte(`{"data":{"info":{"id":"ses_1","projectID":"p1","title":"hello","location":{"directory":"/tmp/project"}},"messages":[]}}`))
 		default:
 			http.NotFound(w, r)

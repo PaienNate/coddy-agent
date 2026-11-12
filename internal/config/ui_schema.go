@@ -949,6 +949,7 @@ func UISchemaMap() map[string]interface{} {
 				"auto_enable":       boolProp("Enabled", "Compact on its own: fold older turns at the threshold, or the earlier steps of a long turn when there is no earlier turn, and compact and ask again once when the provider refuses a request as larger than its context window. Off keeps manual compaction available. Defaults to true."),
 				"threshold_percent": intProp("Threshold (%)", "Compact when the estimated context reaches this percent of the model's context window (1..100, default 80): its max_context_tokens, else the window its provider reports, else 128000."),
 				"keep_recent_turns": intProp("Keep recent turns", "How many most recent user turns stay verbatim after compaction (default 2; 0 summarizes everything). With no more turns than that, automatic compaction still folds the older ones and keeps the prompt being answered."),
+				"keep_tail_tokens":  intProp("Keep tail tokens", "Absolute ceiling on the tail a compaction keeps verbatim, in estimated tokens (default 15000; 0 turns the cap off and leaves keep_recent_turns alone). The newest turns that fit it stay, never more than keep_recent_turns and never fewer than one, so a wide window no longer leaves a tail as wide as the window."),
 				"model":             strProp("Summarizer model", "Optional models[].model for the summarization call; empty uses the session model."),
 				"fallback_models": map[string]interface{}{
 					"type":        "array",
@@ -963,11 +964,12 @@ func UISchemaMap() map[string]interface{} {
 						"keep_recent":      intProp("Keep recent results", "How many most recent read and grep results stay intact as a working window (default 2 - enough to hold a read and a grep at once; 0 keeps none)."),
 						"min_result_bytes": intProp("Min result bytes", "Results at or below this size are never evicted (default 2000; 0 makes every result a candidate)."),
 						"start_percent":    intProp("Start at (%)", "Evict only once the estimated context reaches this percent of the model's context window (default 50; 0 evicts from the first result). Below it the history is sent untouched so the provider's prompt cache holds. Read and grep results of a model without max_context_tokens are evicted from the first result."),
+						"start_tokens":     intProp("Start at (tokens)", "Absolute ceiling on the eviction gate: eviction starts at the smaller of start_percent of the window and this many conversation tokens (default 60000; 0 leaves start_percent alone). The request's own overhead - the system prompt, the tool definitions, the rules - is not counted, so a large AGENTS.md cannot open the gate at the first result."),
 					},
-					[]string{"enable", "keep_recent", "min_result_bytes", "start_percent"},
+					[]string{"enable", "keep_recent", "min_result_bytes", "start_percent", "start_tokens"},
 					nil),
 			},
-			[]string{"enable", "auto_enable", "threshold_percent", "keep_recent_turns", "model", "result_eviction"},
+			[]string{"enable", "auto_enable", "threshold_percent", "keep_recent_turns", "keep_tail_tokens", "model", "result_eviction"},
 			nil),
 		"gateways": objectSchema("Messenger gateways", "Telegram and Pachca bots (require the gateway build tag, or gateway.telegram / gateway.pachca for one of them).",
 			map[string]interface{}{

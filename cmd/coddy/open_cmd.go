@@ -63,7 +63,7 @@ func runOpen(args []string) error {
 	}
 	state, err := readOpenControl(paths.Home)
 	if err != nil {
-		err = errors.New("Coddy serve is not running; start `coddy serve` and open the folder from its tray icon")
+		err = errors.New("coddy serve is not running; start `coddy serve` and open the folder from its tray icon")
 		showOpenError(err)
 		return err
 	}
@@ -95,12 +95,12 @@ func requestOpenProject(state openControlState, folder string) (string, error) {
 	req.Header.Set("Content-Type", "application/json")
 	res, err := (&http.Client{Timeout: 10 * time.Second}).Do(req)
 	if err != nil {
-		return "", fmt.Errorf("Coddy serve did not answer: %w", err)
+		return "", fmt.Errorf("coddy serve did not answer: %w", err)
 	}
 	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode != http.StatusOK {
 		msg, _ := io.ReadAll(io.LimitReader(res.Body, 4096))
-		return "", fmt.Errorf("Coddy serve answered %s: %s", res.Status, strings.TrimSpace(string(msg)))
+		return "", fmt.Errorf("coddy serve answered %s: %s", res.Status, strings.TrimSpace(string(msg)))
 	}
 	var out struct {
 		SessionID string `json:"sessionId"`
@@ -109,7 +109,7 @@ func requestOpenProject(state openControlState, folder string) (string, error) {
 		return "", err
 	}
 	if strings.TrimSpace(out.SessionID) == "" {
-		return "", errors.New("Coddy serve returned no session id")
+		return "", errors.New("coddy serve returned no session id")
 	}
 	return serveui.SessionURL(state.URL, out.SessionID), nil
 }

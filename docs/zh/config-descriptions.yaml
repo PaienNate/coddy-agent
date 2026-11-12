@@ -335,8 +335,8 @@ tools.websearch:
   en: Which search engines the websearch tool asks, in what order their results merge, and what it may spend asking them. Each engine reports its own outcome next to the results, so a blocked backend is named rather than counted as "the web has nothing".
   zh: websearch 工具询问哪些搜索引擎、其结果按什么顺序合并，以及它可为询问它们花费什么。每个引擎都在结果旁报告自己的结果，因此被阻止的后端会被点名，而不是被算作“网上没有内容”。
 tools.websearch.engines:
-  en: 'Search engines to ask, in merge order. Unset asks brave then bing. "ddg" and "google" are not asked by default: measured from a server, DuckDuckGo answers every query with an anti-bot interstitial and Google renders its results in the browser. "searxng" needs searxng_url.'
-  zh: 要询问的搜索引擎，按合并顺序排列。未设置时先询问 brave 再询问 bing。默认不询问 "ddg" 和 "google"：从服务器上实测，DuckDuckGo 对每个查询都返回反机器人插页，而 Google 在浏览器中渲染其结果。"searxng" 需要 searxng_url。
+  en: "Search engines to ask, in merge order. Unset asks brave then bing. \"ddg\" and \"google\" are not asked by default: measured from a server, DuckDuckGo answers every query with an anti-bot interstitial and Google renders its results in the browser. \"searxng\" needs searxng_url. \"exa\", \"firecrawl\", \"parallel\", \"tinyfish\" and \"tavily\" are the OpenCode-compatible providers; their keys are optional where keyless works."
+  zh: 要询问的搜索引擎，按合并顺序排列。未设置时先询问 brave 再询问 bing。默认不询问 "ddg" 和 "google"：从服务器上实测，DuckDuckGo 对每个查询都返回反机器人插页，而 Google 在浏览器中渲染其结果。"searxng" 需要 searxng_url。"exa"、"firecrawl"、"parallel"、"tinyfish" 和 "tavily" 是与 OpenCode 兼容的提供商；在支持免密钥时它们的密钥是可选的。
 tools.websearch.engine_timeout_seconds:
   en: Seconds one engine may take before it is reported as unavailable. 0 uses the default.
   zh: 一个引擎在被报告为不可用之前可花费的秒数。0 使用默认值。
@@ -361,6 +361,21 @@ tools.websearch.brave_api_key:
 tools.websearch.deepseek_api_key:
   en: DeepSeek Search API key. The deepseek engine asks DeepSeek's Search API (POST /v1/tools/search), which has no public page to scrape, so without a key the engine is unavailable. Empty reads the DEEPSEEK_API_KEY environment variable (also from ${CODDY_HOME}/.env), so the key need not be stored here.
   zh: DeepSeek Search API 密钥。deepseek 引擎询问 DeepSeek 的 Search API（POST /v1/tools/search），它没有可抓取的公开页面，因此没有密钥时该引擎不可用。为空则读取 DEEPSEEK_API_KEY 环境变量（也包括来自 ${CODDY_HOME}/.env 的），因此密钥无需存储在此处。
+tools.websearch.exa_api_key:
+  en: "Exa API key. The exa engine asks Exa's hosted search MCP. Empty reads EXA_API_KEY, or uses the keyless tier."
+  zh: Exa API 密钥。exa 引擎询问 Exa 托管的搜索 MCP。留空读取 EXA_API_KEY，或使用免密钥层级。
+tools.websearch.firecrawl_api_key:
+  en: "Firecrawl API key. The firecrawl engine asks Firecrawl's hosted search MCP. Empty reads FIRECRAWL_API_KEY, or uses the keyless tier."
+  zh: Firecrawl API 密钥。firecrawl 引擎询问 Firecrawl 托管的搜索 MCP。留空读取 FIRECRAWL_API_KEY，或使用免密钥层级。
+tools.websearch.parallel_api_key:
+  en: "Parallel API key. The parallel engine asks Parallel's hosted search MCP. Empty reads PARALLEL_API_KEY, or uses the keyless tier."
+  zh: Parallel API 密钥。parallel 引擎询问 Parallel 托管的搜索 MCP。留空读取 PARALLEL_API_KEY，或使用免密钥层级。
+tools.websearch.tinyfish_api_key:
+  en: "TinyFish API key. The tinyfish engine asks TinyFish's hosted search MCP. Empty reads TINYFISH_API_KEY, or uses the free keyless tier."
+  zh: TinyFish API 密钥。tinyfish 引擎询问 TinyFish 托管的搜索 MCP。留空读取 TINYFISH_API_KEY，或使用免费免密钥层级。
+tools.websearch.tavily_api_key:
+  en: "Tavily API key. The tavily engine asks Tavily's search API. Empty reads TAVILY_API_KEY, or uses the keyless tier."
+  zh: Tavily API 密钥。tavily 引擎询问 Tavily 的搜索 API。留空读取 TAVILY_API_KEY，或使用免密钥层级。
 tools.http_request:
   en: 'Policy of the http_request tool, the agent''s curl: the destinations it reaches without asking and the headers every request sends. Under the ask and accept_edits permission modes a request asks the operator unless its destination is allowed here or was approved in the session; bypass never asks. See https://coddy.dev/docs/features/http-requests.'
   zh: http_request 工具（智能体的 curl）的策略：它无需询问即可到达的目的地，以及每个请求都会发送的请求头。在 ask 和 accept_edits 权限模式下，除非请求的目的地已在此处允许或在会话中获批，否则会询问操作者；bypass 从不询问。参见 https://coddy.dev/docs/features/http-requests。
@@ -470,6 +485,9 @@ compaction.threshold_percent:
 compaction.keep_recent_turns:
   en: 'How many most recent user turns (each with the agent replies and tool activity after it) stay verbatim; only history before that boundary is summarized. 0 summarizes the whole window. When the window holds no more user turns than this, a compaction keeps fewer: the automatic trigger down to the prompt being answered, the manual command down to none.'
   zh: 保留多少最近的用户轮次（每轮包含其后的智能体回复和工具活动）逐字不变；只有该边界之前的历史会被总结。0 表示总结整个窗口。当窗口中的用户轮次不多于此值时，压缩保留得更少：自动触发保留到正在回答的提示词为止，手动命令保留到零。
+compaction.keep_tail_tokens:
+  en: "Absolute ceiling on the tail a compaction keeps verbatim, in estimated tokens: the newest turns that fit it stay, never more than keep_recent_turns and never fewer than one (none for a manual compaction that folds everything). It bounds what a wide window leaves behind, which the steps after the fold would otherwise pay for again. 0 turns the cap off, so keep_recent_turns alone decides."
+  zh: "压缩逐字保留的尾部在估算 token 上的绝对上限：能容得下的最新轮次会保留，最多 keep_recent_turns 个，至少一个（手动压缩折叠全部内容时为零个）。它限制宽窗口留下的尾部，否则折叠之后的每个步骤都要再次为它付费。0 表示关闭该上限，只由 keep_recent_turns 决定。"
 compaction.model:
   en: Optional models[].model used for the summarization call. Empty uses the session's effective model.
   zh: 可选，用于总结调用的 models[].model。为空则使用会话的有效模型。
@@ -491,6 +509,9 @@ compaction.result_eviction.min_result_bytes:
 compaction.result_eviction.start_percent:
   en: Evict only once the estimated context reaches this percent of the model's context window. Below it the replayed history is sent untouched, so the provider's prompt cache keeps it; a placeholder appearing mid-history invalidates every cached token behind it. 0 evicts from the first result. Read and grep results of a model without max_context_tokens are evicted from the first result; listing results measure against the window its provider reports, or the default 128000.
   zh: 仅当估算上下文达到模型上下文窗口的该百分比时才开始逐出。低于该值时，重放的历史记录会原样发送，因此提供商的提示词缓存会保留它；占位符出现在历史记录中间会使其后每个缓存 token 失效。0 表示从第一个结果开始逐出。没有 max_context_tokens 的模型的读取和 grep 结果会从第一个结果开始逐出；列表结果则按其提供商报告的窗口或默认 128000 来衡量。
+compaction.result_eviction.start_tokens:
+  en: "Absolute ceiling on the eviction gate: eviction starts at the smaller of start_percent of the window and this many conversation tokens. The conversation is measured without the request's own overhead (the system prompt, the tool definitions, the rules), which nothing can evict, so a large AGENTS.md cannot open the gate at the first result. 0 leaves start_percent alone."
+  zh: "逐出门槛的绝对上限：逐出在窗口的 start_percent 与这么多对话 token 中较小者处开始。对话的测量不计请求自身的开销（系统提示词、工具定义、规则），这些都无法逐出，因此很大的 AGENTS.md 不会在第一个结果处就打开门槛。0 表示只保留 start_percent。"
 memory:
   en: Optional memory subagent (implementation in external/memory; enable at runtime with memory.enable).
   zh: 可选的记忆子智能体（实现位于 external/memory；运行时通过 memory.enable 启用）。

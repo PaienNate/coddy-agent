@@ -59,7 +59,7 @@ govulncheck 没有严重级别，因此其门禁改为按深度计数。默认�
 
 ## Go 工具链
 
-`go.mod` 携带两行：`go 1.26.0`，编译模块的最旧 Go，以及 `toolchain go1.27.3`，在默认 `GOTOOLCHAIN=auto` 下构建所链接的最旧发布版本。CI 从 `go` 行安装 Go（`actions/setup-go` 使用 `go-version-file`），然后 `go` 命令切换到 `toolchain` 发布版本（`GOTOOLCHAIN=auto`，官方 Go 的默认值），因此测试任务、发布归档和软件包链接的正是该发布版本的标准库。切换只会向上：Docker 镜像（其构建阶段设置 `GOTOOLCHAIN=auto`，因为官方镜像固定 `local`）和本地构建在更新的情况下使用 `golang:1.27` 镜像或已安装的 Go，这只会增加修复。用 `GOTOOLCHAIN=local` 保留的工具链完全不会切换，并链接其自己的发布版本，最低到 `go` 行。
+`go.mod` 携带两行：`go 1.26.0`，编译模块的最旧 Go，以及 `toolchain go1.27.4`，在默认 `GOTOOLCHAIN=auto` 下构建所链接的最旧发布版本。CI 从 `go` 行安装 Go（`actions/setup-go` 使用 `go-version-file`），然后 `go` 命令切换到 `toolchain` 发布版本（`GOTOOLCHAIN=auto`，官方 Go 的默认值），因此测试任务、发布归档和软件包链接的正是该发布版本的标准库。切换只会向上：Docker 镜像（其构建阶段设置 `GOTOOLCHAIN=auto`，因为官方镜像固定 `local`）和本地构建在更新的情况下使用 `golang:1.27` 镜像或已安装的 Go，这只会增加修复。用 `GOTOOLCHAIN=local` 保留的工具链完全不会切换，并链接其自己的发布版本，最低到 `go` 行。
 
 没有 `toolchain` 行时，每个构建都正好使用 `go` 行的发布版本：1.25 时代的归档使用 `go1.25.0` 构建，缺少其之后发布的每一项标准库安全修复，而使用该工具链运行的 govulncheck 列出了代码调用的其中 32 项（`crypto/tls`、`crypto/x509`、`net/http`、`net/url`、`os.Root`、`archive/tar` 等）。
 
@@ -94,4 +94,4 @@ fork 拉取请求会被正常扫描和门禁，但其 SARIF 上传会被跳过�
 3. `SEC_FAIL_SEMGREP=ERROR`，然后 `WARNING`
 4. 一旦其发现被分类，将 `misconfig` 和更广泛的 semgrep 规则包（`p/bash`、`p/yaml`、`p/dockerfile`、`p/react`）纳入门禁
 
-<!-- docsgen:source sha256=fca94ec4dc1c013c -->
+<!-- docsgen:source sha256=05074ff9840ed1d1 -->

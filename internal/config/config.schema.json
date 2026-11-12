@@ -1131,6 +1131,16 @@
           "default": 2,
           "minimum": 0
         },
+        "keep_tail_tokens": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Absolute ceiling on the tail a compaction keeps verbatim, in estimated tokens: the newest turns that fit it stay, never more than keep_recent_turns and never fewer than one (none for a manual compaction that folds everything). It bounds what a wide window leaves behind, which the steps after the fold would otherwise pay for again. 0 turns the cap off, so keep_recent_turns alone decides.",
+          "default": 15000,
+          "minimum": 0,
+          "maximum": 10000000
+        },
         "model": {
           "type": "string",
           "description": "Optional models[].model used for the summarization call. Empty uses the session's effective model.",
@@ -1184,6 +1194,17 @@
               "default": 50,
               "minimum": 0,
               "maximum": 100
+            }
+,
+            "start_tokens": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "Absolute ceiling on the eviction gate: eviction starts at the smaller of start_percent of the window and this many conversation tokens. The conversation is measured without the request's own overhead (the system prompt, the tool definitions, the rules), which nothing can evict, so a large AGENTS.md cannot open the gate at the first result. 0 leaves start_percent alone.",
+              "default": 60000,
+              "minimum": 0,
+              "maximum": 10000000
             }
           }
         }

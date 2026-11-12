@@ -166,6 +166,33 @@ func inTurnTargetTokens(limit, thresholdPercent int) int {
 	return limit * thresholdPercent * inTurnAimPercent / 10000
 }
 
+// inTurnTargetWithTail is the size an in-turn fold aims the next request at, in
+// Coddy's estimate units: the share of the window the trigger leaves, converted
+// by scale, or what every request carries besides the conversation (the system
+// prompt, the tool definitions, the rules) plus keep_tail_tokens when that is
+// smaller. The tail budget is what makes a fold on a wide window reclaim the
+// window: the share alone leaves a tail as wide as the window is.
+//
+// The cap is applied after the conversion, because the share is in the
+// provider's count while the overhead and the budget are estimated tokens:
+// capping first and dividing after would shrink an estimate by the provider's
+// ratio a second time. 0 turns the cap off; no window to measure leaves the aim 0.
+func inTurnTargetWithTail(limit, thresholdPercent, keepTailTokens, overhead int, scale float64) int {
+	target := inTurnTargetTokens(limit, thresholdPercent)
+	if target <= 0 {
+		return target
+	}
+	if scale > 1 {
+		target = int(float64(target) / scale)
+	}
+	if keepTailTokens > 0 {
+		if capped := overhead + keepTailTokens; capped < target {
+			return capped
+		}
+	}
+	return target
+}
+
 // inTurnPromptPrefix is what goes in front of the summary: the opening prompt,
 // verbatim when it fits its share of the limit, else cut in the middle with a
 // marker of its own that says so, so both ends of it survive.
@@ -266,17 +293,16 @@ type inTurnPlan struct {
 func (a *Agent) planInTurn(opts CompactOptions, msgs []llm.Message, viewOffset int, projected []llm.Message) (*inTurnPlan, error) {
 	comp := &a.cfg.Compaction
 	limit := a.promptShareLimit(opts.LimitTokens)
-	target := inTurnTargetTokens(limit, comp.EffectiveThresholdPercent())
-	if !opts.Recovery {
-		// The trigger counts the provider's tokens and the budget below counts
-		// Coddy's estimate: a provider that counts denser would otherwise see a
-		// kept tail that lands over the threshold and folds again at the next
-		// step. A recovery's limit is already in estimate units.
-		if s := a.providerScale(); s > 1 {
-			target = int(float64(target) / s)
-		}
-	}
 	overhead := a.requestOverhead()
+	// The trigger counts the provider's tokens and the budget below counts
+	// Coddy's estimate: a provider that counts denser would otherwise see a
+	// kept tail that lands over the threshold and folds again at the next step.
+	// A recovery's limit is already in estimate units.
+	scale := 1.0
+	if !opts.Recovery {
+		scale = a.providerScale()
+	}
+	target := inTurnTargetWithTail(limit, comp.EffectiveThresholdPercent(), comp.EffectiveKeepTailTokens(), overhead, scale)
 
 	prefixTokens := 0
 	if prefix, ok := a.inTurnPrefix(msgs, len(msgs), limit); ok {

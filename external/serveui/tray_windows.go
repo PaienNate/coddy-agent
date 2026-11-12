@@ -330,6 +330,7 @@ func pickFolder() (string, error) {
 	hr := win.OleInitialize()
 	defer win.OleUninitialize()
 	if hr != 0 && hr != 1 { // S_OK or S_FALSE: already initialised on this thread
+		//nolint:gosec // G115: an HRESULT is a 32-bit code, printed as unsigned hex on purpose.
 		return "", fmt.Errorf("OleInitialize: %#x", uint32(hr))
 	}
 

@@ -321,6 +321,7 @@ type CompactionJSON struct {
 	AutoEnabled      *bool              `json:"auto_enable,omitempty"`
 	ThresholdPercent int                `json:"threshold_percent,omitempty"`
 	KeepRecentTurns  *int               `json:"keep_recent_turns,omitempty"`
+	KeepTailTokens   *int               `json:"keep_tail_tokens,omitempty"`
 	Model            string             `json:"model,omitempty"`
 	FallbackModels   []string           `json:"fallback_models,omitempty"`
 	ResultEviction   ResultEvictionJSON `json:"result_eviction,omitempty"`
@@ -333,6 +334,7 @@ type ResultEvictionJSON struct {
 	KeepRecent     *int  `json:"keep_recent,omitempty"`
 	MinResultBytes *int  `json:"min_result_bytes,omitempty"`
 	StartPercent   *int  `json:"start_percent,omitempty"`
+	StartTokens    *int  `json:"start_tokens,omitempty"`
 }
 
 // MemoryJSON mirrors MemoryConfig.
@@ -629,6 +631,7 @@ func ConfigToJSONDTO(c *Config) *ConfigJSON {
 		AutoEnabled:      cloneBoolPtr(c.Compaction.AutoEnabled),
 		ThresholdPercent: c.Compaction.ThresholdPercent,
 		KeepRecentTurns:  cloneIntPtr(c.Compaction.KeepRecentTurns),
+		KeepTailTokens:   cloneIntPtr(c.Compaction.KeepTailTokens),
 		Model:            c.Compaction.Model,
 		FallbackModels:   append([]string(nil), c.Compaction.FallbackModels...),
 		ResultEviction: ResultEvictionJSON{
@@ -636,6 +639,7 @@ func ConfigToJSONDTO(c *Config) *ConfigJSON {
 			KeepRecent:     cloneIntPtr(c.Compaction.ResultEviction.KeepRecent),
 			MinResultBytes: cloneIntPtr(c.Compaction.ResultEviction.MinResultBytes),
 			StartPercent:   cloneIntPtr(c.Compaction.ResultEviction.StartPercent),
+			StartTokens:    cloneIntPtr(c.Compaction.ResultEviction.StartTokens),
 		},
 	}
 	out.Memory = MemoryJSON{
@@ -891,6 +895,7 @@ func JSONDTOToConfig(j *ConfigJSON, paths Paths) *Config {
 		AutoEnabled:      cloneBoolPtr(j.Compaction.AutoEnabled),
 		ThresholdPercent: j.Compaction.ThresholdPercent,
 		KeepRecentTurns:  cloneIntPtr(j.Compaction.KeepRecentTurns),
+		KeepTailTokens:   cloneIntPtr(j.Compaction.KeepTailTokens),
 		Model:            j.Compaction.Model,
 		FallbackModels:   append([]string(nil), j.Compaction.FallbackModels...),
 		ResultEviction: ResultEviction{
@@ -898,6 +903,7 @@ func JSONDTOToConfig(j *ConfigJSON, paths Paths) *Config {
 			KeepRecent:     cloneIntPtr(j.Compaction.ResultEviction.KeepRecent),
 			MinResultBytes: cloneIntPtr(j.Compaction.ResultEviction.MinResultBytes),
 			StartPercent:   cloneIntPtr(j.Compaction.ResultEviction.StartPercent),
+			StartTokens:    cloneIntPtr(j.Compaction.ResultEviction.StartTokens),
 		},
 	}
 	cfg.Memory = MemoryConfig{
