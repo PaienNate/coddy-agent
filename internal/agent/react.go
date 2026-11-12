@@ -2389,6 +2389,11 @@ func (a *Agent) executeToolCall(ctx context.Context, tc llm.ToolCall, env *tools
 				requiresPerm = true
 			}
 		}
+	} else if tc.Name == tools.SDDToolName {
+		// The workflow tool writes under .superpowers/ for most actions and runs
+		// the task's test command for `done`: only that one asks, and the same
+		// grants run_command reads decide whether it must.
+		requiresPerm = sddNeedsPermission(env.PermissionMode, env, sessCmdGrants, tc.InputJSON)
 	} else if tc.Name == toolweb.ToolHTTPRequest {
 		// The gate decides on where the request goes and on what it carries
 		// beyond that - files, a proxy, an unchecked certificate, a file it

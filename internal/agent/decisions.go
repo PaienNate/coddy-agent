@@ -11,6 +11,7 @@ import (
 	"github.com/EvilFreelancer/coddy-agent/internal/permission"
 	"github.com/EvilFreelancer/coddy-agent/internal/session"
 	"github.com/EvilFreelancer/coddy-agent/internal/tooling"
+	"github.com/EvilFreelancer/coddy-agent/internal/tools"
 )
 
 // The decisions safety check (#502) stands in for the permission prompt of a
@@ -108,6 +109,45 @@ func commandAllowlisted(tc llm.ToolCall, env *tooling.Env, sessionGrants []strin
 		}
 	}
 	return false
+}
+
+// sddActionAndCommand reads the action and the command of an sdd call. An
+// argument the tool would reject yields empty values.
+func sddActionAndCommand(argsJSON string) (action, command string) {
+	var args struct {
+		Action  string `json:"action"`
+		Command string `json:"command"`
+	}
+	if err := json.Unmarshal([]byte(argsJSON), &args); err != nil {
+		return "", ""
+	}
+	return strings.TrimSpace(args.Action), strings.TrimSpace(args.Command)
+}
+
+// sddNeedsPermission reports whether an sdd call must ask the operator. Only
+// `done` runs anything: every other action writes under .superpowers/ and asks
+// nothing. A `done` whose command the allowlist or a session grant already
+// covers asks nothing either, the same way run_command reads them.
+func sddNeedsPermission(mode string, env *tooling.Env, sessionGrants []string, argsJSON string) bool {
+	action, command := sddActionAndCommand(argsJSON)
+	if action != tools.SDDActionDone {
+		return false
+	}
+	if mode == config.PermModeBypass {
+		return false
+	}
+	if command == "" {
+		return true
+	}
+	if env != nil && env.CommandAllowed(command) {
+		return false
+	}
+	for _, grant := range sessionGrants {
+		if strings.TrimSpace(grant) == command {
+			return false
+		}
+	}
+	return true
 }
 
 // askAlwaysTurn reports whether the running turn keeps every prompt for its
