@@ -4,7 +4,7 @@
 
 ## 先决条件
 
-- **Go** - **1.26** 或更新版本，即 [`go.mod`](../../../go.mod) 的 `go` 系列。紧随其后的 `toolchain` 系列（当前为 **`go1.27.3`**）是构建在默认 `GOTOOLCHAIN=auto` 下链接的最旧版本：CI 和发布归档恰好使用该版本构建，而较旧的本地 `go` 会在首次使用时下载它。更新的本地 Go，或 Dockerfile 起始的 `golang:1.27` 镜像中更新的补丁版本，会用自身构建，这只会增加修复。只有通过 `GOTOOLCHAIN=local` 保留的工具链才会用较旧的发布版构建，最低可到 `go` 系列。当 Go 补丁版本修复了代码可触达的漏洞时，提高 `toolchain` 系列：`go mod edit -toolchain=go1.27.N`（参见 [AppSec 扫描](security-scanning.md#go-工具链)）。
+- **Go** - **1.26** 或更新版本，即 [`go.mod`](../../../go.mod) 的 `go` 系列。紧随其后的 `toolchain` 系列（当前为 **`go1.27.4`**）是构建在默认 `GOTOOLCHAIN=auto` 下链接的最旧版本：CI 和发布归档恰好使用该版本构建，而较旧的本地 `go` 会在首次使用时下载它。更新的本地 Go，或 Dockerfile 起始的 `golang:1.27` 镜像中更新的补丁版本，会用自身构建，这只会增加修复。只有通过 `GOTOOLCHAIN=local` 保留的工具链才会用较旧的发布版构建，最低可到 `go` 系列。当 Go 补丁版本修复了代码可触达的漏洞时，提高 `toolchain` 系列：`go mod edit -toolchain=go1.27.N`（参见 [AppSec 扫描](security-scanning.md#go-工具链)）。
 - **Git** - 在可用时，Makefile 会从标签或 `git describe` 嵌入版本字符串。
 - **Node.js 和 npm** - 当你同时使用 **`http`** 和 **`ui`** 构建时需要，因为 Makefile 会运行 **`ui-build`**（参见 [`Makefile`](../../../Makefile)）来生成 **`go:embed`** 所获取的资源，并且需要 **`make test`** 和 **`make lint`**，它们运行 SPA 的 vitest 套件及其 TypeScript 检查。
 
@@ -318,4 +318,4 @@ go install github.com/EvilFreelancer/coddy-agent/cmd/coddy@latest
 
 这会编译模块默认内容，**不包含** 你的本地 **`TAGS`**。对于已知功能集（HTTP、UI、调度器、内存、控制台、消息网关），请克隆仓库并使用 **`make build TAGS="http ui scheduler memory cli gateway swarm metrics browser desktop"`**（或如上所述使用 **`go build -tags=...`**）。
 
-<!-- docsgen:source sha256=a0fb1fcd772b8293 -->
+<!-- docsgen:source sha256=b6ac53ef60f6c08c -->

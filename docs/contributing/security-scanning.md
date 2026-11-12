@@ -100,7 +100,7 @@ which has no fix) is reported at `module` level and stays informational.
 ## The Go toolchain
 
 `go.mod` carries two lines: `go 1.26.0`, the oldest Go that compiles the
-module, and `toolchain go1.27.3`, the oldest release a build links under
+module, and `toolchain go1.27.4`, the oldest release a build links under
 the default `GOTOOLCHAIN=auto`. CI installs Go from the `go` line
 (`actions/setup-go` with `go-version-file`) and the `go` command then
 switches to the `toolchain` release (`GOTOOLCHAIN=auto`, the default of an
