@@ -275,6 +275,15 @@ export function stubServer(source: ServerState | (() => ServerState)) {
       const { status, body } = server.status ?? { status: 404 };
       return reply(status, body ?? {});
     }
+    if (route === "/coddy/raw-capture" && method === "GET") {
+      // The debug viewer is off by default: with httpserver.raw_capture false
+      // the block renders nothing, so a settings test draws no extra anchor.
+      return reply(200, {
+        object: "coddy.raw_capture",
+        enabled: false,
+        entries: [],
+      });
+    }
     unexpected.push(`${method} ${path}`);
     throw new Error(`stubServer: no route for ${method} ${path}`);
   });

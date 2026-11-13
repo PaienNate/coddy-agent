@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useT } from "../i18n/I18nProvider";
+import { Chevron } from "../components/Chevron";
 import {
   clearRawCapture,
   readRawCapture,
@@ -134,9 +135,17 @@ function Pre({
   header?: Record<string, string[]>;
   body?: string;
 }) {
+  const [open, setOpen] = useState(false);
   return (
-    <details className="raw-capture-pre">
-      <summary>{label}</summary>
+    <details
+      className="raw-capture-pre"
+      open={open}
+      onToggle={(e) => setOpen(e.currentTarget.open)}
+    >
+      <summary>
+        <Chevron open={open} pointing="right" />
+        {label}
+      </summary>
       {header ? (
         <pre className="raw-capture-header">
           {Object.entries(header)
