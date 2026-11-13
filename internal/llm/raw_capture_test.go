@@ -11,6 +11,7 @@ import (
 func TestRawCapturePassThroughWhenDisabled(t *testing.T) {
 	// No recorder installed (the default): the transport must pass the request
 	// straight through without reading or cloning the body.
+	SetRawCaptureRecorder(nil)
 	req, err := http.NewRequest(http.MethodPost, "http://unused.invalid/v1", strings.NewReader("exact body"))
 	if err != nil {
 		t.Fatal(err)
@@ -18,7 +19,7 @@ func TestRawCapturePassThroughWhenDisabled(t *testing.T) {
 	req.Header.Set("Authorization", "secret")
 	response := &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("ok"))}
 	sentinelReq := req
-	rt := &rawCaptureTransport{inner: diagnosticRoundTripFunc(func(got *http.Request) (*http.Response, error) {
+	rt := &httpTraceTransport{inner: diagnosticRoundTripFunc(func(got *http.Request) (*http.Response, error) {
 		if got != sentinelReq {
 			t.Error("disabled capture cloned the request")
 		}
@@ -38,8 +39,6 @@ func TestRawCapturePassThroughWhenDisabled(t *testing.T) {
 
 func TestRawCaptureRecordsAndRestores(t *testing.T) {
 	ring := NewRawCaptureRecorder(10)
-	SetRawCaptureRecorder(ring)
-	defer SetRawCaptureRecorder(nil)
 
 	req, err := http.NewRequest(http.MethodPost, "http://unused.invalid/v1/chat", strings.NewReader(`{"hello":"world"}`))
 	if err != nil {
@@ -51,7 +50,7 @@ func TestRawCaptureRecordsAndRestores(t *testing.T) {
 
 	// The inner transport sees the full body again, not the truncated capture.
 	var innerBody string
-	rt := &rawCaptureTransport{inner: diagnosticRoundTripFunc(func(got *http.Request) (*http.Response, error) {
+	inner := diagnosticRoundTripFunc(func(got *http.Request) (*http.Response, error) {
 		b, _ := io.ReadAll(got.Body)
 		innerBody = string(b)
 		resp := &http.Response{
@@ -61,9 +60,9 @@ func TestRawCaptureRecordsAndRestores(t *testing.T) {
 		resp.Header = http.Header{}
 		resp.Header.Set("Authorization", "resp-secret")
 		return resp, nil
-	})}
+	})
 
-	resp, err := rt.RoundTrip(req)
+	resp, err := captureExchange(ring, inner, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,8 +102,6 @@ func TestRawCaptureRecordsAndRestores(t *testing.T) {
 
 func TestRawCaptureStripsVendorCredentialHeaders(t *testing.T) {
 	ring := NewRawCaptureRecorder(10)
-	SetRawCaptureRecorder(ring)
-	defer SetRawCaptureRecorder(nil)
 
 	req, err := http.NewRequest(http.MethodPost, "https://api.example.com/v1/messages?key=sk-url-secret&keep=1", strings.NewReader(`{}`))
 	if err != nil {
@@ -119,7 +116,7 @@ func TestRawCaptureStripsVendorCredentialHeaders(t *testing.T) {
 	req.Header.Set("Cookie", "sid=secret")
 	req.Header.Set("Content-Type", "application/json")
 
-	rt := &rawCaptureTransport{inner: diagnosticRoundTripFunc(func(got *http.Request) (*http.Response, error) {
+	inner := diagnosticRoundTripFunc(func(got *http.Request) (*http.Response, error) {
 		// The live request keeps its credentials; only the capture strips them.
 		if got.Header.Get("x-api-key") != "sk-anthropic" {
 			t.Error("live request lost its x-api-key")
@@ -129,8 +126,8 @@ func TestRawCaptureStripsVendorCredentialHeaders(t *testing.T) {
 		resp.Header.Set("x-api-key", "sk-response")
 		resp.Header.Set("Set-Cookie", "sid=secret")
 		return resp, nil
-	})}
-	resp, err := rt.RoundTrip(req)
+	})
+	resp, err := captureExchange(ring, inner, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,23 +166,21 @@ func TestRawCaptureStripsVendorCredentialHeaders(t *testing.T) {
 
 func TestRawCaptureBoundedBody(t *testing.T) {
 	ring := NewRawCaptureRecorder(10)
-	SetRawCaptureRecorder(ring)
-	defer SetRawCaptureRecorder(nil)
 
 	big := strings.Repeat("x", rawCaptureTextLimit+1000)
 	req, err := http.NewRequest(http.MethodPost, "http://unused.invalid/v1", strings.NewReader(big))
 	if err != nil {
 		t.Fatal(err)
 	}
-	rt := &rawCaptureTransport{inner: diagnosticRoundTripFunc(func(got *http.Request) (*http.Response, error) {
+	inner := diagnosticRoundTripFunc(func(got *http.Request) (*http.Response, error) {
 		// The inner transport still reads the whole body.
 		b, _ := io.ReadAll(got.Body)
 		if len(b) != len(big) {
 			t.Errorf("inner body truncated to %d bytes", len(b))
 		}
 		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(""))}, nil
-	})}
-	resp, err := rt.RoundTrip(req)
+	})
+	resp, err := captureExchange(ring, inner, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,22 +193,17 @@ func TestRawCaptureBoundedBody(t *testing.T) {
 	if len(entries[0].ReqBody) != rawCaptureTextLimit {
 		t.Errorf("captured req body length = %d, want %d", len(entries[0].ReqBody), rawCaptureTextLimit)
 	}
-	if _, ok := ring.Entries()[0].ReqHeader["Authorization"]; ok {
-		t.Error("Authorization header leaked into captured entry")
-	}
 }
 
 func TestRawCaptureResponsePrefixOnly(t *testing.T) {
 	ring := NewRawCaptureRecorder(10)
-	SetRawCaptureRecorder(ring)
-	defer SetRawCaptureRecorder(nil)
 
 	req, _ := http.NewRequest(http.MethodGet, "http://unused.invalid/v1", nil)
 	longResp := strings.Repeat("y", rawCaptureTextLimit+500)
-	rt := &rawCaptureTransport{inner: diagnosticRoundTripFunc(func(*http.Request) (*http.Response, error) {
+	inner := diagnosticRoundTripFunc(func(*http.Request) (*http.Response, error) {
 		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(longResp))}, nil
-	})}
-	resp, err := rt.RoundTrip(req)
+	})
+	resp, err := captureExchange(ring, inner, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -230,14 +220,12 @@ func TestRawCaptureResponsePrefixOnly(t *testing.T) {
 
 func TestRawCaptureRingClearsAndBounds(t *testing.T) {
 	ring := NewRawCaptureRecorder(2)
-	SetRawCaptureRecorder(ring)
-	defer SetRawCaptureRecorder(nil)
-	rt := &rawCaptureTransport{inner: diagnosticRoundTripFunc(func(*http.Request) (*http.Response, error) {
+	inner := diagnosticRoundTripFunc(func(*http.Request) (*http.Response, error) {
 		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("r"))}, nil
-	})}
+	})
 	for i := 0; i < 5; i++ {
 		req, _ := http.NewRequest(http.MethodGet, "http://unused.invalid/v1", nil)
-		resp, err := rt.RoundTrip(req)
+		resp, err := captureExchange(ring, inner, req)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -249,5 +237,28 @@ func TestRawCaptureRingClearsAndBounds(t *testing.T) {
 	ring.Clear()
 	if got := len(ring.Entries()); got != 0 {
 		t.Fatalf("clear left %d entries", got)
+	}
+}
+
+// TestHTTPTraceTransportCapturesWhenRecorderInstalled proves the capture is
+// wired into the transport the client builders actually return: installing the
+// recorder makes a plain httpTraceTransport round trip record the exchange.
+func TestHTTPTraceTransportCapturesWhenRecorderInstalled(t *testing.T) {
+	ring := NewRawCaptureRecorder(10)
+	SetRawCaptureRecorder(ring)
+	defer SetRawCaptureRecorder(nil)
+
+	response := &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("ok"))}
+	rt := &httpTraceTransport{inner: diagnosticRoundTripFunc(func(*http.Request) (*http.Response, error) {
+		return response, nil
+	})}
+	req, _ := http.NewRequest(http.MethodPost, "http://unused.invalid/v1", strings.NewReader(`{"a":1}`))
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if got := len(ring.Entries()); got != 1 {
+		t.Fatalf("httpTraceTransport did not capture, count = %d", got)
 	}
 }

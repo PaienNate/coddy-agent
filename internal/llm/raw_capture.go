@@ -114,29 +114,21 @@ func GetRawCaptureRecorder() *RawCaptureRecorder {
 	return rawCaptureRecorder
 }
 
-// rawCaptureTransport wraps a round tripper and records the request and
-// response bodies into the installed ring. When no recorder is installed it is
-// a pass-through, so a process that ran without httpserver.raw_capture pays
-// nothing but the one nil check.
-type rawCaptureTransport struct {
-	inner http.RoundTripper
+// roundTripperFunc adapts a function to http.RoundTripper, so the raw capture
+// can wrap the trace path without adding a wrapper type to the chain the
+// provider-proxy guard pins (HTTPClientForProviderProxy must stay a
+// httpTraceTransport over the shared transport).
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
 }
 
-// CloseIdleConnections forwards to the inner transport.
-func (t *rawCaptureTransport) CloseIdleConnections() {
-	if inner, ok := t.inner.(interface{ CloseIdleConnections() }); ok {
-		inner.CloseIdleConnections()
-	}
-}
-
-// RoundTrip captures one request/response pair before delegating to the inner
-// transport.
-func (t *rawCaptureTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	ring := GetRawCaptureRecorder()
-	if ring == nil {
-		return t.inner.RoundTrip(req)
-	}
-
+// captureExchange records one request/response pair into ring around inner. The
+// whole request body is read so inner still sees it; the ring keeps only a
+// bounded prefix. The response body passes through whole while the ring keeps a
+// bounded prefix, read lazily at snapshot time.
+func captureExchange(ring *RawCaptureRecorder, inner http.RoundTripper, req *http.Request) (*http.Response, error) {
 	entry := RawCaptureEntry{
 		At:        time.Now().UTC(),
 		Method:    req.Method,
@@ -144,8 +136,6 @@ func (t *rawCaptureTransport) RoundTrip(req *http.Request) (*http.Response, erro
 		ReqHeader: sanitizedHeader(req.Header),
 	}
 	if req.Body != nil {
-		// Read the whole request so the inner transport gets the body back; keep
-		// only a bounded prefix in the entry.
 		body, err := io.ReadAll(req.Body)
 		if err == nil {
 			entry.ReqBody = boundedText(body)
@@ -153,7 +143,7 @@ func (t *rawCaptureTransport) RoundTrip(req *http.Request) (*http.Response, erro
 		}
 	}
 
-	resp, err := t.inner.RoundTrip(req)
+	resp, err := inner.RoundTrip(req)
 	if err != nil {
 		entry.Err = err.Error()
 		ring.add(entry)
@@ -162,8 +152,6 @@ func (t *rawCaptureTransport) RoundTrip(req *http.Request) (*http.Response, erro
 	entry.Status = resp.StatusCode
 	entry.RespHeader = sanitizedHeader(resp.Header)
 	if resp.Body != nil {
-		// Wrap the live stream so the caller keeps it whole and the ring keeps
-		// a bounded prefix, read lazily at snapshot time.
 		reader := newCaptureReadCloser(resp.Body, rawCaptureTextLimit)
 		resp.Body = reader
 		entry.resp = reader

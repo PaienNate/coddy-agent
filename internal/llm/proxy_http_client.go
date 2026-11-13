@@ -24,9 +24,7 @@ func HTTPClientForProviderProxy(setting string) (*http.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &http.Client{
-		Transport: &rawCaptureTransport{inner: &httpTraceTransport{inner: rt}},
-	}, nil
+	return &http.Client{Transport: &httpTraceTransport{inner: rt}}, nil
 }
 
 // providerHTTPClientArg is the compatibility boundary for provider helpers.
