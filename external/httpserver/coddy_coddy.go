@@ -1172,7 +1172,7 @@ func (s *Server) coddySessionsList(w http.ResponseWriter, r *http.Request) {
 	}
 	sortKey, ok := session.ParseSortKey(r.URL.Query().Get("sort"))
 	if !ok {
-		http.Error(w, `{"error":{"message":"sort must be \"updated\", \"created\", \"title\", \"messages\" or \"tokens\""}}`, http.StatusBadRequest)
+		http.Error(w, `{"error":{"message":"sort must be \"updated\", \"created\", \"last_used\", \"title\", \"messages\" or \"tokens\""}}`, http.StatusBadRequest)
 		return
 	}
 	sortOrder, ok := session.ParseSortOrder(r.URL.Query().Get("order"))
@@ -1307,6 +1307,9 @@ func (s *Server) coddySessionsList(w http.ResponseWriter, r *http.Request) {
 		}
 		if row.UpdatedAt != "" {
 			ent["updatedAt"] = row.UpdatedAt
+		}
+		if row.LastUsedAt != "" {
+			ent["lastUsedAt"] = row.LastUsedAt
 		}
 		if row.CWD != "" {
 			ent["cwd"] = row.CWD

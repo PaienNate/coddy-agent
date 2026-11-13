@@ -1,8 +1,8 @@
 /**
- * Contract: a session whose turn is running carries a pulsing dot, the same
- * shape as the unread dot a finished background turn leaves behind and a third
- * darker, so the two read as one family - "working" and "done, not read yet" -
- * without being mistaken for each other at a glance.
+ * Contract: a session whose turn is running carries a loading icon - a ring
+ * spinner in the theme's accent - so a running conversation reads as working.
+ * The unread dot a finished background turn leaves behind stays a dot, so
+ * "working" and "done, not read yet" still read apart.
  */
 import { expect, test } from "vitest";
 import { stylesSource } from "../../stylesSource";
@@ -16,31 +16,22 @@ function rule(selector: string): string {
   );
 }
 
-test("the activity dot is the unread dot, a third darker", () => {
+test("the running turn carries a ring spinner, not the unread dot's fill", () => {
+  const spinner = rule(".session-activity-spinner");
   const unread = rule(".session-unread-dot");
-  const dot = rule(".session-activity-dot");
-  expect(dot).not.toBe("");
-  for (const prop of ["width", "height", "border-radius"]) {
-    const re = new RegExp(`${prop}:\\s*([^;]+);`);
-    expect(re.exec(dot)?.[1]).toBe(re.exec(unread)?.[1]);
-  }
-  expect(dot).toMatch(
-    /background:\s*color-mix\(in srgb,\s*var\(--accent\)\s*67%,\s*#000\)/,
-  );
+  expect(spinner).not.toBe("");
+  expect(spinner).toMatch(/animation:\s*session-spin\s/);
+  // A ring: transparent sides, one accent segment, and no solid fill.
+  expect(spinner).not.toMatch(/background:\s*var\(--accent\);/);
+  expect(unread).toMatch(/background:\s*var\(--accent\);/);
 });
 
-test("the activity dot pulses, and holds still for reduced motion", () => {
-  expect(rule(".session-activity-dot")).toMatch(
-    /animation:\s*session-activity-pulse\s/,
-  );
-  expect(css).toMatch(/@keyframes session-activity-pulse\s*\{/);
+test("the activity spinner holds still for reduced motion", () => {
+  expect(css).toMatch(/@keyframes session-spin\s*\{/);
   expect(css).toMatch(
-    /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.session-activity-dot\s*\{\s*animation:\s*none;/,
+    /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.session-activity-spinner\s*\{\s*animation:\s*none;/,
   );
-});
-
-test("the spinner is gone", () => {
-  expect(css).not.toMatch(/\.session-activity-spinner\b/);
+  expect(css).not.toMatch(/@keyframes session-activity-pulse\s*\{/);
 });
 
 test("a question marker stays still while it waits for the user", () => {
@@ -52,7 +43,7 @@ test("finished and error dots keep the shared circle geometry", () => {
   const idle = rule(".session-idle-dot");
   const error = rule(".session-error-dot");
   const unread = rule(".session-unread-dot");
-  for (const dot of [idle, error]) {
+  for (const dot of [idle, error, unread]) {
     expect(dot).not.toBe("");
     for (const prop of ["width", "height", "border-radius"]) {
       const re = new RegExp(`${prop}:\\s*([^;]+);`);

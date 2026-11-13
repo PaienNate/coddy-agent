@@ -381,6 +381,7 @@ type HTTPServerJSON struct {
 	LoginSource     string           `json:"login_source,omitempty"`
 	PublicDocs      bool             `json:"public_docs,omitempty"`
 	AllowInsecure   bool             `json:"allow_insecure,omitempty"`
+	RawCapture      bool             `json:"raw_capture,omitempty"`
 	CORS            HTTPCORSJSON     `json:"cors,omitempty"`
 	Remotes         []HTTPRemoteJSON `json:"remotes,omitempty"`
 }
@@ -660,6 +661,7 @@ func ConfigToJSONDTO(c *Config) *ConfigJSON {
 		Port:                     c.HTTPServer.Port,
 		PublicDocs:               c.HTTPServer.PublicDocs,
 		AllowInsecure:            c.HTTPServer.AllowInsecure,
+		RawCapture:               c.HTTPServer.RawCapture,
 		// AuthToken is intentionally redacted; report only whether one is configured.
 		AuthConfigured: strings.TrimSpace(c.HTTPServer.AuthToken) != "",
 		Login: HTTPLoginJSON{

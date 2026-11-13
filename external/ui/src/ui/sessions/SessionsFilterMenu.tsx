@@ -28,6 +28,7 @@ export type SessionsEnvironmentOption = {
 /** The columns History offers; the table in Settings sorts by more than these. */
 const HISTORY_SORT_KEYS: readonly SessionSortKey[] = [
   "updated",
+  "last_used",
   "created",
   "title",
 ];

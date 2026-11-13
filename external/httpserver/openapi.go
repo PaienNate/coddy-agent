@@ -293,7 +293,7 @@ func openAPISpec() map[string]interface{} {
 					}, map[string]interface{}{
 						"name":   "sort",
 						"in":     "query",
-						"schema": map[string]interface{}{"type": "string", "enum": []string{"updated", "created", "title", "messages", "tokens"}},
+						"schema": map[string]interface{}{"type": "string", "enum": []string{"updated", "created", "last_used", "title", "messages", "tokens"}},
 						"description": "The column the listing is ordered by; **`updated`** by default. A session the column says nothing about (no creation stamp, no title) sorts **last in both directions**, and ties break by id so paging is stable. " +
 							"**`tokens`** reads each bundle's **stats.json**, so it costs one extra small file read per session and only when it is the column asked for. An unknown key is a **400**.",
 					}, map[string]interface{}{
@@ -1292,6 +1292,39 @@ func openAPISpec() map[string]interface{} {
 						},
 						"400": errorResponseRef(),
 						"500": errorResponseRef(),
+					},
+				},
+			},
+			"/coddy/raw-capture": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary":     "List captured provider wire exchanges",
+					"description": "Returns everything the **`httpserver.raw_capture`** recorder kept, in memory only and bounded to the last 100 exchanges, oldest first. Off by default: with the switch off the answer is `{\"object\":\"coddy.raw_capture\",\"enabled\":false,\"entries\":[]}` and the panel the UI draws for it stays hidden. Each entry carries the method and URL, the status, the headers and the first 256 KiB of the request and response bodies - the **Authorization**, **Proxy-Authorization**, **Cookie** and **Set-Cookie** headers are always stripped from both directions, as is the request body a JSON read already drained only after the inner transport saw the whole body. The bodies are truncated for display, never the stream the caller receives. Nothing here is written to disk.",
+					"operationId": "coddyRawCaptureGet",
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "`coddy.raw_capture` document with the captured exchanges",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{"$ref": "#/components/schemas/CoddyRawCaptureDocument"},
+								},
+							},
+						},
+					},
+				},
+				"delete": map[string]interface{}{
+					"summary":     "Clear the captured exchanges",
+					"description": "Drops every entry the **`httpserver.raw_capture`** recorder kept. A **404** when the switch is off.",
+					"operationId": "coddyRawCaptureDelete",
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "`{\"object\":\"coddy.raw_capture\",\"enabled\":true,\"entries\":[]}`",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{"$ref": "#/components/schemas/CoddyRawCaptureDocument"},
+								},
+							},
+						},
+						"404": errorResponseRef(),
 					},
 				},
 			},
@@ -3795,6 +3828,34 @@ func openAPISpec() map[string]interface{} {
 				},
 			},
 			"schemas": map[string]interface{}{
+				"CoddyRawCaptureDocument": map[string]interface{}{
+					"type":        "object",
+					"description": "The raw-capture document: whether httpserver.raw_capture is on and the exchanges kept, in memory only, oldest first.",
+					"properties": map[string]interface{}{
+						"object":  map[string]string{"type": "string", "description": "`coddy.raw_capture`."},
+						"enabled": map[string]string{"type": "boolean"},
+						"entries": map[string]interface{}{
+							"type":  "array",
+							"items": map[string]interface{}{"$ref": "#/components/schemas/CoddyRawCaptureEntry"},
+						},
+					},
+				},
+				"CoddyRawCaptureEntry": map[string]interface{}{
+					"type":        "object",
+					"description": "One provider HTTP exchange. Authorization, Proxy-Authorization, Cookie and Set-Cookie headers are stripped from both directions; each body is truncated to the first 256 KiB for display, never the stream a caller receives. Nothing here is written to disk.",
+					"properties": map[string]interface{}{
+						"id":         map[string]string{"type": "string"},
+						"at":         map[string]string{"type": "string", "format": "date-time"},
+						"method":     map[string]string{"type": "string"},
+						"url":        map[string]string{"type": "string", "description": "Request URL."},
+						"status":     map[string]string{"type": "integer", "description": "HTTP status, absent when the request failed before any response."},
+						"reqHeader":  map[string]interface{}{"type": "object", "description": "Request headers, credentials stripped."},
+						"reqBody":    map[string]string{"type": "string", "description": "First 256 KiB of the request body."},
+						"respHeader": map[string]interface{}{"type": "object", "description": "Response headers, credentials stripped."},
+						"respBody":   map[string]string{"type": "string", "description": "First 256 KiB of the response body."},
+						"err":        map[string]string{"type": "string", "description": "Transport error, when the request failed."},
+					},
+				},
 				"SubagentCatalogEntry": map[string]interface{}{
 					"type":        "object",
 					"description": "One subagent definition as the catalog shows it, with the trust decision for the requested workspace.",

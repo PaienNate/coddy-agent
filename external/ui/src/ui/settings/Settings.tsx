@@ -130,6 +130,27 @@ function IconRefresh(props: { className?: string }) {
   );
 }
 
+/** Rotate-ccw arrow (lucide rotate-ccw): discard the unsaved edits of the form. */
+function IconDiscard(props: { className?: string }) {
+  return (
+    <svg
+      className={props.className}
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <polyline points="1 4 1 10 7 10" />
+      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+    </svg>
+  );
+}
+
 /** Back arrow (lucide arrow-left) for the mobile section-detail header. */
 function IconArrowLeft(props: { className?: string }) {
   return (
@@ -771,6 +792,21 @@ export function Settings(props: {
     }
   }, [dirty, onSave, props]);
 
+  // Discard the unsaved edits: the form goes back to base, the configuration it
+  // was read from or last saved, with no request to the server and no save.
+  const discardChanges = useCallback(() => {
+    clearSaved();
+    setError(null);
+    setDraft((d) => (d.base ? { ...d, doc: d.base } : d));
+  }, [clearSaved]);
+
+  // The close dialog's third answer: discard the edits and close the drawer.
+  const discardAndClose = useCallback(() => {
+    setAskClose(false);
+    discardChanges();
+    props.onClose();
+  }, [discardChanges, props]);
+
   // A close asked for while a save was on its way: once that save leaves
   // nothing unsaved, the drawer closes as it was asked to.
   useEffect(() => {
@@ -1054,6 +1090,17 @@ export function Settings(props: {
           </button>
           <button
             type="button"
+            className="settings-btn settings-btn-icon settings-btn-discard"
+            data-testid="settings-discard"
+            disabled={busy || !dirty}
+            title={t("settings.discard.title")}
+            aria-label={t("settings.discard.aria")}
+            onClick={discardChanges}
+          >
+            <IconDiscard className="settings-footer-icon-svg" />
+          </button>
+          <button
+            type="button"
             className={`settings-btn settings-btn-primary settings-btn-icon${justSaved && !dirty ? " is-saved" : ""}${dirty ? " is-dirty" : ""}`}
             data-testid="settings-save"
             disabled={busy || !schema}
@@ -1081,6 +1128,14 @@ export function Settings(props: {
         confirmLabel={t("settings.close.save")}
         cancelLabel={t("settings.close.keep")}
         variant="primary"
+        wide
+        secondary={{
+          label: t("settings.close.discard"),
+          variant: "danger",
+          onClick: discardAndClose,
+          disabled: busy,
+          dataTestId: "settings-close-discard",
+        }}
         ariaLabel={t("settings.close.title")}
         onConfirm={() => void saveAndClose()}
         onCancel={() => setAskClose(false)}

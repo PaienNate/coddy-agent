@@ -125,10 +125,13 @@ export const messagesEn: Record<string, string> = {
   "settings.save.dirtyTitle": "Save: the changes take effect only after it",
   "settings.save.dirtyAria": "Save the unsaved changes",
   "settings.status.unsaved": "Unsaved changes",
+  "settings.discard.title": "Discard changes",
+  "settings.discard.aria": "Discard the unsaved changes",
   "settings.close.title": "Save before closing?",
   "settings.close.message":
     "The changes in the form are not saved and take effect only after Save.",
   "settings.close.save": "Save and close",
+  "settings.close.discard": "Discard and close",
   "settings.close.keep": "Keep editing",
   "settings.error.otherServer":
     "This page has been switched to another server; reload it to edit that server's settings.",
@@ -1681,6 +1684,7 @@ export const messagesEn: Record<string, string> = {
   "sessions.filter.env.print": "CLI runs",
 
   "sessions.sort.updated": "Last activity",
+  "sessions.sort.lastUsed": "Last used",
   "sessions.sort.created": "Date created",
   "sessions.sort.title": "Name",
 
@@ -2320,6 +2324,9 @@ export const messagesEn: Record<string, string> = {
   "tasks.footExitCode": "Exit code {code}",
   "tasks.openTranscript": "Show transcript",
   "tasks.openTranscriptAria": "Show the transcript of {label}",
+  "tasks.openTranscriptReadOnly": "Open the read-only transcript of {label}",
+  "tasks.openTranscriptReadOnlyAria":
+    "Open the read-only transcript of {label}",
   "tasks.agentTokensTitle": "Tokens in {input}, out {output}",
   "tasks.openTranscriptUnavailable": "The child session is not known yet",
 

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { applyModelsChange, applyToolsetsChange } from "./applyModelsChange";
+import {
+  applyModelsChange,
+  applyProvidersChange,
+  applyToolsetsChange,
+} from "./applyModelsChange";
 
 function baseDoc(
   models: Array<Record<string, unknown>>,
@@ -80,15 +84,32 @@ describe("applyModelsChange", () => {
     );
   });
 
-  it("does not repoint references when a model is removed (length shrinks)", () => {
+  it("clears a reference when its model is removed (length shrinks)", () => {
     const doc = baseDoc(
       [{ model: "neuraldeep/gpt-120b-oss" }, { model: "openai/gpt-4o" }],
-      { agent: { model: "neuraldeep/gpt-120b-oss" } },
+      {
+        agent: { model: "neuraldeep/gpt-120b-oss" },
+        memory: { model: "neuraldeep/gpt-120b-oss" },
+      },
     );
     const next = applyModelsChange(doc, [{ model: "openai/gpt-4o" }]);
-    expect((next.agent as Record<string, unknown>).model).toBe(
-      "neuraldeep/gpt-120b-oss",
+    // The removed model's references cannot stay: a config naming a model that
+    // is gone fails validation ("not found in models list").
+    expect((next.agent as Record<string, unknown>).model).toBe("");
+    expect((next.memory as Record<string, unknown>).model).toBe("");
+  });
+
+  it("clears only the reference of a removed model, leaving others", () => {
+    const doc = baseDoc(
+      [{ model: "neuraldeep/gpt-120b-oss" }, { model: "openai/gpt-4o" }],
+      {
+        agent: { model: "openai/gpt-4o" },
+        memory: { model: "neuraldeep/gpt-120b-oss" },
+      },
     );
+    const next = applyModelsChange(doc, [{ model: "openai/gpt-4o" }]);
+    expect((next.agent as Record<string, unknown>).model).toBe("openai/gpt-4o");
+    expect((next.memory as Record<string, unknown>).model).toBe("");
   });
 
   it("renames only the reference matching the changed entry", () => {
@@ -127,6 +148,99 @@ describe("applyModelsChange", () => {
     const next = applyModelsChange(doc, [{ model: "neuraldeep/qwen-3.6" }]);
     expect(next.models).toEqual([{ model: "neuraldeep/qwen-3.6" }]);
     expect(next.agent).toBeUndefined();
+  });
+
+  it("follows compaction.model through a rename", () => {
+    const doc = baseDoc([{ model: "neuraldeep/gpt-120b-oss" }], {
+      compaction: {
+        enable: true,
+        model: "neuraldeep/gpt-120b-oss",
+        fallback_models: ["neuraldeep/gpt-120b-oss"],
+      },
+    });
+    const next = applyModelsChange(doc, [{ model: "neuraldeep/qwen-3.6" }]);
+    expect((next.compaction as Record<string, unknown>).model).toBe(
+      "neuraldeep/qwen-3.6",
+    );
+    expect(
+      (next.compaction as Record<string, unknown>).fallback_models,
+    ).toEqual(["neuraldeep/qwen-3.6"]);
+    expect((next.compaction as Record<string, unknown>).enable).toBe(true);
+  });
+
+  it("clears compaction.model and drops its fallback entry on removal", () => {
+    const doc = baseDoc(
+      [{ model: "neuraldeep/gpt-120b-oss" }, { model: "openai/gpt-4o" }],
+      {
+        compaction: {
+          model: "neuraldeep/gpt-120b-oss",
+          fallback_models: ["neuraldeep/gpt-120b-oss", "openai/gpt-4o"],
+        },
+      },
+    );
+    const next = applyModelsChange(doc, [{ model: "openai/gpt-4o" }]);
+    expect((next.compaction as Record<string, unknown>).model).toBe("");
+    expect(
+      (next.compaction as Record<string, unknown>).fallback_models,
+    ).toEqual(["openai/gpt-4o"]);
+  });
+});
+
+describe("applyProvidersChange", () => {
+  it("renames every model id under a provider whose name changed, and the references", () => {
+    const doc = baseDoc(
+      [
+        { model: "neuraldeep/gpt-120b-oss" },
+        { model: "neuraldeep/gpt-4o" },
+        { model: "openai/gpt-4o" },
+      ],
+      { agents: undefined },
+    );
+    doc.providers = [
+      { name: "neuraldeep", type: "openai" },
+      { name: "openai", type: "openai" },
+    ];
+    doc.agent = { model: "neuraldeep/gpt-120b-oss" };
+    doc.memory = { model: "neuraldeep/gpt-4o" };
+    doc.compaction = {
+      model: "neuraldeep/gpt-120b-oss",
+      fallback_models: ["neuraldeep/gpt-4o"],
+    };
+    const next = applyProvidersChange(doc, [
+      { name: "deepseek", type: "openai" },
+      { name: "openai", type: "openai" },
+    ]);
+    expect(next.providers).toEqual([
+      { name: "deepseek", type: "openai" },
+      { name: "openai", type: "openai" },
+    ]);
+    expect(next.models).toEqual([
+      { model: "deepseek/gpt-120b-oss" },
+      { model: "deepseek/gpt-4o" },
+      { model: "openai/gpt-4o" },
+    ]);
+    expect((next.agent as Record<string, unknown>).model).toBe(
+      "deepseek/gpt-120b-oss",
+    );
+    expect((next.memory as Record<string, unknown>).model).toBe(
+      "deepseek/gpt-4o",
+    );
+    expect((next.compaction as Record<string, unknown>).model).toBe(
+      "deepseek/gpt-120b-oss",
+    );
+    expect(
+      (next.compaction as Record<string, unknown>).fallback_models,
+    ).toEqual(["deepseek/gpt-4o"]);
+  });
+
+  it("leaves everything alone when a provider is added or removed", () => {
+    const doc = baseDoc([{ model: "neuraldeep/gpt-120b-oss" }]);
+    doc.providers = [{ name: "neuraldeep", type: "openai" }];
+    doc.agent = { model: "neuraldeep/gpt-120b-oss" };
+    expect(applyProvidersChange(doc, []).models).toBe(doc.models);
+    expect(
+      (applyProvidersChange(doc, []).agent as Record<string, unknown>).model,
+    ).toBe("neuraldeep/gpt-120b-oss");
   });
 });
 

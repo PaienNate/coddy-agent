@@ -193,6 +193,52 @@ test("permission attention takes priority over question attention", () => {
   expect(sessionRowNeedsUserAttention(row, new Set(), new Set())).toBe(true);
 });
 
+test("unread dot only after a turn completes, never while it runs", () => {
+  // Acceptance: a running turn shows the pulsing activity dot, never the red
+  // unread dot ("进行中不算，完成再显示"). Once it completes unread (read
+  // cursor behind the activity generation) the red dot shows and the activity
+  // dot is gone.
+  const sets = emptySets();
+  const running = base("running", {
+    turnActive: true,
+    unreadComplete: false,
+    backgroundRunning: 0,
+  });
+  expect(sessionRowShowsActivity(running, sets.permission, sets.question)).toBe(
+    true,
+  );
+  expect(sessionRowShowsUnreadDot(running, "other")).toBe(false);
+
+  const doneUnread = base("done", {
+    turnActive: false,
+    unreadComplete: true,
+    backgroundRunning: 0,
+  });
+  expect(
+    sessionRowShowsActivity(doneUnread, sets.permission, sets.question),
+  ).toBe(false);
+  expect(sessionRowShowsUnreadDot(doneUnread, "other")).toBe(true);
+});
+
+test("a viewed session never claims an unread or activity dot for itself", () => {
+  const current = base("current", {
+    turnActive: false,
+    unreadComplete: true,
+    backgroundRunning: 0,
+  });
+  // The conversation on screen was just read through markActivityRead, so its
+  // own row shows no unread dot; but a running turn still shows the activity
+  // mark, because it is the one the reader is most likely waiting on.
+  expect(sessionRowShowsUnreadDot(current, "current")).toBe(false);
+  expect(
+    sessionRowShowsActivity(
+      { ...current, turnActive: true },
+      emptySets().permission,
+      emptySets().question,
+    ),
+  ).toBe(true);
+});
+
 test("unread dot when another session has unread completion", () => {
   expect(
     sessionRowShowsUnreadDot(base("a", { unreadComplete: true }), "b"),

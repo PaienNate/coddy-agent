@@ -122,10 +122,13 @@ export const messagesRu: Record<string, string> = {
     "Сохранить: изменения применятся только после этого",
   "settings.save.dirtyAria": "Сохранить несохранённые изменения",
   "settings.status.unsaved": "Есть несохранённые изменения",
+  "settings.discard.title": "Отменить изменения",
+  "settings.discard.aria": "Отменить несохранённые изменения",
   "settings.close.title": "Сохранить перед закрытием?",
   "settings.close.message":
     "Изменения в форме не сохранены и применятся только после сохранения.",
   "settings.close.save": "Сохранить и закрыть",
+  "settings.close.discard": "Отменить и закрыть",
   "settings.close.keep": "Вернуться к правке",
   "settings.error.otherServer":
     "Страница переключена на другой сервер, перезагрузите её, чтобы изменить его настройки.",
@@ -1737,6 +1740,7 @@ export const messagesRu: Record<string, string> = {
   "sessions.filter.env.print": "Запуски CLI",
 
   "sessions.sort.updated": "Последней активности",
+  "sessions.sort.lastUsed": "Последнего использования",
   "sessions.sort.created": "Дате создания",
   "sessions.sort.title": "Названию",
 
@@ -2395,6 +2399,10 @@ export const messagesRu: Record<string, string> = {
   "tasks.footExitCode": "Код выхода {code}",
   "tasks.openTranscript": "Показать транскрипт",
   "tasks.openTranscriptAria": "Показать транскрипт запуска {label}",
+  "tasks.openTranscriptReadOnly":
+    "Открыть транскрипт {label} только для чтения",
+  "tasks.openTranscriptReadOnlyAria":
+    "Открыть транскрипт {label} только для чтения",
   "tasks.agentTokensTitle": "Токены на входе {input}, на выходе {output}",
   "tasks.openTranscriptUnavailable": "Дочерняя сессия ещё не известна",
 

@@ -50,6 +50,14 @@ type HTTPServerConfig struct {
 	AllowInsecure bool `yaml:"allow_insecure"`
 	// CORS controls cross-origin access so a browser UI on another origin can call this API.
 	CORS HTTPCORSConfig `yaml:"cors"`
+	// RawCapture keeps, in memory only, the raw request bodies and responses of
+	// every provider call this server makes, so an operator can inspect what
+	// actually went over the wire when debugging a provider. It is a debug
+	// toggle, off by default: when off nothing is captured and the viewer is
+	// not shown. What it captures is never written to disk (it is a ring that
+	// drops the oldest once it fills), and it always strips Authorization and
+	// Proxy-Authorization headers from both directions.
+	RawCapture bool `yaml:"raw_capture"`
 	// Remotes lists remote coddy serve servers and swarm relays the bundled UI may connect
 	// to (environment selector) and `coddy --remote <name>` resolves. An entry may carry
 	// the token to present to it; without one the UI keeps the token client-side per
