@@ -101,6 +101,72 @@ func TestRawCaptureRecordsAndRestores(t *testing.T) {
 	}
 }
 
+func TestRawCaptureStripsVendorCredentialHeaders(t *testing.T) {
+	ring := NewRawCaptureRecorder(10)
+	SetRawCaptureRecorder(ring)
+	defer SetRawCaptureRecorder(nil)
+
+	req, err := http.NewRequest(http.MethodPost, "https://api.example.com/v1/messages?key=sk-url-secret&keep=1", strings.NewReader(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The credential headers the providers Coddy speaks actually set.
+	req.Header.Set("Authorization", "Bearer sk-auth")
+	req.Header.Set("x-api-key", "sk-anthropic")
+	req.Header.Set("api-key", "sk-azure")
+	req.Header.Set("x-goog-api-key", "sk-google")
+	req.Header.Set("Proxy-Authorization", "Basic abc")
+	req.Header.Set("Cookie", "sid=secret")
+	req.Header.Set("Content-Type", "application/json")
+
+	rt := &rawCaptureTransport{inner: diagnosticRoundTripFunc(func(got *http.Request) (*http.Response, error) {
+		// The live request keeps its credentials; only the capture strips them.
+		if got.Header.Get("x-api-key") != "sk-anthropic" {
+			t.Error("live request lost its x-api-key")
+		}
+		resp := &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("ok"))}
+		resp.Header = http.Header{}
+		resp.Header.Set("x-api-key", "sk-response")
+		resp.Header.Set("Set-Cookie", "sid=secret")
+		return resp, nil
+	})}
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+
+	entries := ring.Entries()
+	if len(entries) != 1 {
+		t.Fatalf("want 1 entry, got %d", len(entries))
+	}
+	e := entries[0]
+	for _, h := range []string{"Authorization", "Proxy-Authorization", "Cookie", "X-Api-Key", "Api-Key", "X-Goog-Api-Key"} {
+		if _, ok := e.ReqHeader[h]; ok {
+			t.Errorf("request header %s leaked into the capture", h)
+		}
+	}
+	if _, ok := e.RespHeader["X-Api-Key"]; ok {
+		t.Error("response x-api-key leaked into the capture")
+	}
+	if _, ok := e.RespHeader["Set-Cookie"]; ok {
+		t.Error("response Set-Cookie leaked into the capture")
+	}
+	if e.ReqHeader.Get("Content-Type") != "application/json" {
+		t.Error("non-secret header was dropped")
+	}
+	// The URL query's credential is redacted; the rest survives.
+	if strings.Contains(e.URL, "sk-url-secret") {
+		t.Errorf("URL leaked the query key: %s", e.URL)
+	}
+	if !strings.Contains(e.URL, "keep=1") {
+		t.Errorf("URL lost its non-secret query: %s", e.URL)
+	}
+	if !strings.Contains(e.URL, "REDACTED") {
+		t.Errorf("URL did not mark the redaction: %s", e.URL)
+	}
+}
+
 func TestRawCaptureBoundedBody(t *testing.T) {
 	ring := NewRawCaptureRecorder(10)
 	SetRawCaptureRecorder(ring)

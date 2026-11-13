@@ -22,7 +22,10 @@ func (s *Server) registerRawCaptureRoutes() {
 
 // syncRawCapture brings the process-wide recorder in line with the served
 // configuration: install one when httpserver.raw_capture is on, remove it when
-// off. Called at New and again on every ReplaceConfig.
+// off. Called at New and again on every ReplaceConfig. The ring itself is kept
+// across a disable so a later enable reuses it; whether capture is *shown* is
+// read from the live configuration, never from the ring being non-nil
+// (rawCaptureEnabled).
 func (s *Server) syncRawCapture(cfg *config.Config) {
 	if cfg != nil && cfg.HTTPServer.RawCapture {
 		if s.rawCapture == nil {
@@ -32,13 +35,22 @@ func (s *Server) syncRawCapture(cfg *config.Config) {
 		return
 	}
 	// Capture is off: the transport passes every request through untouched.
-	// Keep the server's own reference so a later reload that turns it back on
-	// reuses the ring rather than starting empty.
 	llm.SetRawCaptureRecorder(nil)
 }
 
+// rawCaptureEnabled reports whether the live configuration has the capture
+// switch on. GET and DELETE answer off when it does not, even though the ring
+// may still hold what a previous enable captured: turning the switch off hides
+// the viewer, as the documentation says.
+func (s *Server) rawCaptureEnabled() bool {
+	if cfg := s.activeCfg(); cfg != nil {
+		return cfg.HTTPServer.RawCapture
+	}
+	return false
+}
+
 func (s *Server) coddyRawCaptureGet(w http.ResponseWriter, r *http.Request) {
-	if s.rawCapture == nil {
+	if !s.rawCaptureEnabled() || s.rawCapture == nil {
 		writeJSON(w, http.StatusOK, rawCapturePayload(false, nil))
 		return
 	}
@@ -46,7 +58,7 @@ func (s *Server) coddyRawCaptureGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) coddyRawCaptureDelete(w http.ResponseWriter, r *http.Request) {
-	if s.rawCapture == nil {
+	if !s.rawCaptureEnabled() || s.rawCapture == nil {
 		s.queueError(w, http.StatusNotFound, "not_enabled", errors.New("raw capture is not enabled"))
 		return
 	}

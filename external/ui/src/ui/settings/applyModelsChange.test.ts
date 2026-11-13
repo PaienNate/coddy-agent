@@ -71,6 +71,23 @@ describe("applyModelsChange", () => {
     expect((next.agent as Record<string, unknown>).model).toBe("openai/gpt-4o");
   });
 
+  it("treats a same-length delete-and-add as a removal, not a rename", () => {
+    // [a, b] -> [b, c]: b survives, a is gone, c is new. A positional diff
+    // would read a->b and b->c and repoint references to the wrong ids.
+    const doc = baseDoc([{ model: "local/a" }, { model: "local/b" }], {
+      agent: { model: "local/a" },
+      memory: { model: "local/b" },
+    });
+    const next = applyModelsChange(doc, [
+      { model: "local/b" },
+      { model: "local/c" },
+    ]);
+    // The reference to the removed model is cleared, never repointed.
+    expect((next.agent as Record<string, unknown>).model).toBe("");
+    // The reference to the surviving model is untouched.
+    expect((next.memory as Record<string, unknown>).model).toBe("local/b");
+  });
+
   it("does not repoint references when a model is added (length grows)", () => {
     const doc = baseDoc([{ model: "neuraldeep/gpt-120b-oss" }], {
       agent: { model: "neuraldeep/gpt-120b-oss" },

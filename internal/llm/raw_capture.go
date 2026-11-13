@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -138,7 +140,7 @@ func (t *rawCaptureTransport) RoundTrip(req *http.Request) (*http.Response, erro
 	entry := RawCaptureEntry{
 		At:        time.Now().UTC(),
 		Method:    req.Method,
-		URL:       req.URL.String(),
+		URL:       redactedURL(req.URL),
 		ReqHeader: sanitizedHeader(req.Header),
 	}
 	if req.Body != nil {
@@ -179,6 +181,33 @@ func boundedText(b []byte) string {
 	return string(b)
 }
 
+// sensitiveHeaders are the credential-carrying headers the capture must never
+// keep. Besides the standard ones, the providers Coddy speaks set their key in
+// a vendor header: Anthropic and its model list use x-api-key, some
+// OpenAI-compatible gateways use api-key, and a Google-compatible endpoint uses
+// x-goog-api-key. A captured credential would otherwise sit in the ring and be
+// served by GET /coddy/raw-capture.
+var sensitiveHeaders = map[string]struct{}{
+	"Authorization":       {},
+	"Proxy-Authorization": {},
+	"Cookie":              {},
+	"Set-Cookie":          {},
+	"X-Api-Key":           {},
+	"Api-Key":             {},
+	"X-Goog-Api-Key":      {},
+}
+
+// sensitiveQueryParams are the query parameters that name a credential: a key
+// some providers accept in the URL (`?key=`, `?api_key=`), or a signed token.
+var sensitiveQueryParams = map[string]struct{}{
+	"key":          {},
+	"api_key":      {},
+	"apikey":       {},
+	"api-key":      {},
+	"access_token": {},
+	"token":        {},
+}
+
 // sanitizedHeader strips the credentials a captured headers map might carry.
 func sanitizedHeader(h http.Header) http.Header {
 	if h == nil {
@@ -186,13 +215,42 @@ func sanitizedHeader(h http.Header) http.Header {
 	}
 	out := make(http.Header, len(h))
 	for k, v := range h {
-		switch http.CanonicalHeaderKey(k) {
-		case "Authorization", "Proxy-Authorization", "Cookie", "Set-Cookie":
+		if _, secret := sensitiveHeaders[http.CanonicalHeaderKey(k)]; secret {
 			continue
 		}
 		out[k] = append([]string(nil), v...)
 	}
 	return out
+}
+
+// redactedURL drops the value of any credential query parameter so a key that
+// travelled in the URL never reaches the ring.
+func redactedURL(u *url.URL) string {
+	if u == nil {
+		return ""
+	}
+	if u.RawQuery == "" {
+		return u.String()
+	}
+	q := u.Query()
+	changed := false
+	for name := range q {
+		if _, secret := sensitiveQueryParams[strings.ToLower(name)]; secret {
+			changed = true
+			break
+		}
+	}
+	if !changed {
+		return u.String()
+	}
+	for name := range q {
+		if _, secret := sensitiveQueryParams[strings.ToLower(name)]; secret {
+			q.Set(name, "REDACTED")
+		}
+	}
+	clone := *u
+	clone.RawQuery = q.Encode()
+	return clone.String()
 }
 
 // captureReadCloser passes every byte of the response through (so the caller

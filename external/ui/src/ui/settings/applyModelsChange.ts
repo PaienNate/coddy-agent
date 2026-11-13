@@ -23,23 +23,35 @@ export function applyModelsChange(
 
   // A rename is only meaningful positionally when the list keeps its length;
   // on add/remove the indices no longer line up with the entry they held.
+  // Even then, a same-length "delete one and add another" would line up as a
+  // rename, so a pair counts only when the new id was not present before and
+  // the old id is gone now.
+  const prevSet = new Set(prevIds.filter((id) => id !== ""));
+  const nextSet = new Set(nextIds.filter((id) => id !== ""));
   const renames = new Map<string, string>();
   if (prevIds.length === nextIds.length) {
     for (let i = 0; i < prevIds.length; i++) {
       const from = prevIds[i]!;
       const to = nextIds[i]!;
-      if (from !== "" && from !== to) {
-        renames.set(from, to);
+      if (from === "" || from === to) {
+        continue;
       }
+      if (prevSet.has(to) || nextSet.has(from)) {
+        continue;
+      }
+      renames.set(from, to);
     }
   }
 
-  // A removed id is one present before and absent now, always detected, so a
-  // deletion on its own (and a rename mixed into it) reconciles the references.
-  const nextSet = new Set(nextIds);
-  const removed = new Set(
-    prevIds.filter((id) => id !== "" && !nextSet.has(id)),
-  );
+  // A removed id is one present before, absent now, and not the source of a
+  // rename (a renamed id is absent now but was turned into its new name).
+  const removed = new Set<string>();
+  for (const id of prevIds) {
+    if (id === "" || nextSet.has(id) || renames.has(id)) {
+      continue;
+    }
+    removed.add(id);
+  }
 
   if (renames.size === 0 && removed.size === 0) {
     return base;
@@ -137,13 +149,23 @@ export function applyProvidersChange(
   if (prevNames.length !== nextNames.length) {
     return base;
   }
+  // As with the models: a same-length delete-and-add must not read as a
+  // rename, or every model id under the wrong provider would be rewritten. A
+  // pair counts only when the new name was not present before and the old name
+  // is gone now.
+  const prevSet = new Set(prevNames.filter((n) => n !== ""));
+  const nextSet = new Set(nextNames.filter((n) => n !== ""));
   const renames = new Map<string, string>();
   for (let i = 0; i < prevNames.length; i++) {
     const from = prevNames[i]!;
     const to = nextNames[i]!;
-    if (from !== "" && from !== to) {
-      renames.set(from, to);
+    if (from === "" || from === to) {
+      continue;
     }
+    if (prevSet.has(to) || nextSet.has(from)) {
+      continue;
+    }
+    renames.set(from, to);
   }
   if (renames.size === 0) {
     return base;
