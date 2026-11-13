@@ -3048,5 +3048,12 @@ export const messagesEn: Record<string, string> = {
   "system.col.last": "Last failure",
   "system.updated": "Updated {ago}",
   "system.docs": "Monitoring docs",
+  "rawCapture.title": "Raw capture",
+  "rawCapture.count": "{count} exchanges captured",
+  "rawCapture.clear": "Clear",
+  "rawCapture.loading": "Reading captured exchanges…",
+  "rawCapture.empty": "Nothing captured yet.",
+  "rawCapture.request": "Request",
+  "rawCapture.response": "Response",
   "system.loadFailed": "This page failed to load. Reload the page.",
 };

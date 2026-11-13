@@ -2793,5 +2793,12 @@ export const messagesZh: Record<string, string> = {
   "system.col.last": "上次失败",
   "system.updated": "更新于 {ago}",
   "system.docs": "监控文档",
+  "rawCapture.title": "原始捕获",
+  "rawCapture.count": "已捕获 {count} 次交换",
+  "rawCapture.clear": "清除",
+  "rawCapture.loading": "正在读取捕获的交换…",
+  "rawCapture.empty": "尚未捕获任何内容。",
+  "rawCapture.request": "请求",
+  "rawCapture.response": "响应",
   "system.loadFailed": "此页面加载失败。请重新加载页面。",
 };

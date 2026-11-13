@@ -428,3 +428,123 @@ html:not([data-theme="light"]) .settings.drawer {
     grid-row: 2;
   }
 }
+
+/* Settings -> System -> Raw capture: the debug viewer of the provider wire
+   protocol. It renders only while httpserver.raw_capture is on. */
+.raw-capture {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.raw-capture-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.raw-capture-count {
+  color: var(--system-quiet);
+  font-size: 0.8rem;
+}
+
+.raw-capture-clear {
+  margin-left: auto;
+  font: inherit;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.raw-capture-clear:disabled {
+  color: var(--system-quiet);
+  cursor: not-allowed;
+}
+
+.raw-capture-muted {
+  margin: 0;
+  color: var(--system-quiet);
+}
+
+.raw-capture-error {
+  margin: 0;
+  color: var(--system-error);
+}
+
+.raw-capture-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.raw-capture-item {
+  min-width: 0;
+  border: 1px solid var(--coddy-glass-panel-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.raw-capture-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--text);
+}
+
+.raw-capture-method {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.raw-capture-url {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.raw-capture-status {
+  font-variant-numeric: tabular-nums;
+}
+
+.raw-capture-status[data-tone="ok"] {
+  color: var(--system-ok);
+}
+
+.raw-capture-status[data-tone="error"] {
+  color: var(--system-error);
+}
+
+.raw-capture-err {
+  color: var(--system-error);
+  overflow-wrap: anywhere;
+}
+
+.raw-capture-pre {
+  margin-top: 6px;
+  min-width: 0;
+}
+
+.raw-capture-pre summary {
+  cursor: pointer;
+  color: var(--system-quiet);
+  font-size: 0.8rem;
+}
+
+.raw-capture-header,
+.raw-capture-body {
+  margin: 6px 0 0;
+  padding: 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.78rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
