@@ -17,9 +17,12 @@ from the app's data directory, while a native library under `lib/<abi>` is
 executable. `packaging.jniLibs.useLegacyPackaging = true` keeps them as real
 files in the installed app.
 
-The first launch writes `CODDY_HOME/config.yaml` with the loopback bind and
-starts `coddy serve` as a foreground service; the SPA's onboarding then asks
-for a provider. SSH credentials and their Test button live on the **Settings →
-SSH** page.
+The app opens on a launcher: **Start** and **Stop** run `coddy serve` as a
+foreground service, **Open Coddy** jumps to the page, and the log panel under
+them holds the server's own output, the command it was started with and the
+code it exited with - the "exit 1" that a bare WebView could only show as a
+blank page. The first launch writes `CODDY_HOME/config.yaml` with the loopback
+bind; the SPA's onboarding then asks for a provider. SSH credentials and their
+Test button live on the **Settings → SSH** page.
 
 Guide: `docs/surfaces/android.md`.

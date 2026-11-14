@@ -17,7 +17,12 @@ produces a debug APK on every run.
 - **`CoddyService`** - a foreground service running `libcoddy.so serve -H
   127.0.0.1 -P 8765`, so a turn keeps running while the person is in another
   app. Its notification is the price of that.
-- **`MainActivity`** - one WebView on `http://127.0.0.1:8765/`, with a
+- **`MainActivity`** - the launcher: **Start**, **Stop**, **Open Coddy**, and
+  the log panel. It keeps the server's own output, the command it was started
+  with and the code it exited with, so a failed start is readable on the phone
+  instead of a black page. The probe line names the status of `/coddy/info`
+  and `/`, and a `404` on `/` is called out as a build without the `ui` tag.
+- **`CoddyWebActivity`** - one WebView on `http://127.0.0.1:8765/`, with a
   starting page that polls `/coddy/info` until the server answers.
 
 Only loopback is exposed: providers, remote MCP servers and SSH hosts are
@@ -52,9 +57,18 @@ symbols and DWARF that made the binary a third larger do not ship.
 
 ## First launch
 
-The app writes **`CODDY_HOME/config.yaml`** with the loopback bind on the first
-start. The web UI's onboarding then asks for a provider, exactly as on a
-desktop server, and the settings screen edits the same file afterwards.
+The launch screen starts the server on its own the first time; after that
+**Start** and **Stop** are the controls, and **Open Coddy** checks
+`/coddy/info` before it opens the page. The first start writes
+**`CODDY_HOME/config.yaml`** with the loopback bind. The web UI's onboarding
+then asks for a provider, exactly as on a desktop server, and the settings
+screen edits the same file afterwards.
+
+If a start fails, the log panel says why: the command, every line the server
+printed, and the exit code. **Copy log** puts the whole panel on the
+clipboard, and the same lines are kept in `files/coddy.log`. A `probe` line
+records what `/coddy/info` and `/` answered once the server came up; a `404`
+on `/` there means the binary was built without the `ui` tag.
 
 The state lives in the app's sandbox: `files/coddy` is `CODDY_HOME` (config,
 sessions, SSH credentials), `files/workspace` is the default working
@@ -104,8 +118,9 @@ pages are read with the built-in **`webfetch`** tool, not with a local
   could reach `127.0.0.1:8765`. The server is bound to loopback and the app is
   the only intended client; putting a token or a pairing step in front of it
   is the next hardening step, not something this build claims.
-- **Fixed port 8765.** A second Coddy server on the phone waits for this one
-  to stop.
+- **A loopback port of its own.** The app prefers 8765 and moves to the next
+  free port when another process holds it, because 127.0.0.1 is shared by every
+  app on the phone. The launcher's status line names the port the server chose.
 - **No self-update.** `coddy update` replaces a binary on disk; here the
   binary is part of the APK, so an upgrade is a new APK.
 - **The workspace is app-private.** Files outside it need another path in

@@ -4,4 +4,14 @@
     <string name="notification_running">Coddy is running. Your assistant is ready.</string>
     <string name="notification_channel">Coddy</string>
     <string name="notification_channel_description">Keeps the assistant running while the app is in the background.</string>
+    <string name="status_stopped">Stopped</string>
+    <string name="status_starting">Starting…</string>
+    <string name="status_running">Running on 127.0.0.1:%1$d (pid %2$d)</string>
+    <string name="status_exited">Exited with code %1$d</string>
+    <string name="action_start">Start</string>
+    <string name="action_stop">Stop</string>
+    <string name="action_open">Open Coddy</string>
+    <string name="action_copy_log">Copy log</string>
+    <string name="action_clear_log">Clear log</string>
+    <string name="log_label">LOG</string>
 </resources>

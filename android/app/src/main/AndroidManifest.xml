@@ -27,6 +27,13 @@
             </intent-filter>
         </activity>
 
+        <!-- The page the server serves, opened from the launcher. -->
+        <activity
+            android:name=".CoddyWebActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- The server outlives the activity: a turn keeps running while the
              person is in another app. dataSync is the type an agent's network
              work is declared under. -->
