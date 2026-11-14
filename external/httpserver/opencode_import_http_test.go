@@ -4,6 +4,7 @@ package httpserver
 
 import (
 	"os"
+	"runtime"
 	"testing"
 
 	"github.com/EvilFreelancer/coddy-agent/internal/config"
@@ -27,8 +28,11 @@ func TestOpenCodeJobSnapshotSurvivesARestart(t *testing.T) {
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("job snapshot: %v", err)
 	}
-	if info, err := os.Stat(path); err != nil || info.Mode().Perm()&0o077 != 0 {
-		t.Fatalf("snapshot permissions = %v, %v", info, err)
+	if info, err := os.Stat(path); err != nil {
+		t.Fatalf("job snapshot permissions: %v", err)
+	} else if runtime.GOOS != "windows" && info.Mode().Perm()&0o077 != 0 {
+		// Windows reports permissions from ACLs, not from os.Chmod's bits.
+		t.Fatalf("snapshot permissions = %v", info.Mode().Perm())
 	}
 
 	// A fresh Server has an empty memory map; the status load must find the
