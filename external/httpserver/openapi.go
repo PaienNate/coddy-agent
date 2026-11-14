@@ -1299,7 +1299,7 @@ func openAPISpec() map[string]interface{} {
 			"/coddy/raw-capture": map[string]interface{}{
 				"get": map[string]interface{}{
 					"summary":     "List captured provider wire exchanges",
-					"description": "Returns everything the **`httpserver.raw_capture`** recorder kept, in memory only and bounded to the last 100 exchanges, oldest first. Off by default: with the switch off the answer is `{\"object\":\"coddy.raw_capture\",\"enabled\":false,\"entries\":[]}` and the panel the UI draws for it stays hidden. Each entry carries the method and URL, the status, the headers and the first 256 KiB of the request and response bodies - the **Authorization**, **Proxy-Authorization**, **Cookie** and **Set-Cookie** headers are always stripped from both directions, as is the request body a JSON read already drained only after the inner transport saw the whole body. The bodies are truncated for display, never the stream the caller receives. Nothing here is written to disk.",
+					"description": "Returns everything the **`httpserver.raw_capture`** recorder kept, in memory only and bounded to the last 100 exchanges, oldest first. Off by default: with the switch off the answer is `{\"object\":\"coddy.raw_capture\",\"enabled\":false,\"entries\":[]}` and the panel the UI draws for it stays hidden. Each entry carries the method and URL, the status, the headers and the first 256 KiB of the request and response bodies. Credential headers - **Authorization**, **Proxy-Authorization**, **Cookie**, **Set-Cookie** and the vendor key headers (**x-api-key**, **api-key**, **x-goog-api-key**) - are always stripped from both directions, and a credential query parameter in the URL (**key**, **api_key**, **token** and the like) is redacted. Each body is recorded as the transport reads it: the ring keeps a bounded prefix, the live stream a caller sends or receives is never truncated or held in full. Nothing here is written to disk.",
 					"operationId": "coddyRawCaptureGet",
 					"responses": map[string]interface{}{
 						"200": map[string]interface{}{
@@ -3843,7 +3843,7 @@ func openAPISpec() map[string]interface{} {
 				},
 				"CoddyRawCaptureEntry": map[string]interface{}{
 					"type":        "object",
-					"description": "One provider HTTP exchange. Authorization, Proxy-Authorization, Cookie and Set-Cookie headers are stripped from both directions; each body is truncated to the first 256 KiB for display, never the stream a caller receives. Nothing here is written to disk.",
+					"description": "One provider HTTP exchange. Credential headers (Authorization, Proxy-Authorization, Cookie, Set-Cookie, and the vendor key headers x-api-key / api-key / x-goog-api-key) are stripped from both directions, and credential query parameters in the URL are redacted. Each body is recorded as the transport reads it: only a bounded prefix (the first 256 KiB) is kept, never the whole stream, which a caller sends or receives untouched. Nothing here is written to disk.",
 					"properties": map[string]interface{}{
 						"id":         map[string]string{"type": "string"},
 						"at":         map[string]string{"type": "string", "format": "date-time"},

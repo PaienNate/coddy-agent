@@ -277,7 +277,7 @@ func UISchemaMap() map[string]interface{} {
 	providerDisplayName := strProp("Display name",
 		"Optional label for this row in the UI (settings rows, the model menu). The id stays the identifier: models[].model, agent.model and every path under providers/<name> keep using name.")
 	providerProps := map[string]interface{}{
-		"name": providerName,
+		"name":         providerName,
 		"display_name": providerDisplayName,
 		"type": map[string]interface{}{
 			"type":        "string",

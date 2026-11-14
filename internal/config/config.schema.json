@@ -1408,7 +1408,7 @@
         },
         "raw_capture": {
           "type": "boolean",
-          "description": "Keep, in memory only, the raw request and response of every provider call this server makes, for debugging a provider's wire protocol. Off by default: nothing is captured and the viewer is not shown. What it captures is a bounded ring, never written to disk, and Authorization / Proxy-Authorization headers are stripped from both directions.",
+          "description": "Keep, in memory only, the raw request and response of every provider call this server makes, for debugging a provider's wire protocol. Off by default: nothing is captured and the viewer is not shown. What it captures is a bounded ring, never written to disk, and the credential headers (Authorization, Proxy-Authorization, Cookie, Set-Cookie and the vendor key headers) are stripped from both directions, as is a credential query parameter in the URL.",
           "default": false
         },
         "cors": {

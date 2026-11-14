@@ -39,12 +39,12 @@ type ProviderConfig struct {
 	// DisplayName is an optional label for this row in the UI (settings rows,
 	// the model menu). It never replaces Name: models[].model, agent.model and
 	// every path under providers/<name> keep using Name.
-	DisplayName     string `yaml:"display_name,omitempty"`
-	Type            string `yaml:"type"`
-	Mode            string `yaml:"mode,omitempty"`
-	Region          string `yaml:"region,omitempty"`
-	KimiIdentity    string `yaml:"kimi_identity,omitempty"`
-	APIBase         string `yaml:"api_base"`
+	DisplayName  string `yaml:"display_name,omitempty"`
+	Type         string `yaml:"type"`
+	Mode         string `yaml:"mode,omitempty"`
+	Region       string `yaml:"region,omitempty"`
+	KimiIdentity string `yaml:"kimi_identity,omitempty"`
+	APIBase      string `yaml:"api_base"`
 	// UserAgent selects the SDK identity (empty, openai, anthropic) or Coddy.
 	// Only OpenAI-compatible and Anthropic-compatible providers use it.
 	UserAgent string `yaml:"user_agent,omitempty"`

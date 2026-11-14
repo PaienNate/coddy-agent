@@ -330,7 +330,7 @@ OpenAI 兼容 HTTP API 的默认值（仅由使用 -tags http 构建的二进制
 | `httpserver.login.session_ttl_hours` | 整数 | 0 | 浏览器保持登录的时长。0 表示浏览器关闭时丢弃 cookie；服务器仍会在 30 天后自行使会话过期，因为永久保留的记录不是会话。 |
 | `httpserver.public_docs` | 布尔值 | false | 启用身份验证时，保持 /docs 和 /openapi.* 无需 token 即可访问。 |
 | `httpserver.allow_insecure` | 布尔值 | false | 表明无身份验证的服务器是有意开放的：消除关于它的两条启动警告 - 非环回绑定，以及允许未列出的页面的 CORS（allow_loopback 或 "*"） - 以及镜像这些警告的 --dry-run 发现，并关闭对环回上外来 Host 和跨源写入的拒绝。 |
-| `httpserver.raw_capture` | 布尔值 | false | 仅在此服务器的内存中保留每次提供商调用发送的原始请求和响应，以调试提供商的线上协议。默认关闭：不捕获任何内容，也不会显示查看器。捕获的内容是有界环形缓冲区，绝不写入磁盘，并且 Authorization / Proxy-Authorization 头会从两个方向中剥离。 |
+| `httpserver.raw_capture` | 布尔值 | false | 仅在此服务器的内存中保留每次提供商调用发送的原始请求和响应，以调试提供商的线上协议。默认关闭：不捕获任何内容，也不会显示查看器。捕获的内容是有界环形缓冲区，绝不写入磁盘；两个方向上都会剥离携带凭据的头（Authorization、Proxy-Authorization、Cookie、Set-Cookie 以及厂商密钥头），URL 中携带凭据的查询参数同样会被遮蔽。 |
 | `httpserver.cors` | 对象 |  | 跨源访问，使另一个源上的浏览器 UI 可以调用此 API（例如将内置 UI 指向远程服务器）。Bearer 身份验证仍然适用：CORS 决定浏览器是否把响应展示给页面，而从不决定服务器是否给出响应。 |
 | `httpserver.cors.enable` | 布尔值 | false | 处理 CORS 预检，并为允许的源发出 Access-Control-* 头。 |
 | `httpserver.cors.allow_loopback` | 布尔值 | false | 还允许从浏览器自身机器提供的任何页面：主机为 localhost、*.localhost 名称、127.0.0.0/8 或 [::1] 的 http 或 https 源，任意端口。这是远程 coddy serve 的笔记本电脑场景，其中 Web 界面来自笔记本电脑自身的 coddy serve，且其端口会变化。比 "*" 更窄，并且和 "*" 一样，其安全性仅取决于 API 背后的 token 或登录。 |

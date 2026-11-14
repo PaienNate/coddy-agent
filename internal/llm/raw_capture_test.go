@@ -1,6 +1,7 @@
 package llm
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"reflect"
@@ -69,8 +70,8 @@ func TestRawCaptureRecordsAndRestores(t *testing.T) {
 	if innerBody != `{"hello":"world"}` {
 		t.Fatalf("inner body not restored, got %q", innerBody)
 	}
-	io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
+	_, _ = io.Copy(io.Discard, resp.Body)
+	_ = resp.Body.Close()
 
 	entries := ring.Entries()
 	if len(entries) != 1 {
@@ -131,7 +132,7 @@ func TestRawCaptureStripsVendorCredentialHeaders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	entries := ring.Entries()
 	if len(entries) != 1 {
@@ -184,7 +185,7 @@ func TestRawCaptureBoundedBody(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	entries := ring.Entries()
 	if len(entries) != 1 {
@@ -209,7 +210,7 @@ func TestRawCaptureResponsePrefixOnly(t *testing.T) {
 	}
 	// The caller still reads the full response.
 	full, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if !reflect.DeepEqual(string(full), longResp) {
 		t.Error("caller did not receive the full response body")
 	}
@@ -229,7 +230,7 @@ func TestRawCaptureRingClearsAndBounds(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}
 	if got := len(ring.Entries()); got != 2 {
 		t.Fatalf("ring cap not honored, count = %d", got)
@@ -257,8 +258,97 @@ func TestHTTPTraceTransportCapturesWhenRecorderInstalled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if got := len(ring.Entries()); got != 1 {
 		t.Fatalf("httpTraceTransport did not capture, count = %d", got)
+	}
+}
+
+// readCountingReader counts the reads its consumer makes, so a test can prove
+// a body was not drained behind the consumer's back.
+type readCountingReader struct {
+	inner io.Reader
+	reads *int
+}
+
+func (r readCountingReader) Read(p []byte) (int, error) {
+	*r.reads++
+	return r.inner.Read(p)
+}
+
+// TestRawCaptureRequestBodyNotReadUpfront proves the capture tees the request
+// body instead of draining it into memory: an inner transport that fails
+// before sending anything leaves the body untouched (nothing was on the wire,
+// so the entry keeps no prefix of it either). Reading the whole request body
+// up front, as an earlier version did, would hold a body of any size in
+// memory at once - tens of MiB for a prompt with images.
+func TestRawCaptureRequestBodyNotReadUpfront(t *testing.T) {
+	ring := NewRawCaptureRecorder(10)
+
+	var reads int
+	req, err := http.NewRequest(http.MethodPost, "http://unused.invalid/v1", readCountingReader{
+		inner: strings.NewReader("whole body"),
+		reads: &reads,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	inner := diagnosticRoundTripFunc(func(*http.Request) (*http.Response, error) {
+		return nil, errors.New("connection refused")
+	})
+	if _, err := captureExchange(ring, inner, req); err == nil {
+		t.Fatal("want the transport error to surface")
+	}
+	if reads != 0 {
+		t.Fatalf("capture drained the request body up front, %d reads before anyone sent it", reads)
+	}
+	entries := ring.Entries()
+	if len(entries) != 1 {
+		t.Fatalf("want 1 entry, got %d", len(entries))
+	}
+	if entries[0].ReqBody != "" {
+		t.Errorf("captured a request body nobody sent: %q", entries[0].ReqBody)
+	}
+	if entries[0].Err == "" {
+		t.Error("transport error not recorded")
+	}
+	// Reading the body now - after the snapshot - proves the stream the
+	// consumer would have sent is still whole; the tee records this read,
+	// but the snapshot above was taken before it.
+	rest, err := io.ReadAll(req.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(rest) != "whole body" {
+		t.Fatalf("body after capture = %q, want the untouched original", rest)
+	}
+}
+
+// TestUninstallRawCaptureRecorder covers the stop path's guard: only the
+// recorder a surface itself installed comes out, so a stopping server never
+// disturbs one another server installed in the meantime.
+func TestUninstallRawCaptureRecorder(t *testing.T) {
+	t.Cleanup(func() { SetRawCaptureRecorder(nil) })
+
+	first := NewRawCaptureRecorder(2)
+	second := NewRawCaptureRecorder(2)
+	SetRawCaptureRecorder(first)
+	if UninstallRawCaptureRecorder(second) {
+		t.Error("uninstalled a recorder that was not installed")
+	}
+	if GetRawCaptureRecorder() != first {
+		t.Fatal("the installed recorder was disturbed")
+	}
+	if !UninstallRawCaptureRecorder(first) {
+		t.Error("the installed recorder did not come out")
+	}
+	if GetRawCaptureRecorder() != nil {
+		t.Error("a recorder is still installed")
+	}
+	if UninstallRawCaptureRecorder(first) {
+		t.Error("uninstall succeeded with nothing installed")
+	}
+	if UninstallRawCaptureRecorder(nil) {
+		t.Error("uninstall of nil reported success")
 	}
 }

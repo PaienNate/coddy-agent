@@ -408,12 +408,15 @@ little on every provider call. When it is on:
 - every provider request and response this server makes is kept **in memory only** - a
   bounded ring of the last 100 exchanges, never written to disk, and dropped when the
   process stops;
-- each body is kept only to its first 256 KiB, and the **Authorization**,
-  **Proxy-Authorization**, **Cookie** and **Set-Cookie** headers are stripped from both
-  directions, so a captured credential cannot sit in the ring;
+- each body is recorded as the transport reads it and kept only to its first 256 KiB, and
+  the credential headers - **Authorization**, **Proxy-Authorization**, **Cookie**,
+  **Set-Cookie** and the vendor key headers such as `x-api-key` - are stripped from both
+  directions, and a credential query parameter in the URL is redacted, so a captured
+  credential cannot sit in the ring;
 - the **Raw capture** block on **Settings → System** lists the exchanges (method, URL,
   status, and the request and response headers and bodies) and a **Clear** button empties
   the ring; turn the switch off and the block is not shown at all.
 
 The capture follows the live configuration, so a reload that turns it on installs the
 recorder and one that turns it off stops the transport capturing, without a restart.
+Stopping the HTTP API itself stops the capture the same way and empties the ring.

@@ -621,8 +621,8 @@ tools:
 #                           # and turns off the refusal of a foreign Host on loopback and of a cross-origin write
 #   raw_capture: false      # keep, in memory only, the raw request and response of every provider call, so an
 #                           # operator can debug the wire protocol. Off by default: nothing is captured and the
-#                           # viewer is not shown. Never written to disk; Authorization / Proxy-Authorization
-#                           # headers are stripped from both directions.
+#                           # viewer is not shown. Never written to disk; credential headers are stripped from
+#                           # both directions and credential query parameters in the URL are redacted.
 #   # CORS lets a browser UI on another origin call this API (needed when the UI points here as a
 #   # remote). Bearer auth still applies. allowed_origins accepts exact origins or a single "*";
 #   # allow_loopback admits every page served from the browser's own machine (localhost,

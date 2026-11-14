@@ -286,6 +286,9 @@ func TestRawCaptureRoute(t *testing.T) {
 		}
 		mgr := session.NewManager(cfg, noopSender{}, runner, slog.Default(), t.TempDir(), nil)
 		srv := New(cfg, mgr, slog.Default(), t.TempDir())
+		// New installs the process-wide recorder when the switch is on; take
+		// it out again so the test leaves the global as it found it.
+		t.Cleanup(srv.stopRawCapture)
 		ts := httptest.NewServer(srv.Handler())
 		t.Cleanup(ts.Close)
 		return ts
@@ -364,6 +367,53 @@ func TestRawCaptureRoute(t *testing.T) {
 			t.Errorf("after clear = %#v, want enabled + empty", cleared)
 		}
 	})
+}
+
+// TestRawCaptureStopsWithServer covers the stop path a subsystem disable
+// takes: a server whose New installed the process-wide raw-capture recorder
+// takes it out again when it stops (Serve defers stopRawCapture), so a process
+// that keeps running other subsystems - a gateway, the scheduler - stops
+// capturing the wire the moment the HTTP surface goes away, and the entries
+// the ring held are dropped with it.
+func TestRawCaptureStopsWithServer(t *testing.T) {
+	runner := func(context.Context, *session.State, []acp.ContentBlock, acp.UpdateSender) (string, error) {
+		return "", nil
+	}
+	cfg := &config.Config{
+		Agent:  config.Agent{Model: "openai/gpt-4o"},
+		Models: []config.ModelEntry{{Model: "openai/gpt-4o", MaxTokens: 100}},
+		HTTPServer: config.HTTPServerConfig{
+			RawCapture: true,
+		},
+	}
+	mgr := session.NewManager(cfg, noopSender{}, runner, slog.Default(), t.TempDir(), nil)
+	srv := New(cfg, mgr, slog.Default(), t.TempDir())
+	t.Cleanup(func() { llm.SetRawCaptureRecorder(nil) })
+
+	if llm.GetRawCaptureRecorder() == nil {
+		t.Fatal("New with raw_capture on installed no recorder")
+	}
+	ring := srv.rawCapture
+	if ring == nil {
+		t.Fatal("server holds no ring")
+	}
+	// A recorder another surface installed meanwhile must survive the stop.
+	other := llm.NewRawCaptureRecorder(2)
+	llm.SetRawCaptureRecorder(other)
+	srv.stopRawCapture()
+	if got := llm.GetRawCaptureRecorder(); got != other {
+		t.Fatalf("stop removed a recorder it did not install: %v", got)
+	}
+	// With this server's own recorder installed, the stop takes it out and
+	// drops the entries.
+	llm.SetRawCaptureRecorder(ring)
+	srv.stopRawCapture()
+	if got := llm.GetRawCaptureRecorder(); got != nil {
+		t.Fatalf("stop left the recorder installed: %v", got)
+	}
+	if entries := ring.Entries(); len(entries) != 0 {
+		t.Fatalf("stop left %d entries in the ring", len(entries))
+	}
 }
 
 func TestGETModelsMultimodalField(t *testing.T) {

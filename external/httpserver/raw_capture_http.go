@@ -22,7 +22,8 @@ func (s *Server) registerRawCaptureRoutes() {
 
 // syncRawCapture brings the process-wide recorder in line with the served
 // configuration: install one when httpserver.raw_capture is on, remove it when
-// off. Called at New and again on every ReplaceConfig. The ring itself is kept
+// off. Called at New and again on every ReplaceConfig; stopRawCapture is the
+// third leg, the one that runs when Serve returns. The ring itself is kept
 // across a disable so a later enable reuses it; whether capture is *shown* is
 // read from the live configuration, never from the ring being non-nil
 // (rawCaptureEnabled).
@@ -47,6 +48,21 @@ func (s *Server) rawCaptureEnabled() bool {
 		return cfg.HTTPServer.RawCapture
 	}
 	return false
+}
+
+// stopRawCapture removes the process-wide recorder this server installed and
+// drops its entries. It runs when Serve returns, whatever ended it - a
+// cancelled context, a dead listener, a refused login form - because a reload
+// that disables the HTTP surface does not pass through ReplaceConfig on the
+// way: without this, the subsystems that keep running (a gateway, the
+// scheduler) would keep filling a ring nobody can view or clear anymore. A
+// recorder some other server installed in the meantime is left alone.
+func (s *Server) stopRawCapture() {
+	if s.rawCapture == nil {
+		return
+	}
+	llm.UninstallRawCaptureRecorder(s.rawCapture)
+	s.rawCapture.Clear()
 }
 
 func (s *Server) coddyRawCaptureGet(w http.ResponseWriter, r *http.Request) {

@@ -55,8 +55,10 @@ type HTTPServerConfig struct {
 	// actually went over the wire when debugging a provider. It is a debug
 	// toggle, off by default: when off nothing is captured and the viewer is
 	// not shown. What it captures is never written to disk (it is a ring that
-	// drops the oldest once it fills), and it always strips Authorization and
-	// Proxy-Authorization headers from both directions.
+	// drops the oldest once it fills), and it always strips the credential
+	// headers (Authorization, Proxy-Authorization, Cookie, Set-Cookie and the
+	// vendor key headers) from both directions and redacts a credential query
+	// parameter in the URL.
 	RawCapture bool `yaml:"raw_capture"`
 	// Remotes lists remote coddy serve servers and swarm relays the bundled UI may connect
 	// to (environment selector) and `coddy --remote <name>` resolves. An entry may carry

@@ -13,8 +13,10 @@ import (
 
 // RawCaptureEntry is one provider HTTP exchange the raw-capture recorder kept.
 // It lives only in memory; nothing here is ever written to disk. The
-// Authorization, Proxy-Authorization, Cookie and Set-Cookie headers are always
-// stripped from both directions so a captured secret cannot sit in the ring.
+// credential headers (Authorization, Proxy-Authorization, Cookie, Set-Cookie
+// and the vendor key headers) are always stripped from both directions and a
+// credential query parameter in the URL is redacted, so a captured secret
+// cannot sit in the ring.
 type RawCaptureEntry struct {
 	ID         string      `json:"id"`
 	At         time.Time   `json:"at"`
@@ -27,9 +29,11 @@ type RawCaptureEntry struct {
 	RespBody   string      `json:"respBody,omitempty"`
 	Err        string      `json:"err,omitempty"`
 
-	// resp captures the response prefix lazily: the body is read by the caller
-	// after RoundTrip returns, so the prefix is recorded as it is consumed and
-	// read here at snapshot time. Not JSON-serialized.
+	// req and resp capture their body prefixes lazily: the request body is
+	// sent by the inner transport inside RoundTrip and the response body is
+	// read by the caller after RoundTrip returns, so each prefix is recorded
+	// as it is consumed and read here at snapshot time. Not JSON-serialized.
+	req  *captureReadCloser
 	resp *captureReadCloser
 }
 
@@ -67,17 +71,22 @@ func (r *RawCaptureRecorder) add(e RawCaptureEntry) {
 }
 
 // Entries returns a copy of the captured exchanges, oldest first. A streamed
-// response body that was still being read when the entry was made is now
-// materialized, bounded to rawCaptureTextLimit, under the reader's lock.
+// request or response body that was still being read when the entry was made
+// is now materialized, bounded to rawCaptureTextLimit, under the reader's
+// lock.
 func (r *RawCaptureRecorder) Entries() []RawCaptureEntry {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	out := make([]RawCaptureEntry, len(r.entries))
 	for i, e := range r.entries {
+		if e.req != nil {
+			e.ReqBody = e.req.String()
+			e.req = nil
+		}
 		if e.resp != nil {
 			e.RespBody = e.resp.String()
+			e.resp = nil
 		}
-		e.resp = nil
 		out[i] = e
 	}
 	return out
@@ -107,6 +116,20 @@ func SetRawCaptureRecorder(r *RawCaptureRecorder) {
 	rawCaptureRecorder = r
 }
 
+// UninstallRawCaptureRecorder removes the installed recorder when it is r, so
+// the surface that installed it can take the recorder out when it stops
+// without disturbing one another surface installed meanwhile. It reports
+// whether r was the installed recorder.
+func UninstallRawCaptureRecorder(r *RawCaptureRecorder) bool {
+	rawCaptureMu.Lock()
+	defer rawCaptureMu.Unlock()
+	if r == nil || rawCaptureRecorder == nil || rawCaptureRecorder != r {
+		return false
+	}
+	rawCaptureRecorder = nil
+	return true
+}
+
 // GetRawCaptureRecorder returns the installed recorder, or nil when capture is off.
 func GetRawCaptureRecorder() *RawCaptureRecorder {
 	rawCaptureMu.RLock()
@@ -124,9 +147,11 @@ func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
-// captureExchange records one request/response pair into ring around inner. The
-// whole request body is read so inner still sees it; the ring keeps only a
-// bounded prefix. The response body passes through whole while the ring keeps a
+// captureExchange records one request/response pair into ring around inner.
+// Neither body is read up front: a request body can be tens of MiB (a prompt
+// with images), and draining it into memory at once would amplify every such
+// request while capture is on. Instead each body is wrapped in a tee that
+// passes the whole stream through to its consumer while the ring keeps only a
 // bounded prefix, read lazily at snapshot time.
 func captureExchange(ring *RawCaptureRecorder, inner http.RoundTripper, req *http.Request) (*http.Response, error) {
 	entry := RawCaptureEntry{
@@ -136,11 +161,9 @@ func captureExchange(ring *RawCaptureRecorder, inner http.RoundTripper, req *htt
 		ReqHeader: sanitizedHeader(req.Header),
 	}
 	if req.Body != nil {
-		body, err := io.ReadAll(req.Body)
-		if err == nil {
-			entry.ReqBody = boundedText(body)
-			req.Body = io.NopCloser(bytes.NewReader(body))
-		}
+		reader := newCaptureReadCloser(req.Body, rawCaptureTextLimit)
+		req.Body = reader
+		entry.req = reader
 	}
 
 	resp, err := inner.RoundTrip(req)
@@ -158,15 +181,6 @@ func captureExchange(ring *RawCaptureRecorder, inner http.RoundTripper, req *htt
 	}
 	ring.add(entry)
 	return resp, nil
-}
-
-// boundedText returns at most the first rawCaptureTextLimit bytes of b, so a
-// large request body cannot balloon the ring.
-func boundedText(b []byte) string {
-	if len(b) > rawCaptureTextLimit {
-		b = b[:rawCaptureTextLimit]
-	}
-	return string(b)
 }
 
 // sensitiveHeaders are the credential-carrying headers the capture must never
@@ -241,9 +255,11 @@ func redactedURL(u *url.URL) string {
 	return clone.String()
 }
 
-// captureReadCloser passes every byte of the response through (so the caller
-// sees the whole stream) while recording only the first limit bytes, guarded by
-// a mutex because the caller reads the stream and a snapshot may run meanwhile.
+// captureReadCloser passes every byte of the stream it wraps through to its
+// consumer (the inner transport for a request, the caller for a response, so
+// neither ever sees a truncated body) while recording only the first limit
+// bytes, guarded by a mutex because the consumer reads the stream while a
+// snapshot of the ring may run meanwhile.
 type captureReadCloser struct {
 	inner     io.ReadCloser
 	mu        sync.Mutex
