@@ -34,7 +34,11 @@ type ImportJob = {
   };
 };
 
-const EMPTY: Conn = { url: "", username: "opencode", password_configured: false };
+const EMPTY: Conn = {
+  url: "",
+  username: "opencode",
+  password_configured: false,
+};
 
 /**
  * Settings -> OpenCode: the explicit connection used by the one-shot v2
@@ -126,24 +130,29 @@ export function OpenCodeImportSection() {
     }
   }, [conn.url, conn.username, password]);
 
-  const pollJob = useCallback(async (id: string) => {
-    const response = await fetch(`/coddy/opencode/import/${encodeURIComponent(id)}`);
-    if (!response.ok) throw new Error(await responseError(response));
-    const next = (await response.json()) as ImportJob;
-    setJob(next);
-    if (!next.done) {
-      poll.current = window.setTimeout(() => {
-        void pollJob(id).catch((err: unknown) => {
-          setError(String(err));
-          setBusy("");
-        });
-      }, 1000);
-    } else {
-      setBusy("");
-      if (next.error) setError(next.error);
-      else setNotice(t("settings.opencode.importDone"));
-    }
-  }, [t]);
+  const pollJob = useCallback(
+    async (id: string) => {
+      const response = await fetch(
+        `/coddy/opencode/import/${encodeURIComponent(id)}`,
+      );
+      if (!response.ok) throw new Error(await responseError(response));
+      const next = (await response.json()) as ImportJob;
+      setJob(next);
+      if (!next.done) {
+        poll.current = window.setTimeout(() => {
+          void pollJob(id).catch((err: unknown) => {
+            setError(String(err));
+            setBusy("");
+          });
+        }, 1000);
+      } else {
+        setBusy("");
+        if (next.error) setError(next.error);
+        else setNotice(t("settings.opencode.importDone"));
+      }
+    },
+    [t],
+  );
 
   const startImport = useCallback(async () => {
     setBusy("import");

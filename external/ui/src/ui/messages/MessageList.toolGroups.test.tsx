@@ -22,7 +22,10 @@ beforeEach(() => initLocale("en"));
 afterEach(() => cleanup());
 
 test("a completed run of tool calls is one folded summary", () => {
-  const items = [tool("a", "read", "completed"), tool("b", "run_command", "completed")];
+  const items = [
+    tool("a", "read", "completed"),
+    tool("b", "run_command", "completed"),
+  ];
   const { container } = render(<MessageList items={items} />);
   const group = screen.getByTestId("tool-group");
   const summary = screen.getByTestId("tool-group-summary");
@@ -35,8 +38,12 @@ test("a completed run of tool calls is one folded summary", () => {
   const details = group.querySelector("details")!;
   details.open = true;
   fireEvent(details, new Event("toggle"));
-  expect(container.querySelector('[data-testid="tool-details-a"]')).not.toBeNull();
-  expect(container.querySelector('[data-testid="tool-details-b"]')).not.toBeNull();
+  expect(
+    container.querySelector('[data-testid="tool-details-a"]'),
+  ).not.toBeNull();
+  expect(
+    container.querySelector('[data-testid="tool-details-b"]'),
+  ).not.toBeNull();
 });
 
 test("a running group starts open, and one call stays a row", () => {
@@ -49,7 +56,9 @@ test("a running group starts open, and one call stays a row", () => {
     "data-status",
     "running",
   );
-  expect(container.querySelector('[data-testid="tool-details-a"]')).not.toBeNull();
+  expect(
+    container.querySelector('[data-testid="tool-details-a"]'),
+  ).not.toBeNull();
   unmount();
 
   render(<MessageList items={[tool("single", "read", "completed")]} />);

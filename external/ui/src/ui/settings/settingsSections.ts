@@ -10,6 +10,7 @@ export type SectionKind =
   | "subagents"
   | "appearance"
   | "sessions"
+  | "ssh"
   | "status"
   | "opencode";
 
@@ -26,8 +27,9 @@ export type SectionDescriptor = {
   kind: SectionKind;
   /** Config key for array/object sections. */
   schemaKey?: string | undefined;
-  /** For array sections: which item field labels each row in the list. */
-  labelField?: string | undefined;
+  /** For array sections: which item fields label each row in the list, in
+   *  order of preference (the drawing and the search index agree on it). */
+  labelFields?: string[] | undefined;
   /** For group sections: config keys grouped under this tab. */
   childKeys?: string[] | undefined;
 };
@@ -40,6 +42,7 @@ const SECTION_LABEL_KEYS = {
   appearance: "settings.section.appearance.label",
   sessions_manager: "settings.section.sessions_manager.label",
   status: "settings.section.status.label",
+  ssh_credentials: "settings.section.ssh_credentials.label",
   opencode_import: "settings.section.opencode_import.label",
   providers: "settings.section.providers.label",
   models: "settings.section.models.label",
@@ -74,6 +77,7 @@ const SECTION_DESC_KEYS = {
   appearance: "settings.section.appearance.desc",
   sessions_manager: "settings.section.sessions_manager.desc",
   status: "settings.section.status.desc",
+  ssh_credentials: "settings.section.ssh_credentials.desc",
   opencode_import: "settings.section.opencode_import.desc",
   providers: "settings.section.providers.desc",
   models: "settings.section.models.desc",
@@ -126,12 +130,41 @@ export const SYSTEM_KEYS = ["prompts", "instructions"];
 /** The config section the Sessions tab edits above its table. */
 export const SESSIONS_CONFIG_KEY = "sessions";
 
-/** Array sections shown as master–detail lists, with the field used as the row label. */
-export const ARRAY_LABEL_FIELDS: Record<string, string> = {
-  providers: "name",
-  models: "model",
-  toolsets: "name",
+/** Array sections shown as master–detail lists, with the fields that label each
+ *  row, in order of preference: a provider's display name wins over its id, so
+ *  a row reads the way the operator named it. */
+export const ARRAY_LABEL_FIELDS: Record<string, string[]> = {
+  providers: ["display_name", "name"],
+  models: ["model"],
+  toolsets: ["name"],
 };
+
+/**
+ * The first of `fields` holding a non-empty value on `row`, else "". The row
+ * list and the search index both label a row this way, so a name found in the
+ * search is the name drawn on the row.
+ */
+export function arrayRowLabelValue(
+  row: unknown,
+  fields: readonly string[] | undefined,
+): string {
+  if (
+    !fields ||
+    row === null ||
+    typeof row !== "object" ||
+    Array.isArray(row)
+  ) {
+    return "";
+  }
+  const obj = row as Record<string, unknown>;
+  for (const field of fields) {
+    const v = obj[field];
+    if (v !== undefined && v !== null && String(v).trim() !== "") {
+      return String(v).trim();
+    }
+  }
+  return "";
+}
 
 /**
  * deriveSettingsSections turns the root config JSON Schema into ordered tab
@@ -184,6 +217,15 @@ export function deriveSettingsSections(
     kind: "status",
   };
 
+  // SSH credentials for ssh_run_command: they live in their own file under
+  // CODDY_HOME, not in the settings document, so this tab edits no config key.
+  const sshCredentials: SectionDescriptor = {
+    id: "ssh_credentials",
+    label: labelFor("ssh_credentials"),
+    description: translate(SECTION_DESC_KEYS.ssh_credentials),
+    kind: "ssh",
+  };
+
   const opencodeImport: SectionDescriptor = {
     id: "opencode_import",
     label: labelFor("opencode_import"),
@@ -197,7 +239,7 @@ export function deriveSettingsSections(
   const relay = opts.relay === true || schema?.["x-coddy-relay"] === true;
   const head = relay
     ? [appearance]
-    : [appearance, sessionsManager, status, opencodeImport];
+    : [appearance, sessionsManager, status, sshCredentials, opencodeImport];
   if (!schema || schema.type !== "object" || !schema.properties) {
     return head;
   }
@@ -269,7 +311,7 @@ export function deriveSettingsSections(
         description: descFor(key, sub),
         kind: "array",
         schemaKey: key,
-        labelField: ARRAY_LABEL_FIELDS[key],
+        labelFields: ARRAY_LABEL_FIELDS[key],
       });
       return;
     }

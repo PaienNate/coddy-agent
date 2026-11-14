@@ -5,6 +5,7 @@ import {
   groupLlmModelsByVendor,
   llmMenuVendorCount,
   llmModelNameOf,
+  llmVendorLabel,
   llmVendorOf,
   orderLlmModels,
   shouldGroupLlmModels,
@@ -124,5 +125,30 @@ describe("orderLlmModels", () => {
     const out = orderLlmModels(ids);
     expect(out).toEqual(["v/alpha", "v/Beta"]);
     expect(ids).toEqual(["v/Beta", "v/alpha"]);
+  });
+});
+
+describe("llmVendorLabel", () => {
+  it("prefers the provider's display name and falls back to the id prefix", () => {
+    expect(llmVendorLabel("openai", { openai: "OpenAI (work)" })).toBe(
+      "OpenAI (work)",
+    );
+    expect(llmVendorLabel("openai", { openai: "   " })).toBe("openai");
+    expect(llmVendorLabel("openai", {})).toBe("openai");
+    expect(llmVendorLabel("openai")).toBe("openai");
+    // An empty vendor (a slashless id) stays empty for the caller's wording.
+    expect(llmVendorLabel("")).toBe("");
+  });
+});
+
+describe("filterLlmModels with display names", () => {
+  it("matches a provider's display name as well as the id", () => {
+    const ids = ["openai/gpt-4o", "stub/alpha"];
+    const labels = { openai: "OpenAI (work)" };
+    expect(filterLlmModels(ids, "work", labels)).toEqual(["openai/gpt-4o"]);
+    expect(filterLlmModels(ids, "OPENAI", labels)).toEqual(["openai/gpt-4o"]);
+    expect(filterLlmModels(ids, "nope", labels)).toEqual([]);
+    // Without labels the display name is not matched.
+    expect(filterLlmModels(ids, "work")).toEqual([]);
   });
 });

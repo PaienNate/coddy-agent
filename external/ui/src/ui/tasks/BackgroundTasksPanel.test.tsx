@@ -370,8 +370,10 @@ test("a folded subagent card links to its child transcript as plain text", () =>
   expect(transcript).toHaveAttribute("href", "#/s/sess_0a1b2c");
   expect(transcript).toHaveTextContent("Show transcript");
   expect(transcript).toHaveAccessibleName(
-    "Show the transcript of survey the repo",
+    "Open the read-only transcript of survey the repo",
   );
+  // The lock is the visual mark that the child transcript is read-only.
+  expect(transcript.querySelector(".bgtask-transcript-lock")).not.toBeNull();
 
   // A plain click goes to the chat in place and leaves the card folded.
   expect(fireEvent.click(transcript)).toBe(false);

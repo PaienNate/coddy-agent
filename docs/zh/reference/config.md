@@ -51,6 +51,7 @@ VS Code（配合 YAML 扩展）、Zed、Neovim 和 Helix 会自动读取此注�
 |-----|------|--------|------|
 | `providers` | 对象列表 |  | 上游 LLM 供应商的 API 凭据和传输选择。当 api_key 为空时，运行时读取 NAME_API_KEY 环境变量（NAME 是提供商名称的大写形式，连字符映射为下划线）；type 为 "codex" 的行使用 ChatGPT 登录并且不读取密钥，Kimi 订阅也不读取 API 密钥。 |
 | `providers[].name` | 字符串 |  | 用作 models[].model 第一段的逻辑 id。ASCII 字母、数字、连字符、下划线；必须以字母开头。 |
+| `providers[].display_name` | 字符串 |  | 该提供商的可选显示名称，在界面中标注提供商的位置（设置行、模型菜单）显示。id 仍是标识符：models[].model、agent.model 以及 providers/<name> 下的所有路径继续使用 name。 |
 | `providers[].type` | 字符串，可选值：`openai`, `deepseek`, `anthropic`, `neuraldeep`, `opencode`, `codex`, `devin`, `kimi`, `acp` |  | 此提供商条目的通信协议。官方 DeepSeek API 使用 deepseek，以获得思考控制、提示词缓存统计和 V4 Flash/Pro 预设；其他 OpenAI 兼容端点使用 openai。 |
 | `providers[].mode` | 字符串，可选值：`""`, `subscription`, `platform` |  | Kimi 凭据模式。省略表示订阅。 |
 | `providers[].region` | 字符串，可选值：`""`, `global`, `china` |  | Kimi 区域。省略表示全球。 |
@@ -329,6 +330,7 @@ OpenAI 兼容 HTTP API 的默认值（仅由使用 -tags http 构建的二进制
 | `httpserver.login.session_ttl_hours` | 整数 | 0 | 浏览器保持登录的时长。0 表示浏览器关闭时丢弃 cookie；服务器仍会在 30 天后自行使会话过期，因为永久保留的记录不是会话。 |
 | `httpserver.public_docs` | 布尔值 | false | 启用身份验证时，保持 /docs 和 /openapi.* 无需 token 即可访问。 |
 | `httpserver.allow_insecure` | 布尔值 | false | 表明无身份验证的服务器是有意开放的：消除关于它的两条启动警告 - 非环回绑定，以及允许未列出的页面的 CORS（allow_loopback 或 "*"） - 以及镜像这些警告的 --dry-run 发现，并关闭对环回上外来 Host 和跨源写入的拒绝。 |
+| `httpserver.raw_capture` | 布尔值 | false | 仅在此服务器的内存中保留每次提供商调用发送的原始请求和响应，以调试提供商的线上协议。默认关闭：不捕获任何内容，也不会显示查看器。捕获的内容是有界环形缓冲区，绝不写入磁盘；两个方向上都会剥离携带凭据的头（Authorization、Proxy-Authorization、Cookie、Set-Cookie 以及厂商密钥头），URL 中携带凭据的查询参数同样会被遮蔽。 |
 | `httpserver.cors` | 对象 |  | 跨源访问，使另一个源上的浏览器 UI 可以调用此 API（例如将内置 UI 指向远程服务器）。Bearer 身份验证仍然适用：CORS 决定浏览器是否把响应展示给页面，而从不决定服务器是否给出响应。 |
 | `httpserver.cors.enable` | 布尔值 | false | 处理 CORS 预检，并为允许的源发出 Access-Control-* 头。 |
 | `httpserver.cors.allow_loopback` | 布尔值 | false | 还允许从浏览器自身机器提供的任何页面：主机为 localhost、*.localhost 名称、127.0.0.0/8 或 [::1] 的 http 或 https 源，任意端口。这是远程 coddy serve 的笔记本电脑场景，其中 Web 界面来自笔记本电脑自身的 coddy serve，且其端口会变化。比 "*" 更窄，并且和 "*" 一样，其安全性仅取决于 API 背后的 token 或登录。 |

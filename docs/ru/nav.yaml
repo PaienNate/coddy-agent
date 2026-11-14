@@ -124,6 +124,12 @@ pages:
     en:
       title: "Desktop window"
       summary: "coddy desktop, the web interface as an application window with chats as tabs, the port it remembers, the keys, and what each platform gives the window."
+  surfaces/android.md:
+    title: "Приложение для Android"
+    summary: "APK, в котором весь сервер работает на телефоне: WebView на loopback, встроенный BusyBox, SSH-доступы с кнопкой проверки и сборка артефакта."
+    en:
+      title: "Android app"
+      summary: "The APK that runs the whole server on a phone, its loopback WebView, the bundled BusyBox, SSH credentials with a Test button, and how the artifact is built."
   surfaces/editors.md:
     title: "Редакторы (ACP)"
     summary: "Zed, VS Code, Obsidian и скрипты как ACP-клиенты coddy acp и что у них общего с другими интерфейсами."

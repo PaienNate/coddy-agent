@@ -445,6 +445,12 @@ type SessionMeta struct {
 	// moment it was started is not recoverable, so it stays empty rather than
 	// being invented from a later write.
 	CreatedAt string `json:"createdAt,omitempty"`
+	// LastUsedAt records when the session was last opened (markActivityRead),
+	// independent of UpdatedAt (which moves on the first write). The History
+	// "last used" sort orders by it, so opening a session later moves it up
+	// without a write being needed. A bundle stored before this field existed
+	// carries none: the moment of its last open is not recoverable.
+	LastUsedAt string `json:"lastUsedAt,omitempty"`
 	// MessageCount and the file identity beside it let a History listing use the
 	// transcript size without opening it. Nil values mean a bundle written by an
 	// older build (or an interrupted write), so callers must treat the count as
@@ -747,6 +753,10 @@ func (f *FileStore) MarkSessionActivityRead(sessionID string, live ...*State) (a
 		)
 	}
 	meta.ReadActivitySeq = meta.ActivitySeq
+	// Opening the session is the "last used" moment. UpdatedAt deliberately
+	// stays: a read is not a write, and a stale read must not refresh a row's
+	// modified time.
+	meta.LastUsedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	if err := writeJSONAtomic(path, meta); err != nil {
 		return 0, 0, 0, err
 	}
@@ -764,6 +774,9 @@ type SessionListEntry struct {
 	AdditionalDirectories []string
 	// CreatedAt is empty for a bundle stored before the field existed.
 	CreatedAt string
+	// LastUsedAt is when the session was last opened (markActivityRead), for the
+	// "last used" sort; empty when the bundle predates the field.
+	LastUsedAt string
 	// Model is the session's own backend override (session.json
 	// selectedModelId); empty when the session ran on the configured default.
 	Model string
@@ -967,6 +980,7 @@ func (f *FileStore) appendBundleRow(out []SessionListEntry, dir, id, cwdFilter s
 		UpdatedAt:             meta.UpdatedAt,
 		AdditionalDirectories: meta.AdditionalDirectories,
 		CreatedAt:             meta.CreatedAt,
+		LastUsedAt:            meta.LastUsedAt,
 		Model:                 meta.SelectedModelID,
 		Tags:                  NormalizeTags(meta.Tags),
 		Archived:              meta.Archived,

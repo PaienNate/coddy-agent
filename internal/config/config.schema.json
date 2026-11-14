@@ -23,6 +23,10 @@
             "description": "Logical id used as the first segment of models[].model. ASCII letters, digits, hyphen, underscore; must start with a letter.",
             "pattern": "^[a-zA-Z][a-zA-Z0-9_\\-]*$"
           },
+          "display_name": {
+            "type": "string",
+            "description": "Optional display name for this provider, shown in the UI wherever a provider is labelled (settings rows, the model menu). The id stays the identifier: models[].model, agent.model and every path under providers/<name> keep using name."
+          },
           "type": {
             "type": "string",
             "description": "Wire protocol for this provider entry. Use deepseek for the official DeepSeek API, with its thinking controls, prompt-cache accounting and V4 Flash/Pro presets; openai for any other OpenAI-compatible endpoint.",
@@ -1400,6 +1404,11 @@
         "allow_insecure": {
           "type": "boolean",
           "description": "Say that a server without authentication is open on purpose: silences the two startup warnings about it - a non-loopback bind, and CORS that admits pages nobody listed (allow_loopback or \"*\") - and the --dry-run findings that mirror them, and turns off the refusal of a foreign Host on loopback and of a cross-origin write.",
+          "default": false
+        },
+        "raw_capture": {
+          "type": "boolean",
+          "description": "Keep, in memory only, the raw request and response of every provider call this server makes, for debugging a provider's wire protocol. Off by default: nothing is captured and the viewer is not shown. What it captures is a bounded ring, never written to disk, and the credential headers (Authorization, Proxy-Authorization, Cookie, Set-Cookie and the vendor key headers) are stripped from both directions, as is a credential query parameter in the URL.",
           "default": false
         },
         "cors": {

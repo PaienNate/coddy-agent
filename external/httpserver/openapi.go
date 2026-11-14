@@ -233,6 +233,7 @@ func openAPISpec() map[string]interface{} {
 						"Child sessions of subagent runs (**subagentRun** metadata, stored inside the parent's bundle) are hidden unless **include_subagents=true**; an included child row carries **subagent** **`{parentSessionId, name, taskId}`** so a client can route back to the parent chat and to the task in its drawer. " +
 						"The runs of one-shot print mode (**`coddy -p`**, **origin** **`print`**) are hidden unless **include_print=true** or **origin=print**, and the children they spawned with them. " +
 						"Sessions the operator **archived** are hidden unless **archived** says otherwise, and a row carries **tags**, **archived** / **archivedAt**, **origin** and **pinned** / **pinnedAt** when it has them. " +
+						"A row carries **lastUsedAt** once the session has been opened at least once since this field existed (a **PATCH** with **`markActivityRead`** records it, independent of **updatedAt**, which only moves on a write); the **`last_used`** sort orders by it, newest first. A bundle stored before the field existed carries none. " +
 						"A session that holds no message - opened and left without a prompt - is not listed unless it is pinned or its first turn is running; the **all** and **archived** scopes of **POST /coddy/sessions/bulk-delete** still remove it. " +
 						"A **pinned** session leads the listing whatever **sort** says - a pin that worked in one order only would not be one - and the pins are ordered among themselves by **pinnedRank**, the order the operator dragged them into, newest pin first until one is dragged. " +
 						"A row inside a git checkout also carries **repoRoot**, the main checkout path shared by its worktrees, so clients can group conversations by project. " +
@@ -293,7 +294,7 @@ func openAPISpec() map[string]interface{} {
 					}, map[string]interface{}{
 						"name":   "sort",
 						"in":     "query",
-						"schema": map[string]interface{}{"type": "string", "enum": []string{"updated", "created", "title", "messages", "tokens"}},
+						"schema": map[string]interface{}{"type": "string", "enum": []string{"updated", "created", "last_used", "title", "messages", "tokens"}},
 						"description": "The column the listing is ordered by; **`updated`** by default. A session the column says nothing about (no creation stamp, no title) sorts **last in both directions**, and ties break by id so paging is stable. " +
 							"**`tokens`** reads each bundle's **stats.json**, so it costs one extra small file read per session and only when it is the column asked for. An unknown key is a **400**.",
 					}, map[string]interface{}{
@@ -1292,6 +1293,121 @@ func openAPISpec() map[string]interface{} {
 						},
 						"400": errorResponseRef(),
 						"500": errorResponseRef(),
+					},
+				},
+			},
+			"/coddy/raw-capture": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary":     "List captured provider wire exchanges",
+					"description": "Returns everything the **`httpserver.raw_capture`** recorder kept, in memory only and bounded to the last 100 exchanges, oldest first. Off by default: with the switch off the answer is `{\"object\":\"coddy.raw_capture\",\"enabled\":false,\"entries\":[]}` and the panel the UI draws for it stays hidden. Each entry carries the method and URL, the status, the headers and the first 256 KiB of the request and response bodies. Credential headers - **Authorization**, **Proxy-Authorization**, **Cookie**, **Set-Cookie** and the vendor key headers (**x-api-key**, **api-key**, **x-goog-api-key**) - are always stripped from both directions, and a credential query parameter in the URL (**key**, **api_key**, **token** and the like) is redacted. Each body is recorded as the transport reads it: the ring keeps a bounded prefix, the live stream a caller sends or receives is never truncated or held in full. Nothing here is written to disk.",
+					"operationId": "coddyRawCaptureGet",
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "`coddy.raw_capture` document with the captured exchanges",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{"$ref": "#/components/schemas/CoddyRawCaptureDocument"},
+								},
+							},
+						},
+					},
+				},
+				"delete": map[string]interface{}{
+					"summary":     "Clear the captured exchanges",
+					"description": "Drops every entry the **`httpserver.raw_capture`** recorder kept. A **404** when the switch is off.",
+					"operationId": "coddyRawCaptureDelete",
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "`{\"object\":\"coddy.raw_capture\",\"enabled\":true,\"entries\":[]}`",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{"$ref": "#/components/schemas/CoddyRawCaptureDocument"},
+								},
+							},
+						},
+						"404": errorResponseRef(),
+					},
+				},
+			},
+			"/coddy/ssh/hosts": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary":     "List configured SSH hosts",
+					"description": "Returns the hosts the settings page keeps for `ssh_run_command`, oldest first. A password is reported only as `has_password`; the value never leaves the process. The file lives under `CODDY_HOME` and is readable only by its owner.",
+					"operationId": "coddySSHHostsList",
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "`coddy.ssh_hosts` document with every configured host",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{"$ref": "#/components/schemas/CoddySSHHostList"},
+								},
+							},
+						},
+					},
+				},
+				"put": map[string]interface{}{
+					"summary":     "Add or update one SSH host",
+					"description": "Stores one host keyed by `user@host:port`. An empty `password` keeps the password already stored for that host, so a form can save it without ever holding the secret; `password_command` (a credential helper whose trimmed stdout is the password) and `key_path` replace what is stored, and an empty value clears them.",
+					"operationId": "coddySSHHostsPut",
+					"requestBody": map[string]interface{}{
+						"required": true,
+						"content": map[string]interface{}{
+							"application/json": map[string]interface{}{
+								"schema": map[string]interface{}{"$ref": "#/components/schemas/CoddySSHHostWrite"},
+							},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "The stored host, with `has_password` instead of the password",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{"$ref": "#/components/schemas/CoddySSHHost"},
+								},
+							},
+						},
+						"400": errorResponseRef(),
+					},
+				},
+				"delete": map[string]interface{}{
+					"summary":     "Remove one SSH host",
+					"description": "Removes the host named by the `host`, `user` and optional `port` query parameters. A **404** when no such host is configured.",
+					"operationId": "coddySSHHostsDelete",
+					"parameters": []interface{}{
+						map[string]interface{}{"name": "host", "in": "query", "required": true, "schema": map[string]string{"type": "string"}},
+						map[string]interface{}{"name": "user", "in": "query", "required": true, "schema": map[string]string{"type": "string"}},
+						map[string]interface{}{"name": "port", "in": "query", "required": false, "schema": map[string]string{"type": "integer"}},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{"description": "`{\"object\":\"coddy.ssh_host\",\"deleted\":true}`"},
+						"400": errorResponseRef(),
+						"404": errorResponseRef(),
+					},
+				},
+			},
+			"/coddy/ssh/test": map[string]interface{}{
+				"post": map[string]interface{}{
+					"summary":     "Test the credentials of one SSH host",
+					"description": "Dials the host with the same authentication chain `ssh_run_command` uses (agent, a configured key, the password or its credential helper), verifies the host key the way the tool does, and closes the connection without running a command. A refusal is a **200** with `ok: false` and the reason: the page shows the message as written. A host the form has not saved yet is tested from the credentials in the request.",
+					"operationId": "coddySSHTest",
+					"requestBody": map[string]interface{}{
+						"required": true,
+						"content": map[string]interface{}{
+							"application/json": map[string]interface{}{
+								"schema": map[string]interface{}{"$ref": "#/components/schemas/CoddySSHHostWrite"},
+							},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "`coddy.ssh_test` document",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{"$ref": "#/components/schemas/CoddySSHTestResult"},
+								},
+							},
+						},
+						"400": errorResponseRef(),
 					},
 				},
 			},
@@ -3795,6 +3911,80 @@ func openAPISpec() map[string]interface{} {
 				},
 			},
 			"schemas": map[string]interface{}{
+				"CoddySSHHost": map[string]interface{}{
+					"type":        "object",
+					"description": "One SSH host as the settings page lists it. The password is never returned: `has_password` says whether one (or a credential helper) is configured.",
+					"properties": map[string]interface{}{
+						"host":             map[string]string{"type": "string", "description": "Host name or address."},
+						"user":             map[string]string{"type": "string", "description": "SSH account."},
+						"port":             map[string]string{"type": "integer", "description": "SSH port; omitted when it is 22."},
+						"has_password":     map[string]string{"type": "boolean", "description": "A password or a credential helper is configured for this host."},
+						"password_command": map[string]string{"type": "string", "description": "Credential helper run through the host shell; its trimmed stdout is the password."},
+						"key_path":         map[string]string{"type": "string", "description": "Private key chosen for this host, ahead of the keys under ~/.ssh."},
+					},
+				},
+				"CoddySSHHostList": map[string]interface{}{
+					"type":        "object",
+					"description": "The configured SSH hosts, oldest first.",
+					"properties": map[string]interface{}{
+						"object": map[string]string{"type": "string", "description": "`coddy.ssh_hosts`."},
+						"hosts": map[string]interface{}{
+							"type":  "array",
+							"items": map[string]interface{}{"$ref": "#/components/schemas/CoddySSHHost"},
+						},
+					},
+				},
+				"CoddySSHHostWrite": map[string]interface{}{
+					"type":        "object",
+					"description": "One SSH host as a client writes it. An empty `password` keeps the stored one on update.",
+					"required":    []string{"host", "user"},
+					"properties": map[string]interface{}{
+						"host":             map[string]string{"type": "string"},
+						"user":             map[string]string{"type": "string"},
+						"port":             map[string]string{"type": "integer", "description": "Defaults to 22."},
+						"password":         map[string]string{"type": "string", "description": "Password; an empty value keeps the stored one."},
+						"password_command": map[string]string{"type": "string", "description": "Credential helper whose trimmed stdout is the password."},
+						"key_path":         map[string]string{"type": "string", "description": "Private key file, ~ expanded."},
+					},
+				},
+				"CoddySSHTestResult": map[string]interface{}{
+					"type":        "object",
+					"description": "The result of a connection test: a refusal is `ok: false` with the reason in `message`.",
+					"properties": map[string]interface{}{
+						"object":     map[string]string{"type": "string", "description": "`coddy.ssh_test`."},
+						"ok":         map[string]string{"type": "boolean"},
+						"message":    map[string]string{"type": "string", "description": "Why the connection failed; absent on success."},
+						"latency_ms": map[string]string{"type": "integer", "description": "Time spent dialing and authenticating."},
+					},
+				},
+				"CoddyRawCaptureDocument": map[string]interface{}{
+					"type":        "object",
+					"description": "The raw-capture document: whether httpserver.raw_capture is on and the exchanges kept, in memory only, oldest first.",
+					"properties": map[string]interface{}{
+						"object":  map[string]string{"type": "string", "description": "`coddy.raw_capture`."},
+						"enabled": map[string]string{"type": "boolean"},
+						"entries": map[string]interface{}{
+							"type":  "array",
+							"items": map[string]interface{}{"$ref": "#/components/schemas/CoddyRawCaptureEntry"},
+						},
+					},
+				},
+				"CoddyRawCaptureEntry": map[string]interface{}{
+					"type":        "object",
+					"description": "One provider HTTP exchange. Credential headers (Authorization, Proxy-Authorization, Cookie, Set-Cookie, and the vendor key headers x-api-key / api-key / x-goog-api-key) are stripped from both directions, and credential query parameters in the URL are redacted. Each body is recorded as the transport reads it: only a bounded prefix (the first 256 KiB) is kept, never the whole stream, which a caller sends or receives untouched. Nothing here is written to disk.",
+					"properties": map[string]interface{}{
+						"id":         map[string]string{"type": "string"},
+						"at":         map[string]string{"type": "string", "format": "date-time"},
+						"method":     map[string]string{"type": "string"},
+						"url":        map[string]string{"type": "string", "description": "Request URL."},
+						"status":     map[string]string{"type": "integer", "description": "HTTP status, absent when the request failed before any response."},
+						"reqHeader":  map[string]interface{}{"type": "object", "description": "Request headers, credentials stripped."},
+						"reqBody":    map[string]string{"type": "string", "description": "First 256 KiB of the request body."},
+						"respHeader": map[string]interface{}{"type": "object", "description": "Response headers, credentials stripped."},
+						"respBody":   map[string]string{"type": "string", "description": "First 256 KiB of the response body."},
+						"err":        map[string]string{"type": "string", "description": "Transport error, when the request failed."},
+					},
+				},
 				"SubagentCatalogEntry": map[string]interface{}{
 					"type":        "object",
 					"description": "One subagent definition as the catalog shows it, with the trust decision for the requested workspace.",
@@ -4325,6 +4515,10 @@ func openAPISpec() map[string]interface{} {
 									"object":   map[string]string{"type": "string", "example": "model"},
 									"created":  map[string]string{"type": "integer", "format": "int64"},
 									"owned_by": map[string]string{"type": "string", "example": "coddy"},
+									"provider_display_name": map[string]string{
+										"type":        "string",
+										"description": "The provider row's `display_name`, when one is set: a UI label for grouping and listing models. `owned_by` keeps the id, which stays the identifier everywhere. Omitted when the row sets no display name.",
+									},
 									"max_context_tokens": map[string]string{
 										"type":        "integer",
 										"description": "Context window a session on this model measures its context usage and its automatic compaction threshold against: `models[].max_context_tokens`, else the window the provider's model listing reports, else 128000. The `agent`, `plan` and `ask` rows carry the window of `agent.model`.",

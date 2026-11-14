@@ -64,6 +64,9 @@ func TestGETModelsMergedOrderAndOwnedBy(t *testing.T) {
 	cfg := &config.Config{
 		Agent:  config.Agent{Model: "openai/gpt-4o"},
 		Models: []config.ModelEntry{{Model: "openai/gpt-4o", MaxTokens: 100, Temperature: 0.2}},
+		Providers: []config.ProviderConfig{
+			{Name: "openai", Type: "openai", DisplayName: "OpenAI (work)"},
+		},
 	}
 	runner := func(context.Context, *session.State, []acp.ContentBlock, acp.UpdateSender) (string, error) {
 		return "", nil
@@ -85,12 +88,13 @@ func TestGETModelsMergedOrderAndOwnedBy(t *testing.T) {
 	var body struct {
 		Object string `json:"object"`
 		Data   []struct {
-			ID               string `json:"id"`
-			Object           string `json:"object"`
-			OwnedBy          string `json:"owned_by"`
-			MaxContextTokens int    `json:"max_context_tokens"`
-			ContextLength    int    `json:"context_length"`
-			Default          bool   `json:"default"`
+			ID                  string `json:"id"`
+			Object              string `json:"object"`
+			OwnedBy             string `json:"owned_by"`
+			ProviderDisplayName string `json:"provider_display_name"`
+			MaxContextTokens    int    `json:"max_context_tokens"`
+			ContextLength       int    `json:"context_length"`
+			Default             bool   `json:"default"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
@@ -110,6 +114,13 @@ func TestGETModelsMergedOrderAndOwnedBy(t *testing.T) {
 	}
 	if !body.Data[3].Default {
 		t.Fatalf("the agent.model row is not marked default: %+v", body.Data[3])
+	}
+	// The provider's display name travels as a label only; owned_by keeps the id.
+	if body.Data[3].ProviderDisplayName != "OpenAI (work)" {
+		t.Fatalf("provider_display_name not carried from the provider row: %+v", body.Data[3])
+	}
+	if body.Data[0].ProviderDisplayName != "" {
+		t.Fatalf("profile rows carry no provider display name: %+v", body.Data[0])
 	}
 	for i, w := range want {
 		item := body.Data[i]
@@ -258,6 +269,153 @@ func TestGETModelsReportsEachModelsOwnContextWindow(t *testing.T) {
 	}
 }
 
+// TestRawCaptureRoute covers the GET/DELETE /coddy/raw-capture routes: with
+// httpserver.raw_capture off the GET answers {"enabled":false} and a DELETE is
+// a 404; with it on the GET answers enabled and a DELETE clears the ring.
+func TestRawCaptureRoute(t *testing.T) {
+	runner := func(context.Context, *session.State, []acp.ContentBlock, acp.UpdateSender) (string, error) {
+		return "", nil
+	}
+	build := func(rawCapture bool) *httptest.Server {
+		cfg := &config.Config{
+			Agent:  config.Agent{Model: "openai/gpt-4o"},
+			Models: []config.ModelEntry{{Model: "openai/gpt-4o", MaxTokens: 100}},
+			HTTPServer: config.HTTPServerConfig{
+				RawCapture: rawCapture,
+			},
+		}
+		mgr := session.NewManager(cfg, noopSender{}, runner, slog.Default(), t.TempDir(), nil)
+		srv := New(cfg, mgr, slog.Default(), t.TempDir())
+		// New installs the process-wide recorder when the switch is on; take
+		// it out again so the test leaves the global as it found it.
+		t.Cleanup(srv.stopRawCapture)
+		ts := httptest.NewServer(srv.Handler())
+		t.Cleanup(ts.Close)
+		return ts
+	}
+
+	type doc struct {
+		Object  string `json:"object"`
+		Enabled bool   `json:"enabled"`
+		Entries []any  `json:"entries"`
+	}
+
+	t.Run("off answers disabled and clears forbidden", func(t *testing.T) {
+		ts := build(false)
+		res, err := http.Get(ts.URL + "/coddy/raw-capture")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = res.Body.Close() }()
+		if res.StatusCode != http.StatusOK {
+			t.Fatalf("GET status = %d, want 200", res.StatusCode)
+		}
+		var d doc
+		if err := json.NewDecoder(res.Body).Decode(&d); err != nil {
+			t.Fatal(err)
+		}
+		if d.Enabled {
+			t.Error("raw_capture off but GET says enabled")
+		}
+		if d.Object != "coddy.raw_capture" {
+			t.Errorf("object = %q", d.Object)
+		}
+		if d.Entries == nil || len(d.Entries) != 0 {
+			t.Errorf("entries = %#v, want empty", d.Entries)
+		}
+
+		req, _ := http.NewRequest(http.MethodDelete, ts.URL+"/coddy/raw-capture", nil)
+		res2, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = res2.Body.Close() }()
+		if res2.StatusCode != http.StatusNotFound {
+			t.Errorf("DELETE status = %d, want 404", res2.StatusCode)
+		}
+	})
+
+	t.Run("on answers enabled and clears", func(t *testing.T) {
+		ts := build(true)
+		res, err := http.Get(ts.URL + "/coddy/raw-capture")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = res.Body.Close() }()
+		var d doc
+		if err := json.NewDecoder(res.Body).Decode(&d); err != nil {
+			t.Fatal(err)
+		}
+		if !d.Enabled {
+			t.Error("raw_capture on but GET says disabled")
+		}
+
+		req, _ := http.NewRequest(http.MethodDelete, ts.URL+"/coddy/raw-capture", nil)
+		res2, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = res2.Body.Close() }()
+		if res2.StatusCode != http.StatusOK {
+			t.Fatalf("DELETE status = %d, want 200", res2.StatusCode)
+		}
+		var cleared doc
+		if err := json.NewDecoder(res2.Body).Decode(&cleared); err != nil {
+			t.Fatal(err)
+		}
+		if !cleared.Enabled || len(cleared.Entries) != 0 {
+			t.Errorf("after clear = %#v, want enabled + empty", cleared)
+		}
+	})
+}
+
+// TestRawCaptureStopsWithServer covers the stop path a subsystem disable
+// takes: a server whose New installed the process-wide raw-capture recorder
+// takes it out again when it stops (Serve defers stopRawCapture), so a process
+// that keeps running other subsystems - a gateway, the scheduler - stops
+// capturing the wire the moment the HTTP surface goes away, and the entries
+// the ring held are dropped with it.
+func TestRawCaptureStopsWithServer(t *testing.T) {
+	runner := func(context.Context, *session.State, []acp.ContentBlock, acp.UpdateSender) (string, error) {
+		return "", nil
+	}
+	cfg := &config.Config{
+		Agent:  config.Agent{Model: "openai/gpt-4o"},
+		Models: []config.ModelEntry{{Model: "openai/gpt-4o", MaxTokens: 100}},
+		HTTPServer: config.HTTPServerConfig{
+			RawCapture: true,
+		},
+	}
+	mgr := session.NewManager(cfg, noopSender{}, runner, slog.Default(), t.TempDir(), nil)
+	srv := New(cfg, mgr, slog.Default(), t.TempDir())
+	t.Cleanup(func() { llm.SetRawCaptureRecorder(nil) })
+
+	if llm.GetRawCaptureRecorder() == nil {
+		t.Fatal("New with raw_capture on installed no recorder")
+	}
+	ring := srv.rawCapture
+	if ring == nil {
+		t.Fatal("server holds no ring")
+	}
+	// A recorder another surface installed meanwhile must survive the stop.
+	other := llm.NewRawCaptureRecorder(2)
+	llm.SetRawCaptureRecorder(other)
+	srv.stopRawCapture()
+	if got := llm.GetRawCaptureRecorder(); got != other {
+		t.Fatalf("stop removed a recorder it did not install: %v", got)
+	}
+	// With this server's own recorder installed, the stop takes it out and
+	// drops the entries.
+	llm.SetRawCaptureRecorder(ring)
+	srv.stopRawCapture()
+	if got := llm.GetRawCaptureRecorder(); got != nil {
+		t.Fatalf("stop left the recorder installed: %v", got)
+	}
+	if entries := ring.Entries(); len(entries) != 0 {
+		t.Fatalf("stop left %d entries in the ring", len(entries))
+	}
+}
+
 func TestGETModelsMultimodalField(t *testing.T) {
 	cfg := &config.Config{
 		Agent: config.Agent{Model: "openai/gpt-4o"},
@@ -331,7 +489,7 @@ func TestOpenAPISpecPathsAndVersion(t *testing.T) {
 	if !ok {
 		t.Fatal("missing paths map")
 	}
-	for _, must := range []string{"/v1/models", "/v1/chat/completions", "/v1/responses", "/v1/responses/{id}", "/coddy/sessions", "/coddy/describe", "/coddy/enhance-prompt", "/coddy/slash-commands", "/coddy/workspace/files", "/coddy/workspace/context", "/coddy/workspace/fetch", "/coddy/workspace/folders", "/coddy/config/schema", "/coddy/config", "/coddy/config/validate", "/coddy/config/reasoning-levels", "/coddy/providers/{name}/models", "/coddy/providers/{name}/codex-auth", "/coddy/providers/{name}/codex-auth/device", "/coddy/providers/{name}/codex-auth/device/{loginID}", "/coddy/sessions/{id}/messages", "/coddy/sessions/{id}/assets/{name}/thumbnail", "/coddy/sessions/{id}/composer-stream", "/coddy/events", "/coddy/sessions/{id}/question", "/coddy/sessions/{id}/permission", "/coddy/sessions/{id}/cancel", "/coddy/sessions/{id}/workspace", "/coddy/sessions/{id}/rewind", "/coddy/sessions/{id}/queue", "/coddy/sessions/{id}/queue/{message_id}", "/coddy/subagents", "/coddy/subagents/{name}/trust", "/coddy/subagents/{name}/untrust", "/coddy/auth/me", "/coddy/auth/login", "/coddy/auth/logout", "/coddy/docs", "/coddy/docs/page", "/coddy/docs/search", "/coddy/info"} {
+	for _, must := range []string{"/v1/models", "/v1/chat/completions", "/v1/responses", "/v1/responses/{id}", "/coddy/sessions", "/coddy/describe", "/coddy/enhance-prompt", "/coddy/slash-commands", "/coddy/workspace/files", "/coddy/workspace/context", "/coddy/workspace/fetch", "/coddy/workspace/folders", "/coddy/config/schema", "/coddy/config", "/coddy/config/validate", "/coddy/config/reasoning-levels", "/coddy/providers/{name}/models", "/coddy/providers/{name}/codex-auth", "/coddy/providers/{name}/codex-auth/device", "/coddy/providers/{name}/codex-auth/device/{loginID}", "/coddy/sessions/{id}/messages", "/coddy/sessions/{id}/assets/{name}/thumbnail", "/coddy/sessions/{id}/composer-stream", "/coddy/events", "/coddy/sessions/{id}/question", "/coddy/sessions/{id}/permission", "/coddy/sessions/{id}/cancel", "/coddy/sessions/{id}/workspace", "/coddy/sessions/{id}/rewind", "/coddy/sessions/{id}/queue", "/coddy/sessions/{id}/queue/{message_id}", "/coddy/subagents", "/coddy/subagents/{name}/trust", "/coddy/subagents/{name}/untrust", "/coddy/auth/me", "/coddy/auth/login", "/coddy/auth/logout", "/coddy/docs", "/coddy/docs/page", "/coddy/docs/search", "/coddy/info", "/coddy/raw-capture"} {
 		if _, ok := paths[must]; !ok {
 			t.Fatalf("paths missing key %s", must)
 		}

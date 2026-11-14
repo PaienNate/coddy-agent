@@ -21,7 +21,8 @@ export type SessionSortKey =
   | "messages"
   | "tokens"
   | "created"
-  | "updated";
+  | "updated"
+  | "last_used";
 
 export type SessionSortOrder = "asc" | "desc";
 
@@ -61,9 +62,10 @@ export function isSessionOriginFilter(v: string): v is SessionOriginFilter {
   return (SESSION_ORIGIN_FILTERS as readonly string[]).includes(v);
 }
 
-/** History offers these three; the table in Settings sorts by more. */
+/** History offers these four; the table in Settings sorts by more. */
 const HISTORY_SORT_KEYS: readonly SessionSortKey[] = [
   "updated",
+  "last_used",
   "created",
   "title",
 ];

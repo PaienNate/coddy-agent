@@ -641,3 +641,55 @@ func TestArchivingDoesNotReorderTheListing(t *testing.T) {
 		}
 	}
 }
+
+func TestSessionListSortsByLastUsed(t *testing.T) {
+	srv, mgr, store := bulkDeleteServer(t)
+	// One session is opened (markActivityRead) after another; only the opened
+	// one carries a lastUsedAt stamp, and only it has a row ahead of a bundle
+	// whose stamp is empty in a last_used listing. The stamp is a "last used"
+	// moment, not a write: the session row must report it, and UpdatedAt must
+	// stay the write time.
+	opened := storeSession(t, mgr, store, "opened")
+	notOpened := storeSession(t, mgr, store, "not opened")
+	if code, _ := patchSessionJSON(t, srv, opened, map[string]interface{}{"markActivityRead": true}); code != http.StatusOK {
+		t.Fatal("markActivityRead")
+	}
+
+	_, body := getSessions(t, srv, "sort=last_used&order=desc")
+	raw, _ := body["sessions"].([]interface{})
+	rows := make(map[string]map[string]interface{})
+	var order []string
+	for _, item := range raw {
+		m, _ := item.(map[string]interface{})
+		id, _ := m["id"].(string)
+		rows[id] = m
+		order = append(order, id)
+	}
+	if len(order) != 2 {
+		t.Fatalf("listing holds %d rows, want 2: %v", len(order), order)
+	}
+	// The opened session sorts first; the one with no stamp last.
+	if order[0] != opened || order[1] != notOpened {
+		t.Fatalf("sort=last_used order = %v, want [%s %s]", order, opened, notOpened)
+	}
+	if at, ok := rows[opened]["lastUsedAt"].(string); !ok || at == "" {
+		t.Fatalf("an opened session must report lastUsedAt: %v", rows[opened])
+	}
+	if _, present := rows[notOpened]["lastUsedAt"]; present {
+		t.Fatalf("an untouched session reports no lastUsedAt: %v", rows[notOpened])
+	}
+
+	// Ascending puts the opened (stamped) session first too, because a bundle
+	// with no stamp sorts last in both directions.
+	_, body = getSessions(t, srv, "sort=last_used&order=asc")
+	raw, _ = body["sessions"].([]interface{})
+	var asc []string
+	for _, item := range raw {
+		m, _ := item.(map[string]interface{})
+		id, _ := m["id"].(string)
+		asc = append(asc, id)
+	}
+	if asc[0] != opened || asc[1] != notOpened {
+		t.Fatalf("sort=last_used asc order = %v, want [%s %s]", asc, opened, notOpened)
+	}
+}

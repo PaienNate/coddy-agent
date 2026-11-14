@@ -103,7 +103,19 @@ func (t *httpTraceTransport) CloseIdleConnections() {
 	}
 }
 
+// RoundTrip captures the exchange for the raw-capture viewer when that switch
+// is on, then traces it when a trace collector asked for this request. The
+// capture runs first so it records every exchange, whether or not a diagnostic
+// trace is active; with no recorder installed it is a pure pass-through and the
+// trace path is unchanged.
 func (t *httpTraceTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if ring := GetRawCaptureRecorder(); ring != nil {
+		return captureExchange(ring, roundTripperFunc(t.tracedRoundTrip), req)
+	}
+	return t.tracedRoundTrip(req)
+}
+
+func (t *httpTraceTransport) tracedRoundTrip(req *http.Request) (*http.Response, error) {
 	collector, ok := req.Context().Value(httpTraceKey{}).(*HTTPTrace)
 	if !ok {
 		return t.inner.RoundTrip(req)

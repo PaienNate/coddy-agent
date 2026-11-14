@@ -382,6 +382,18 @@ func (c *Config) ValidateModelsProvidersAndAgent() error {
 		if rm := strings.TrimSpace(c.Agent.Model); rm != "" && c.FindModelEntry(rm) == nil {
 			return fmt.Errorf("agent.model %q: not found in models list", rm)
 		}
+		// compaction.model and its fallback_models name logical models too, so
+		// each of them must resolve the same way (issue #485 follows the
+		// settings linkage, and a stale name would fail only on the save).
+		if rm := strings.TrimSpace(c.Compaction.Model); rm != "" && c.FindModelEntry(rm) == nil {
+			return fmt.Errorf("compaction.model %q: not found in models list", rm)
+		}
+		for _, fm := range c.Compaction.FallbackModels {
+			fm = strings.TrimSpace(fm)
+			if fm != "" && c.FindModelEntry(fm) == nil {
+				return fmt.Errorf("compaction.fallback_models %q: not found in models list", fm)
+			}
+		}
 	}
 	return nil
 }

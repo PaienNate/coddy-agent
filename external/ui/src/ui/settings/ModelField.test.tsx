@@ -102,6 +102,39 @@ test("the model id is a plain field that fetches nothing", () => {
   ).toBeNull();
 });
 
+test("a provider's display name labels its option; the value stays the id", () => {
+  function LabelHarness() {
+    const [val, setVal] = React.useState("");
+    return (
+      <>
+        <ModelField
+          value={val}
+          onChange={setVal}
+          providers={[
+            { name: "openai", type: "openai", display_name: "OpenAI (work)" },
+            { name: "hub", type: "neuraldeep" },
+          ]}
+          texts={TEXTS}
+        />
+        <span data-testid="val">{val}</span>
+      </>
+    );
+  }
+  render(<LabelHarness />);
+
+  fireEvent.focus(screen.getByTestId("model-field-provider"));
+
+  // The option shows the label the row carries; a row without one keeps its id.
+  expect(screen.getByText("OpenAI (work)")).toBeTruthy();
+  expect(screen.getByText("hub")).toBeTruthy();
+
+  fireEvent.mouseDown(screen.getByText("OpenAI (work)"));
+  fireEvent.change(screen.getByTestId("model-field-model"), {
+    target: { value: "gpt-4o" },
+  });
+  expect(screen.getByTestId("val").textContent).toBe("openai/gpt-4o");
+});
+
 test("the names are the texts it is given: the id's first, the provider's second", () => {
   render(
     <ModelField

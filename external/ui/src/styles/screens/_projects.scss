@@ -142,12 +142,23 @@
   flex: 0 0 auto;
 }
 
+/* A running tab carries a loading icon, the same ring spinner as the History
+   row's activity mark: a running conversation reads as working in both places. */
 .project-tab-live {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: var(--accent);
+  border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-top-color: var(--accent);
+  box-sizing: border-box;
   flex: 0 0 auto;
+  animation: session-spin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .project-tab-live {
+    animation: none;
+  }
 }
 
 .project-tab-title {

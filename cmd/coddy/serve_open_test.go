@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -31,7 +32,8 @@ func TestOpenControlCreatesASession(t *testing.T) {
 	}
 	if info, err := os.Stat(openControlPath(home)); err != nil {
 		t.Fatal(err)
-	} else if info.Mode().Perm() != 0o600 {
+	} else if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
+		// Windows reports permissions from ACLs, not from os.Chmod's bits.
 		t.Fatalf("state mode = %o, want 600", info.Mode().Perm())
 	}
 

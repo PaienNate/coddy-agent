@@ -36,6 +36,28 @@ function IconStop() {
   );
 }
 
+/** A small closed padlock: the transcript of a subagent run is read-only. */
+function IconLock() {
+  return (
+    <svg
+      className="bgtask-transcript-lock"
+      viewBox="0 0 24 24"
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+}
+
 /**
  * One task of the panel, whatever it is - a shell command, a subagent run, the memory
  * run of a turn - and whether it runs or has finished. Every card has the same parts in
@@ -254,6 +276,7 @@ function TaskCard(props: {
                   aria-disabled="true"
                   title={t("tasks.openTranscriptUnavailable")}
                 >
+                  <IconLock />
                   {t("tasks.openTranscript")}
                 </span>
               ) : (
@@ -261,13 +284,17 @@ function TaskCard(props: {
                   className="bgtask-card-transcript"
                   href={appNavHrefSession(agentSid)}
                   data-testid={`bgtask-open-transcript-${task.id}`}
-                  aria-label={t("tasks.openTranscriptAria", { label: title })}
+                  aria-label={t("tasks.openTranscriptReadOnlyAria", {
+                    label: title,
+                  })}
+                  title={t("tasks.openTranscriptReadOnly", { label: title })}
                   onClick={(ev) =>
                     sameTabInAppNavClick(ev, () =>
                       props.onOpenSession(agentSid),
                     )
                   }
                 >
+                  <IconLock />
                   {t("tasks.openTranscript")}
                 </a>
               )}

@@ -1,0 +1,94 @@
+//go:build http
+
+package httpserver
+
+import (
+	"errors"
+	"net/http"
+
+	"github.com/EvilFreelancer/coddy-agent/internal/config"
+	"github.com/EvilFreelancer/coddy-agent/internal/llm"
+)
+
+// registerRawCaptureRoutes serves the raw request/response viewer: a debug aid
+// that shows what actually went over the wire to a provider. The routes exist
+// only while httpserver.raw_capture is enabled; when it is off the GET answers
+// {"enabled":false} and the DELETE is a 404, so the SPA shows no panel. What
+// the recorder keeps is bound and in memory only.
+func (s *Server) registerRawCaptureRoutes() {
+	s.mux.HandleFunc("GET /coddy/raw-capture", s.coddyRawCaptureGet)
+	s.mux.HandleFunc("DELETE /coddy/raw-capture", s.coddyRawCaptureDelete)
+}
+
+// syncRawCapture brings the process-wide recorder in line with the served
+// configuration: install one when httpserver.raw_capture is on, remove it when
+// off. Called at New and again on every ReplaceConfig; stopRawCapture is the
+// third leg, the one that runs when Serve returns. The ring itself is kept
+// across a disable so a later enable reuses it; whether capture is *shown* is
+// read from the live configuration, never from the ring being non-nil
+// (rawCaptureEnabled).
+func (s *Server) syncRawCapture(cfg *config.Config) {
+	if cfg != nil && cfg.HTTPServer.RawCapture {
+		if s.rawCapture == nil {
+			s.rawCapture = llm.NewRawCaptureRecorder(100)
+		}
+		llm.SetRawCaptureRecorder(s.rawCapture)
+		return
+	}
+	// Capture is off: the transport passes every request through untouched.
+	llm.SetRawCaptureRecorder(nil)
+}
+
+// rawCaptureEnabled reports whether the live configuration has the capture
+// switch on. GET and DELETE answer off when it does not, even though the ring
+// may still hold what a previous enable captured: turning the switch off hides
+// the viewer, as the documentation says.
+func (s *Server) rawCaptureEnabled() bool {
+	if cfg := s.activeCfg(); cfg != nil {
+		return cfg.HTTPServer.RawCapture
+	}
+	return false
+}
+
+// stopRawCapture removes the process-wide recorder this server installed and
+// drops its entries. It runs when Serve returns, whatever ended it - a
+// cancelled context, a dead listener, a refused login form - because a reload
+// that disables the HTTP surface does not pass through ReplaceConfig on the
+// way: without this, the subsystems that keep running (a gateway, the
+// scheduler) would keep filling a ring nobody can view or clear anymore. A
+// recorder some other server installed in the meantime is left alone.
+func (s *Server) stopRawCapture() {
+	if s.rawCapture == nil {
+		return
+	}
+	llm.UninstallRawCaptureRecorder(s.rawCapture)
+	s.rawCapture.Clear()
+}
+
+func (s *Server) coddyRawCaptureGet(w http.ResponseWriter, r *http.Request) {
+	if !s.rawCaptureEnabled() || s.rawCapture == nil {
+		writeJSON(w, http.StatusOK, rawCapturePayload(false, nil))
+		return
+	}
+	writeJSON(w, http.StatusOK, rawCapturePayload(true, s.rawCapture.Entries()))
+}
+
+func (s *Server) coddyRawCaptureDelete(w http.ResponseWriter, r *http.Request) {
+	if !s.rawCaptureEnabled() || s.rawCapture == nil {
+		s.queueError(w, http.StatusNotFound, "not_enabled", errors.New("raw capture is not enabled"))
+		return
+	}
+	s.rawCapture.Clear()
+	writeJSON(w, http.StatusOK, rawCapturePayload(true, nil))
+}
+
+func rawCapturePayload(enabled bool, entries []llm.RawCaptureEntry) map[string]interface{} {
+	if entries == nil {
+		entries = []llm.RawCaptureEntry{}
+	}
+	return map[string]interface{}{
+		"object":  "coddy.raw_capture",
+		"enabled": enabled,
+		"entries": entries,
+	}
+}

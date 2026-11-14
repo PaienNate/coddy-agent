@@ -143,6 +143,40 @@ func TestSortSessionListByTokensUsesTheSuppliedTotals(t *testing.T) {
 	}
 }
 
+func TestSortSessionListByLastUsedOrdersByTheOpenStamp(t *testing.T) {
+	rows := []SessionListEntry{
+		{SessionID: "sess_1", LastUsedAt: "2026-09-03T00:00:00Z"},
+		{SessionID: "sess_2", LastUsedAt: "2026-09-01T00:00:00Z"},
+		{SessionID: "sess_3", LastUsedAt: "2026-09-02T00:00:00Z"},
+	}
+	SortSessionList(rows, SortLastUsed, SortDesc, nil)
+	got := []string{rows[0].SessionID, rows[1].SessionID, rows[2].SessionID}
+	want := []string{"sess_1", "sess_3", "sess_2"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v want %v", got, want)
+	}
+}
+
+func TestSortSessionListByLastUsedPutsMissingLastInBothDirections(t *testing.T) {
+	for _, order := range []SortOrder{SortAsc, SortDesc} {
+		rows := []SessionListEntry{
+			{SessionID: "sess_1", LastUsedAt: ""},
+			{SessionID: "sess_2", LastUsedAt: "2026-09-01T00:00:00Z"},
+			{SessionID: "sess_3", LastUsedAt: "2026-09-02T00:00:00Z"},
+		}
+		SortSessionList(rows, SortLastUsed, order, nil)
+		if rows[2].SessionID != "sess_1" {
+			t.Fatalf("order %q: a bundle with no last-used stamp must sort last, got %v", order, rows)
+		}
+	}
+}
+
+func TestParseSortKeyAcceptsLastUsed(t *testing.T) {
+	if got, ok := ParseSortKey("last_used"); !ok || got != SortLastUsed {
+		t.Fatalf("last_used sort key must parse, got %q,%v", got, ok)
+	}
+}
+
 func TestSessionMatchesAnyTagIsAnOrOverNormalizedValues(t *testing.T) {
 	row := SessionListEntry{Tags: []string{"backend", "api"}}
 	if !SessionMatchesAnyTag(row, []string{"UI", "Backend"}) {

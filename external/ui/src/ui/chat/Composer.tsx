@@ -114,6 +114,7 @@ import { parseDocsCommand } from "../docs/docsCommand";
 import {
   filterLlmModels,
   groupLlmModelsByVendor,
+  llmVendorLabel,
   orderLlmModels,
   shouldGroupLlmModels,
   shouldShowLlmFilter,
@@ -461,6 +462,10 @@ export function Composer(props: {
   modes: string[];
   /** Configured backends (every GET /v1/models row but the agent / plan / ask profiles). Omitted when empty. */
   llmModels?: string[];
+  /** Provider display names keyed by provider id (providers[].display_name),
+   *  for the model menu's vendor group labels and its filter; an id with no
+   *  display name keeps its prefix. */
+  providerLabels?: Readonly<Record<string, string>>;
   /** Reasoning levels of every configured model, for `/goal --reasoning`. */
   llmReasoningLevelsByModel?: Readonly<Record<string, readonly string[]>>;
   /** Selected **`models[].model`** id (`metadata.model` on profile requests). */
@@ -1051,12 +1056,14 @@ export function Composer(props: {
     return filterLlmModels(
       orderLlmModels(props.llmModels ?? []),
       argDraft.prefix,
+      props.providerLabels,
     );
   }, [
     argDraft,
     props.llmModels,
     props.llmReasoningLevelsByModel,
     props.llmReasoningLevels,
+    props.providerLabels,
   ]);
   const argOpen =
     argDraft.open &&
@@ -2253,8 +2260,8 @@ export function Composer(props: {
   // in whenever more than one vendor is configured. See llmModelMenu.ts.
   const llmShowFilter = shouldShowLlmFilter(llmList.length);
   const llmFiltered = useMemo(
-    () => filterLlmModels(llmList, llmQuery),
-    [llmList, llmQuery],
+    () => filterLlmModels(llmList, llmQuery, props.providerLabels),
+    [llmList, llmQuery, props.providerLabels],
   );
   const llmGrouped = shouldGroupLlmModels(llmList);
   const llmGroups = useMemo(
@@ -4118,7 +4125,8 @@ export function Composer(props: {
                             className="mode-menu-group"
                           >
                             <div className="mode-menu-group-label">
-                              {g.vendor || t("composer.vendorOther")}
+                              {llmVendorLabel(g.vendor, props.providerLabels) ||
+                                t("composer.vendorOther")}
                             </div>
                             {g.models.map((mid) => renderLlmItem(mid))}
                           </div>

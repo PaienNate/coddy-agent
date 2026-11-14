@@ -30,7 +30,7 @@ function Harness({ initial = [] }: { initial?: unknown[] }) {
       schema={arraySchema}
       value={val}
       onChange={setVal}
-      labelField="name"
+      labelFields={["name"]}
     />
   );
 }
@@ -85,7 +85,7 @@ function RoutedHarness(props: {
       schema={arraySchema}
       value={val}
       onChange={setVal}
-      labelField="name"
+      labelFields={["name"]}
       backLabel="LLM providers"
       routeItem={props.route}
       onRouteItemChange={props.onRoute}
@@ -213,7 +213,7 @@ test("the back link stays out when the drawer's head already leads back", () => 
       schema={schema}
       value={ROWS}
       onChange={() => {}}
-      labelField="name"
+      labelFields={["name"]}
       backLabel="LLM providers"
       routeItem="demo"
       hideBackLink

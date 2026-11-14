@@ -2,13 +2,15 @@
  * applyModelsChange replaces the `models` array in the settings doc and keeps the
  * default-model references in sync. When a logical model id is renamed in place
  * (the model list keeps the same length, one entry's `model` string changes),
- * every reference that used the old id — `agent.model` and `memory.model` — is
- * rewritten to the new id. This prevents the config from becoming invalid
- * (backend rejects `agent.model`/`memory.model` not present in the models list)
- * after renaming the only model of a provider.
+ * every reference that used the old id — `agent.model`, `memory.model` and
+ * `compaction.model` / `compaction.fallback_models` — is rewritten to the new id.
+ * When a model is removed, a reference that named it is cleared (`model` becomes
+ * an empty string; a `fallback_models` entry is dropped), so a config the
+ * operator saved from the Settings page never points at a model that is gone,
+ * which the server rejects with "not found in models list".
  *
- * Only in-place renames are reconciled. On add/remove (length change) references
- * are left untouched — removing a referenced model should not silently repoint it.
+ * A model added leaves the references alone. A rename and a removal that happen
+ * in one edit are reconciled together.
  */
 export function applyModelsChange(
   doc: Record<string, unknown>,
@@ -18,30 +20,53 @@ export function applyModelsChange(
 
   const prevIds = modelIds(doc.models);
   const nextIds = modelIds(nextModels);
-  if (prevIds.length !== nextIds.length) {
-    return base;
-  }
 
+  // A rename is only meaningful positionally when the list keeps its length;
+  // on add/remove the indices no longer line up with the entry they held.
+  // Even then, a same-length "delete one and add another" would line up as a
+  // rename, so a pair counts only when the new id was not present before and
+  // the old id is gone now.
+  const prevSet = new Set(prevIds.filter((id) => id !== ""));
+  const nextSet = new Set(nextIds.filter((id) => id !== ""));
   const renames = new Map<string, string>();
-  for (let i = 0; i < prevIds.length; i++) {
-    const from = prevIds[i]!;
-    const to = nextIds[i]!;
-    if (from !== "" && from !== to) {
+  if (prevIds.length === nextIds.length) {
+    for (let i = 0; i < prevIds.length; i++) {
+      const from = prevIds[i]!;
+      const to = nextIds[i]!;
+      if (from === "" || from === to) {
+        continue;
+      }
+      if (prevSet.has(to) || nextSet.has(from)) {
+        continue;
+      }
       renames.set(from, to);
     }
   }
-  if (renames.size === 0) {
+
+  // A removed id is one present before, absent now, and not the source of a
+  // rename (a renamed id is absent now but was turned into its new name).
+  const removed = new Set<string>();
+  for (const id of prevIds) {
+    if (id === "" || nextSet.has(id) || renames.has(id)) {
+      continue;
+    }
+    removed.add(id);
+  }
+
+  if (renames.size === 0 && removed.size === 0) {
     return base;
   }
 
-  base.agent = renameModelRef(base.agent, renames);
-  base.memory = renameModelRef(base.memory, renames);
+  base.agent = renameModelRef(base.agent, renames, removed);
+  base.memory = renameModelRef(base.memory, renames, removed);
+  base.compaction = renameCompaction(base.compaction, renames, removed);
   return base;
 }
 
 function renameModelRef(
   section: unknown,
   renames: Map<string, string>,
+  removed: Set<string>,
 ): unknown {
   if (!section || typeof section !== "object" || Array.isArray(section)) {
     return section;
@@ -52,10 +77,183 @@ function renameModelRef(
     return section;
   }
   const renamed = renames.get(current);
-  if (renamed === undefined) {
+  if (renamed !== undefined) {
+    return { ...obj, model: renamed };
+  }
+  if (removed.has(current)) {
+    return { ...obj, model: "" };
+  }
+  return section;
+}
+
+function renameCompaction(
+  section: unknown,
+  renames: Map<string, string>,
+  removed: Set<string>,
+): unknown {
+  if (!section || typeof section !== "object" || Array.isArray(section)) {
     return section;
   }
-  return { ...obj, model: renamed };
+  const obj = section as Record<string, unknown>;
+  let out: Record<string, unknown> | undefined;
+  const current = obj.model;
+  if (typeof current === "string") {
+    const renamed = renames.get(current);
+    if (renamed !== undefined) {
+      out = { ...obj, model: renamed };
+    } else if (removed.has(current)) {
+      out = { ...obj, model: "" };
+    }
+  }
+  if (Array.isArray(obj.fallback_models)) {
+    const src = obj.fallback_models as unknown[];
+    const fallback: unknown[] = [];
+    let changed = false;
+    for (const m of src) {
+      if (typeof m !== "string") {
+        fallback.push(m);
+        continue;
+      }
+      const renamed = renames.get(m);
+      if (renamed !== undefined) {
+        fallback.push(renamed);
+        changed = true;
+      } else if (removed.has(m)) {
+        changed = true;
+      } else {
+        fallback.push(m);
+      }
+    }
+    if (changed) {
+      out = { ...(out ?? obj), fallback_models: fallback };
+    }
+  }
+  return out ?? section;
+}
+
+/**
+ * applyProvidersChange replaces the `providers` array in the settings doc and
+ * keeps the model ids in step. A provider name is the prefix of every model id
+ * it serves (`provider/id`), so renaming a provider's `name` in place renames
+ * every `models[].model` under it and rewrites the references that named such
+ * a model. A provider added or removed leaves the references alone.
+ */
+export function applyProvidersChange(
+  doc: Record<string, unknown>,
+  nextProviders: unknown[],
+): Record<string, unknown> {
+  const base: Record<string, unknown> = { ...doc, providers: nextProviders };
+
+  const prevNames = rowNames(doc.providers);
+  const nextNames = rowNames(nextProviders);
+  if (prevNames.length !== nextNames.length) {
+    return base;
+  }
+  // As with the models: a same-length delete-and-add must not read as a
+  // rename, or every model id under the wrong provider would be rewritten. A
+  // pair counts only when the new name was not present before and the old name
+  // is gone now.
+  const prevSet = new Set(prevNames.filter((n) => n !== ""));
+  const nextSet = new Set(nextNames.filter((n) => n !== ""));
+  const renames = new Map<string, string>();
+  for (let i = 0; i < prevNames.length; i++) {
+    const from = prevNames[i]!;
+    const to = nextNames[i]!;
+    if (from === "" || from === to) {
+      continue;
+    }
+    if (prevSet.has(to) || nextSet.has(from)) {
+      continue;
+    }
+    renames.set(from, to);
+  }
+  if (renames.size === 0) {
+    return base;
+  }
+
+  if (Array.isArray(doc.models)) {
+    base.models = doc.models.map((row) => renameModelPrefix(row, renames));
+  }
+  base.agent = renameRefPrefix(base.agent, renames);
+  base.memory = renameRefPrefix(base.memory, renames);
+  base.compaction = renameCompactionPrefix(base.compaction, renames);
+  return base;
+}
+
+function renameModelPrefix(
+  row: unknown,
+  renames: Map<string, string>,
+): unknown {
+  if (!row || typeof row !== "object" || Array.isArray(row)) {
+    return row;
+  }
+  const obj = row as Record<string, unknown>;
+  const model = obj.model;
+  if (typeof model !== "string") {
+    return row;
+  }
+  const copy = replaceProviderPrefix(model, renames);
+  return copy === model ? row : { ...obj, model: copy };
+}
+
+function renameRefPrefix(
+  section: unknown,
+  renames: Map<string, string>,
+): unknown {
+  if (!section || typeof section !== "object" || Array.isArray(section)) {
+    return section;
+  }
+  const obj = section as Record<string, unknown>;
+  const model = obj.model;
+  if (typeof model !== "string") {
+    return section;
+  }
+  const copy = replaceProviderPrefix(model, renames);
+  return copy === model ? section : { ...obj, model: copy };
+}
+
+function renameCompactionPrefix(
+  section: unknown,
+  renames: Map<string, string>,
+): unknown {
+  if (!section || typeof section !== "object" || Array.isArray(section)) {
+    return section;
+  }
+  const obj = section as Record<string, unknown>;
+  let out: Record<string, unknown> | undefined;
+  const model = obj.model;
+  if (typeof model === "string") {
+    const copy = replaceProviderPrefix(model, renames);
+    if (copy !== model) {
+      out = { ...obj, model: copy };
+    }
+  }
+  if (Array.isArray(obj.fallback_models)) {
+    const fallback = (obj.fallback_models as unknown[]).map((m) =>
+      typeof m === "string" ? replaceProviderPrefix(m, renames) : m,
+    );
+    const changed = fallback.some(
+      (m, i) => m !== (obj.fallback_models as unknown[])[i],
+    );
+    if (changed) {
+      out = { ...(out ?? obj), fallback_models: fallback };
+    }
+  }
+  return out ?? section;
+}
+
+/** Replaces the `provider/` prefix of a model id with the renamed provider. */
+function replaceProviderPrefix(
+  model: string,
+  renames: Map<string, string>,
+): string {
+  const slash = model.indexOf("/");
+  if (slash <= 0) {
+    return model;
+  }
+  const prefix = model.slice(0, slash);
+  const renamed = renames.get(prefix);
+  return renamed === undefined ? model : renamed + model.slice(slash);
 }
 
 function modelIds(models: unknown): string[] {

@@ -13,6 +13,7 @@ import (
 
 	"github.com/EvilFreelancer/coddy-agent/internal/llm"
 	"github.com/EvilFreelancer/coddy-agent/internal/platform"
+	"github.com/EvilFreelancer/coddy-agent/internal/sshcreds"
 	"github.com/EvilFreelancer/coddy-agent/internal/tooling"
 	gossh "golang.org/x/crypto/ssh"
 )
@@ -104,13 +105,24 @@ func executeSSHExec(ctx context.Context, argsJSON string, env *tooling.Env) (str
 		return "", err
 	}
 
-	authMethods, agentCloser := buildAuthMethods(sshDir)
+	// A host the operator configured in the settings page carries its own
+	// credentials. The tool never sees the secret: it asks the store for the
+	// auth methods, and the password never enters the transcript.
+	entry, configured, storeErr := sshcreds.StoreForHome(env.ConfigHome).Get(host, user, port)
+	if storeErr != nil {
+		return "", fmt.Errorf("ssh: read credentials: %w", storeErr)
+	}
+	authMethods, agentCloser, passwordErr := buildAuthMethods(ctx, sshDir, entry, configured)
 	if agentCloser != nil {
 		defer func() { _ = agentCloser.Close() }()
 	}
 	if len(authMethods) == 0 {
-		return "", fmt.Errorf("ssh: no authentication methods available: "+
-			"SSH agent not found (SSH_AUTH_SOCK not set) and no usable key files in %s", sshDir)
+		hint := fmt.Sprintf("no authentication methods available: SSH agent not found (SSH_AUTH_SOCK not set), "+
+			"no usable key files in %s, and no credentials for %s@%s:%d in the settings page", sshDir, user, host, port)
+		if passwordErr != nil {
+			hint += fmt.Sprintf(" (password_command failed: %v)", passwordErr)
+		}
+		return "", fmt.Errorf("ssh: %s", hint)
 	}
 
 	clientCfg := &gossh.ClientConfig{
@@ -217,9 +229,11 @@ func parseHostUser(host, defaultUser string) (user, hostname string) {
 }
 
 // buildAuthMethods returns SSH auth methods and an optional closer for the agent connection.
-// Priority: SSH agent (SSH_AUTH_SOCK) first, then file-based keys from dir.
-// The caller must call Close() on the returned io.Closer when done (if non-nil).
-func buildAuthMethods(dir string) ([]gossh.AuthMethod, io.Closer) {
+// Order: SSH agent (SSH_AUTH_SOCK), then a key the operator chose for this
+// host, then file-based keys from dir, then the configured password (or the
+// credential helper's output). passwordErr reports a helper that failed, so
+// the "nothing worked" message can say why.
+func buildAuthMethods(ctx context.Context, dir string, entry sshcreds.Entry, configured bool) ([]gossh.AuthMethod, io.Closer, error) {
 	var methods []gossh.AuthMethod
 
 	// 1. SSH agent — preferred when SSH_AUTH_SOCK is set.
@@ -228,12 +242,58 @@ func buildAuthMethods(dir string) ([]gossh.AuthMethod, io.Closer) {
 		methods = append(methods, agentMethod)
 	}
 
-	// 2. File-based keys — fallback when no agent or as additional source.
+	// 2. The key this host names, ahead of the discovered ones.
+	if configured {
+		if path := expandKeyPath(entry.KeyPath); path != "" {
+			if signer, err := loadSignerFile(path); err == nil {
+				methods = append(methods, gossh.PublicKeys(signer))
+			}
+		}
+	}
+
+	// 3. File-based keys — fallback when no agent or as additional source.
 	if signers := LoadSigners(dir); len(signers) > 0 {
 		methods = append(methods, gossh.PublicKeys(signers...))
 	}
 
-	return methods, agentCloser
+	// 4. The password this host carries, or the output of its credential
+	// helper. KeyboardInteractive is added beside Password because PAM-based
+	// servers often accept the same secret only through that exchange.
+	var passwordErr error
+	if configured {
+		pw, err := entry.ResolvePassword(ctx)
+		if err != nil {
+			passwordErr = err
+		} else if pw != "" {
+			methods = append(methods,
+				gossh.Password(pw),
+				gossh.KeyboardInteractive(func(_ string, _ string, questions []string, _ []bool) ([]string, error) {
+					answers := make([]string, len(questions))
+					for i := range answers {
+						answers[i] = pw
+					}
+					return answers, nil
+				}),
+			)
+		}
+	}
+
+	return methods, agentCloser, passwordErr
+}
+
+// expandKeyPath resolves a configured key path the way the rest of the config
+// does: ~ first, then nothing else. An empty path stays empty.
+func expandKeyPath(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+	if strings.HasPrefix(path, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, path[2:])
+		}
+	}
+	return path
 }
 
 // resolveSSHDir returns the user's ~/.ssh directory.

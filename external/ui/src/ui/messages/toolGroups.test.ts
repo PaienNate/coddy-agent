@@ -12,7 +12,13 @@ function tool(
   name: string,
   status: ToolCallItem["status"] = "completed",
 ): ToolCallItem {
-  return { id: `tc_${id}`, type: "tool_call", toolCallId: id, title: name, status };
+  return {
+    id: `tc_${id}`,
+    type: "tool_call",
+    toolCallId: id,
+    title: name,
+    status,
+  };
 }
 
 function text(id: string): TranscriptItem {

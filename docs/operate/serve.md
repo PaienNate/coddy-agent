@@ -390,3 +390,33 @@ A supervised process restarts only into settings a fresh process can start. When
 The packages ship a user unit that they do not enable, and no system unit: Coddy's state
 is per-user under `~/.coddy`, so a system daemon would need a home and a configuration
 nobody can edit. See [installation](../getting-started/install.md).
+
+## Capturing the wire protocol
+
+When a provider answers something unexpected, the web UI can show what actually went over
+the wire - the request and the response, headers and bodies - on the **Settings → System**
+page. The switch is **`httpserver.raw_capture`**:
+
+```yaml
+httpserver:
+  raw_capture: true
+```
+
+It is off by default, because what it captures is secret-adjacent and it costs the server a
+little on every provider call. When it is on:
+
+- every provider request and response this server makes is kept **in memory only** - a
+  bounded ring of the last 100 exchanges, never written to disk, and dropped when the
+  process stops;
+- each body is recorded as the transport reads it and kept only to its first 256 KiB, and
+  the credential headers - **Authorization**, **Proxy-Authorization**, **Cookie**,
+  **Set-Cookie** and the vendor key headers such as `x-api-key` - are stripped from both
+  directions, and a credential query parameter in the URL is redacted, so a captured
+  credential cannot sit in the ring;
+- the **Raw capture** block on **Settings → System** lists the exchanges (method, URL,
+  status, and the request and response headers and bodies) and a **Clear** button empties
+  the ring; turn the switch off and the block is not shown at all.
+
+The capture follows the live configuration, so a reload that turns it on installs the
+recorder and one that turns it off stops the transport capturing, without a restart.
+Stopping the HTTP API itself stops the capture the same way and empties the ring.

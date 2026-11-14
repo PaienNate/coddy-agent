@@ -66,7 +66,18 @@ func TestImportAllWritesCoddyBundle(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/session":
-			_, _ = w.Write([]byte(`{"data":[{"id":"ses_import","projectID":"p1","title":"测试会话","location":{"directory":"` + workspace + `"},"time":{"created":1000,"updated":2000}}],"cursor":{}}`))
+			// Built through the encoder: a Windows path in a hand-written JSON
+			// string is an invalid escape sequence (\U in C:\Users).
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"data": []any{map[string]any{
+					"id":        "ses_import",
+					"projectID": "p1",
+					"title":     "测试会话",
+					"location":  map[string]any{"directory": workspace},
+					"time":      map[string]any{"created": 1000, "updated": 2000},
+				}},
+				"cursor": map[string]any{},
+			})
 		case "/api/experimental/session/ses_import/export":
 			_ = json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{
 				"info": map[string]any{"id": "ses_import", "projectID": "p1", "title": "测试会话", "location": map[string]any{"directory": workspace}},
@@ -198,7 +209,16 @@ func TestImportAllNormalizesOpenCodeToolNames(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/session":
-			_, _ = w.Write([]byte(`{"data":[{"id":"ses_tools","projectID":"p1","title":"tools","location":{"directory":"` + workspace + `"},"time":{"created":1}}],"cursor":{}}`))
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"data": []any{map[string]any{
+					"id":        "ses_tools",
+					"projectID": "p1",
+					"title":     "tools",
+					"location":  map[string]any{"directory": workspace},
+					"time":      map[string]any{"created": 1},
+				}},
+				"cursor": map[string]any{},
+			})
 		case "/api/experimental/session/ses_tools/export":
 			_ = json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{
 				"info": map[string]any{"id": "ses_tools", "projectID": "p1", "title": "tools", "location": map[string]any{"directory": workspace}},
@@ -302,14 +322,49 @@ func TestImportAllPreservesChildSessionsAndAttachments(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/session":
-			_, _ = w.Write([]byte(`{"data":[
-				{"id":"ses_parent","projectID":"p1","title":"parent","location":{"directory":"` + workspace + `"},"time":{"created":1}},
-				{"id":"ses_child","projectID":"p1","parentID":"ses_parent","title":"child","location":{"directory":"` + workspace + `"},"time":{"created":2}}
-			],"cursor":{}}`))
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"data": []any{
+					map[string]any{
+						"id":        "ses_parent",
+						"projectID": "p1",
+						"title":     "parent",
+						"location":  map[string]any{"directory": workspace},
+						"time":      map[string]any{"created": 1},
+					},
+					map[string]any{
+						"id":        "ses_child",
+						"projectID": "p1",
+						"parentID":  "ses_parent",
+						"title":     "child",
+						"location":  map[string]any{"directory": workspace},
+						"time":      map[string]any{"created": 2},
+					},
+				},
+				"cursor": map[string]any{},
+			})
 		case "/api/experimental/session/ses_parent/export":
-			_, _ = w.Write([]byte(`{"data":{"info":{"id":"ses_parent","projectID":"p1","title":"parent","location":{"directory":"` + workspace + `"}},"messages":[{"type":"user","text":"parent","time":{"created":1}}]}}`))
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{
+				"info": map[string]any{
+					"id": "ses_parent", "projectID": "p1", "title": "parent",
+					"location": map[string]any{"directory": workspace},
+				},
+				"messages": []any{
+					map[string]any{"type": "user", "text": "parent", "time": map[string]any{"created": 1}},
+				},
+			}})
 		case "/api/experimental/session/ses_child/export":
-			_, _ = w.Write([]byte(`{"data":{"info":{"id":"ses_child","projectID":"p1","parentID":"ses_parent","title":"child","location":{"directory":"` + workspace + `"}},"messages":[{"type":"user","text":"child","time":{"created":2},"files":[{"data":"` + png + `","mime":"image/png","name":"pixel.png"}]}]}}`))
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{
+				"info": map[string]any{
+					"id": "ses_child", "projectID": "p1", "parentID": "ses_parent", "title": "child",
+					"location": map[string]any{"directory": workspace},
+				},
+				"messages": []any{
+					map[string]any{
+						"type": "user", "text": "child", "time": map[string]any{"created": 2},
+						"files": []any{map[string]any{"data": png, "mime": "image/png", "name": "pixel.png"}},
+					},
+				},
+			}})
 		default:
 			http.NotFound(w, r)
 		}

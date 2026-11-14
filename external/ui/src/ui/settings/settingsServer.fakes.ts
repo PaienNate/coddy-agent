@@ -179,6 +179,8 @@ export type ServerState = {
   put: { status: number; body: PlainObject };
   /** What GET /coddy/status answers; 404 when absent. */
   status?: StatusReply;
+  /** What GET /coddy/ssh/hosts answers; no configured host by default. */
+  sshHosts?: unknown[];
 };
 
 export function newServerState(
@@ -274,6 +276,23 @@ export function stubServer(source: ServerState | (() => ServerState)) {
     if (route === "/coddy/status" && method === "GET") {
       const { status, body } = server.status ?? { status: 404 };
       return reply(status, body ?? {});
+    }
+    if (route === "/coddy/ssh/hosts" && method === "GET") {
+      // The SSH credentials block reads its list on mount; a stub server
+      // starts with none configured, so the block draws its empty line.
+      return reply(200, {
+        object: "coddy.ssh_hosts",
+        hosts: server.sshHosts ?? [],
+      });
+    }
+    if (route === "/coddy/raw-capture" && method === "GET") {
+      // The debug viewer is off by default: with httpserver.raw_capture false
+      // the block renders nothing, so a settings test draws no extra anchor.
+      return reply(200, {
+        object: "coddy.raw_capture",
+        enabled: false,
+        entries: [],
+      });
     }
     unexpected.push(`${method} ${path}`);
     throw new Error(`stubServer: no route for ${method} ${path}`);

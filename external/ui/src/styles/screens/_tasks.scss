@@ -518,6 +518,16 @@
   text-decoration: underline;
 }
 
+/* The lock marks the child transcript as read-only: a prompt to it is refused
+   (409) and the composer is replaced by a notice. It sits on the text's centre
+   line, never taller than the label. */
+.bgtask-card-transcript .bgtask-transcript-lock {
+  display: inline-block;
+  vertical-align: -0.1em;
+  margin-right: 4px;
+  flex: 0 0 auto;
+}
+
 /* A run whose child session is not known yet keeps the words in place until
    the child transcript can be opened. */
 .bgtask-card-transcript[aria-disabled="true"] {

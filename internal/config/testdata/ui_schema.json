@@ -1223,6 +1223,11 @@
             "title": "API key command",
             "type": "string"
           },
+          "display_name": {
+            "description": "Optional label for this row in the UI (settings rows, the model menu). The id stays the identifier: models[].model, agent.model and every path under providers/\u003cname\u003e keep using name.",
+            "title": "Display name",
+            "type": "string"
+          },
           "kimi_identity": {
             "description": "Stable random identity of this Kimi provider row.",
             "title": "Kimi identity",
@@ -1308,6 +1313,7 @@
         "type": "object",
         "x-coddy-property-order": [
           "name",
+          "display_name",
           "type",
           "mode",
           "region",

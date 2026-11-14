@@ -48,7 +48,10 @@ func Workspace(repoRoot, planArg string) (string, error) {
 
 	planID := planAbs
 	if rel, err := filepath.Rel(repoRoot, planAbs); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		planID = rel
+		// The marker is the plan's repo-relative path in the shell helpers'
+		// form: a slash, whatever the platform, so one repository keeps one
+		// workspace tree from either tool.
+		planID = filepath.ToSlash(rel)
 	}
 
 	base := filepath.Join(repoRoot, filepath.FromSlash(workspaceRoot))

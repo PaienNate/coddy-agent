@@ -1,0 +1,7 @@
+# Build output and the staged binaries: both are produced by
+# scripts/build-apk.sh and the CI job, never committed.
+.gradle/
+build/
+local.properties
+app/build/
+app/src/main/jniLibs/

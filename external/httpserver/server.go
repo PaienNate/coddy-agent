@@ -47,8 +47,10 @@ type Server struct {
 	cfgAt             atomic.Pointer[config.Config]
 	mgr               *session.Manager
 	log               *slog.Logger
-	defaultCWD        string
-	mux               *http.ServeMux
+	// defaultCWD is the workspace a new session that names none gets.
+	defaultCWD string
+	rawCapture *llm.RawCaptureRecorder
+	mux        *http.ServeMux
 	// revealFile asks the host desktop to show a verified artifact path
 	// (platform.RevealFile). Tests replace it: the real one starts the
 	// desktop's opener, which outlives the test and its temporary folder.
@@ -278,6 +280,9 @@ func New(cfg *config.Config, mgr *session.Manager, log *slog.Logger, defaultCWD 
 	// is the process's decision: `coddy serve` offers this server to its
 	// runtime (Serve), a test attaches the server's own waker.
 	bgtask.Default().SetDraining(false)
+	// httpserver.raw_capture: bring the process-wide recorder in line with the
+	// configuration the server starts from.
+	s.syncRawCapture(cfg)
 	// Coddy for Browser: the extension's socket and file transfers, with
 	// the extension key of the live configuration (auth_browser.go), and the
 	// API the chats of other Coddy processes reach the browsers through,
@@ -305,6 +310,8 @@ func New(cfg *config.Config, mgr *session.Manager, log *slog.Logger, defaultCWD 
 	s.registerConfigRoutes()
 	s.registerProvidersRoutes()
 	s.registerOnboardingRoutes()
+	s.registerRawCaptureRoutes()
+	s.registerSSHRoutes()
 	s.registerWallpaperRoutes()
 	s.mux.HandleFunc("GET /openapi.yaml", s.handleOpenAPIYAML)
 	s.mux.HandleFunc("GET /openapi.json", s.handleOpenAPIJSON)
@@ -341,6 +348,10 @@ func (s *Server) ReplaceConfig(c *config.Config) {
 	if prev != nil && browserEndpointKey(prev) != browserEndpointKey(c) && s.browserEndpoint.Disconnect != nil {
 		s.browserEndpoint.Disconnect()
 	}
+	// httpserver.raw_capture follows the live document: a reload that turns it
+	// on installs the recorder, one that turns it off stops the transport
+	// capturing, and the ring the server kept is reused either way.
+	s.syncRawCapture(c)
 	s.invalidateSlashCache()
 	s.publishConfigReloaded()
 }
@@ -480,6 +491,10 @@ func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 		// Toolset is the toolsets[] preset the model names (models[].toolset):
 		// what a new chat on it is offered until it picks another.
 		Toolset string `json:"toolset,omitempty"`
+		// ProviderDisplayName is the provider row's display_name, when one is
+		// set: a label for the UI to group and list models by. OwnedBy keeps
+		// the id, which stays the identifier everywhere.
+		ProviderDisplayName string `json:"provider_display_name,omitempty"`
 		// Limits is what a request on this row may carry, so a client sizes
 		// one before it sends it instead of losing a turn to a 400.
 		Limits modelLimits `json:"limits"`
@@ -538,6 +553,10 @@ func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			window := s.contextWindowFor(cfg, mid)
+			providerDisplayName := ""
+			if p := cfg.FindProvider(ent.ProviderName()); p != nil {
+				providerDisplayName = strings.TrimSpace(p.DisplayName)
+			}
 			out.Data = append(out.Data, modelObj{
 				ID:               mid,
 				Object:           "model",
@@ -550,7 +569,9 @@ func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 				ReasoningDefault: cfg.DefaultReasoningLevelFor(ent),
 				Default:          defaultModel != "" && mid == defaultModel,
 				Toolset:          ent.Toolset,
-				Limits:           limits,
+				// ProviderDisplayName: label only; OwnedBy stays the id.
+				ProviderDisplayName: providerDisplayName,
+				Limits:              limits,
 			})
 		}
 	}

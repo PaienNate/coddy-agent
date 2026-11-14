@@ -16,7 +16,7 @@ func TestInterleavedAnswerFeature(t *testing.T) {
 	const stream = "src/ui/chat/consumeComposerSse.order.test.ts"
 	const probe = "src/ui/chat/streamSyncLocalAssistant.test.ts"
 	steps := map[string][2]string{
-		"a turn whose text and reasoning interleave records every segment of its answer":    {stream, "a turn whose text and reasoning interleave records every segment of its answer"},
+		"a turn whose text and reasoning interleave records every segment of its answer":    {stream, "text interrupted by reasoning stays one answer below the thinking rows"},
 		"a turn whose merged answer carries the id of its first segment counts as answered": {probe, "the end of a turn whose answer came in segments a turn whose merged answer carries the id of its first segment counts as answered"},
 	}
 	suite := godog.TestSuite{

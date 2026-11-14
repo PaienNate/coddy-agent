@@ -332,7 +332,7 @@ test("the state marks stand apart from the title so the tags line up under its t
     true,
   );
   expect(
-    busy.querySelector(".session-row-leading .session-activity-dot"),
+    busy.querySelector(".session-row-leading .session-activity-spinner"),
   ).toBeNull();
   // The transparent finished ring gives grouped rows the same left anchor as
   // a busy row without pretending work is still running.

@@ -226,7 +226,10 @@ export function MessageList(props: {
         }
         // A picture or a shared file is the point of its row; a folded group
         // must not hide it behind a count.
-        if ((item.images?.length ?? 0) > 0 || (item.artifacts?.length ?? 0) > 0) {
+        if (
+          (item.images?.length ?? 0) > 0 ||
+          (item.artifacts?.length ?? 0) > 0
+        ) {
           return false;
         }
         return true;
@@ -252,18 +255,14 @@ export function MessageList(props: {
         {...(props.pathRoots !== undefined
           ? { pathRoots: props.pathRoots }
           : {})}
-        {...(rowBackgroundTask
-          ? { backgroundTask: rowBackgroundTask }
-          : {})}
+        {...(rowBackgroundTask ? { backgroundTask: rowBackgroundTask } : {})}
         {...(rowBackgroundTask && props.backgroundNowMs !== undefined
           ? { backgroundNowMs: props.backgroundNowMs }
           : {})}
         {...(it.title !== undefined ? { title: it.title } : {})}
         {...(it.kind !== undefined ? { kind: it.kind } : {})}
         {...(it.argsText !== undefined ? { argsText: it.argsText } : {})}
-        {...(it.resultText !== undefined
-          ? { resultText: it.resultText }
-          : {})}
+        {...(it.resultText !== undefined ? { resultText: it.resultText } : {})}
         {...(it.fullResultText !== undefined
           ? { fullResultText: it.fullResultText }
           : {})}

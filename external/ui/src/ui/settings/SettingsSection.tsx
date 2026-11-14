@@ -1,6 +1,10 @@
 import { Component, lazy, Suspense, type ReactNode } from "react";
 import { AppearanceThemePicker } from "../theme/AppearanceModal";
-import { applyModelsChange, applyToolsetsChange } from "./applyModelsChange";
+import {
+  applyModelsChange,
+  applyProvidersChange,
+  applyToolsetsChange,
+} from "./applyModelsChange";
 import { BrowserSetupField } from "./BrowserSetupField";
 import { CodexAuthField } from "./CodexAuthField";
 import { DevinAuthField } from "./DevinAuthField";
@@ -10,6 +14,7 @@ import { NeuralDeepAuthField } from "./NeuralDeepAuthField";
 import { KimiAuthField } from "./KimiAuthField";
 import { OpenCodeAuthField } from "./OpenCodeAuthField";
 import { OpenCodeImportSection } from "./OpenCodeImportSection";
+import { SSHCredentials } from "./SSHCredentials";
 import { ModelField } from "./ModelField";
 import { ModelPicker } from "./ModelPicker";
 import { ProviderModelList } from "./ProviderModelList";
@@ -799,6 +804,13 @@ export function SettingsSection(props: {
     );
   }
 
+  // The SSH credentials the agent's ssh_run_command uses: hosts with a
+  // password, a helper or a key, and a Test button. They live in their own
+  // file, so this tab edits no settings key.
+  if (section.kind === "ssh") {
+    return <SSHCredentials />;
+  }
+
   if (section.kind === "skills") {
     const sub = props_.skills;
     if (!sub) {
@@ -997,16 +1009,20 @@ export function SettingsSection(props: {
           ? providerFieldOverride
           : undefined;
     // Renaming a logical model id must follow through to the default-model
-    // references (agent.model / memory.model), or the saved config becomes
-    // invalid ("not found in models list"). applyModelsChange reconciles them.
-    // A preset renamed on the Toolsets tab is renamed on the models that
-    // name it too (applyToolsetsChange).
+    // references (agent.model / memory.model / compaction.model), or the saved
+    // config becomes invalid ("not found in models list"). applyModelsChange
+    // reconciles them. Renaming a provider name renames the model ids it serves
+    // and the references to them (applyProvidersChange). A preset renamed on the
+    // Toolsets tab is renamed on the models that name it too
+    // (applyToolsetsChange).
     const onArrayChange =
       key === "models"
         ? (v: unknown[]) => setDoc(applyModelsChange(doc, v))
         : key === "toolsets"
           ? (v: unknown[]) => setDoc(applyToolsetsChange(doc, v))
-          : (v: unknown[]) => setKey(key, v);
+          : key === "providers"
+            ? (v: unknown[]) => setDoc(applyProvidersChange(doc, v))
+            : (v: unknown[]) => setKey(key, v);
     const newItem =
       key === "models" ? () => seedLogicalModel(sub.items, "") : undefined;
     // Keyed by section: the list and row form are one component for every
@@ -1018,7 +1034,7 @@ export function SettingsSection(props: {
         schema={sub}
         value={asArray(doc[key])}
         onChange={onArrayChange}
-        labelField={section.labelField}
+        labelFields={section.labelFields}
         fieldOverride={override}
         newItem={newItem}
         backLabel={section.label}
