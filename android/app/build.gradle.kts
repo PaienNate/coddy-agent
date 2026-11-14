@@ -15,10 +15,6 @@ android {
         // it; a local build falls back to something installable.
         versionName = System.getenv("CODDY_VERSION") ?: "0.0.0"
         versionCode = System.getenv("CODDY_VERSION_CODE")?.toIntOrNull() ?: 1
-        ndk {
-            // The Go build produces exactly these two ABIs (make android).
-            abiFilters += listOf("arm64-v8a", "x86_64")
-        }
     }
 
     // One APK per ABI: the server binary is ~40 MB each, and a phone only ever
