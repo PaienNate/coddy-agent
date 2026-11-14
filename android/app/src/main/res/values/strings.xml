@@ -6,7 +6,7 @@
     <string name="notification_channel_description">Keeps the assistant running while the app is in the background.</string>
     <string name="status_stopped">Stopped</string>
     <string name="status_starting">Starting…</string>
-    <string name="status_running">Running on 127.0.0.1:%1$d (pid %2$d)</string>
+    <string name="status_running">Running on 127.0.0.1:%1$d</string>
     <string name="status_exited">Exited with code %1$d</string>
     <string name="action_start">Start</string>
     <string name="action_stop">Stop</string>

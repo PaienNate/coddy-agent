@@ -29,10 +29,6 @@ object CoddyState {
     var exitCode: Int? = null
         private set
 
-    @Volatile
-    var pid: Long? = null
-        private set
-
     private val lines = ArrayDeque<String>()
     private val listeners = mutableListOf<() -> Unit>()
 
@@ -42,21 +38,18 @@ object CoddyState {
         notifyListeners()
     }
 
-    fun setRunning(processId: Long) {
-        pid = processId
+    fun setRunning() {
         phase = Phase.RUNNING
         notifyListeners()
     }
 
     fun setExited(code: Int) {
         exitCode = code
-        pid = null
         phase = Phase.EXITED
         notifyListeners()
     }
 
     fun setStopped() {
-        pid = null
         phase = Phase.STOPPED
         notifyListeners()
     }

@@ -77,8 +77,8 @@ class CoddyService : Service() {
                 logVersion(runtime)
                 val started = builder.start()
                 process = started
-                CoddyState.setRunning(started.pid())
-                Log.i(TAG, "coddy serve started, pid=${started.pid()}")
+                CoddyState.setRunning()
+                Log.i(TAG, "coddy serve started")
                 // Both streams go to the launcher and the file, so a crash is
                 // readable on the phone instead of only over adb.
                 started.inputStream.bufferedReader().forEachLine { line ->
@@ -119,7 +119,7 @@ class CoddyService : Service() {
     private fun stopServer() {
         stopping.set(true)
         process?.let { p ->
-            CoddyState.log(this, "stopping coddy serve (pid ${p.pid()})")
+            CoddyState.log(this, "stopping coddy serve")
             p.destroy()
             try {
                 p.waitFor()

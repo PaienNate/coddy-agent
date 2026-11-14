@@ -127,7 +127,7 @@ class MainActivity : AppCompatActivity() {
             CoddyState.Phase.STOPPED -> getString(R.string.status_stopped)
             CoddyState.Phase.STARTING -> getString(R.string.status_starting)
             CoddyState.Phase.RUNNING ->
-                getString(R.string.status_running, CoddyRuntime.portFor(this), CoddyState.pid ?: 0L)
+                getString(R.string.status_running, CoddyRuntime.portFor(this))
             CoddyState.Phase.EXITED ->
                 getString(R.string.status_exited, CoddyState.exitCode ?: -1)
         }
