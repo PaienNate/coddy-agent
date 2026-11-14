@@ -46,7 +46,11 @@ async function readErrorMessage(res: Response): Promise<string> {
 
 async function parseJson<T>(res: Response): Promise<RawCaptureApiResult<T>> {
   if (!res.ok) {
-    return { ok: false, status: res.status, message: await readErrorMessage(res) };
+    return {
+      ok: false,
+      status: res.status,
+      message: await readErrorMessage(res),
+    };
   }
   return { ok: true, data: (await res.json()) as T };
 }

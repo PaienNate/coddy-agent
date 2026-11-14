@@ -164,7 +164,10 @@ test("array sections carry their label fields, in order of preference", () => {
 test("arrayRowLabelValue takes the first field that holds a value", () => {
   const fields = ["display_name", "name"];
   expect(
-    arrayRowLabelValue({ display_name: "OpenAI (work)", name: "openai" }, fields),
+    arrayRowLabelValue(
+      { display_name: "OpenAI (work)", name: "openai" },
+      fields,
+    ),
   ).toBe("OpenAI (work)");
   expect(arrayRowLabelValue({ name: "openai" }, fields)).toBe("openai");
   expect(

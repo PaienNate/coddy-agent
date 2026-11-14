@@ -43,7 +43,10 @@ describe("SSH credentials", () => {
         const body = init?.body ? JSON.parse(String(init.body)) : undefined;
         calls.push({ method, url: path, ...(body ? { body } : {}) });
         if (path === "/coddy/ssh/hosts" && method === "GET") {
-          return jsonResponse({ status: 200, body: { object: "coddy.ssh_hosts", hosts } });
+          return jsonResponse({
+            status: 200,
+            body: { object: "coddy.ssh_hosts", hosts },
+          });
         }
         if (path === "/coddy/ssh/hosts" && method === "PUT") {
           hosts = [
@@ -54,11 +57,17 @@ describe("SSH credentials", () => {
               has_password: Boolean(body.password),
             },
           ];
-          return jsonResponse({ status: 200, body: { object: "coddy.ssh_host", host: hosts[0] } });
+          return jsonResponse({
+            status: 200,
+            body: { object: "coddy.ssh_host", host: hosts[0] },
+          });
         }
         if (path === "/coddy/ssh/hosts" && method === "DELETE") {
           hosts = [];
-          return jsonResponse({ status: 200, body: { object: "coddy.ssh_host", deleted: true } });
+          return jsonResponse({
+            status: 200,
+            body: { object: "coddy.ssh_host", deleted: true },
+          });
         }
         if (path === "/coddy/ssh/test" && method === "POST") {
           return jsonResponse({
@@ -66,7 +75,10 @@ describe("SSH credentials", () => {
             body: { object: "coddy.ssh_test", ok: true, latency_ms: 7 },
           });
         }
-        return jsonResponse({ status: 404, body: { error: { message: "no route" } } });
+        return jsonResponse({
+          status: 404,
+          body: { error: { message: "no route" } },
+        });
       }),
     );
   });
@@ -78,12 +90,16 @@ describe("SSH credentials", () => {
 
   it("starts empty and saves a host through the API", async () => {
     renderSection();
-    await waitFor(() => expect(screen.getByText(/No host added yet/)).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText(/No host added yet/)).toBeTruthy(),
+    );
 
     const inputs = screen.getAllByRole("textbox") as HTMLInputElement[];
     fireEvent.change(inputs[0]!, { target: { value: "nas.local" } });
     fireEvent.change(inputs[1]!, { target: { value: "admin" } });
-    const password = document.querySelector('input[type="password"]') as HTMLInputElement;
+    const password = document.querySelector(
+      'input[type="password"]',
+    ) as HTMLInputElement;
     fireEvent.change(password, { target: { value: "s3cret" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
@@ -97,18 +113,24 @@ describe("SSH credentials", () => {
       password: "s3cret",
     });
     // The list is read again, so the saved host is drawn.
-    await waitFor(() => expect(screen.getByText("admin@nas.local:22")).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText("admin@nas.local:22")).toBeTruthy(),
+    );
   });
 
   it("tests the typed credentials and shows the outcome", async () => {
     renderSection();
-    await waitFor(() => expect(screen.getByText(/No host added yet/)).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText(/No host added yet/)).toBeTruthy(),
+    );
     const inputs = screen.getAllByRole("textbox") as HTMLInputElement[];
     fireEvent.change(inputs[0]!, { target: { value: "nas.local" } });
     fireEvent.change(inputs[1]!, { target: { value: "admin" } });
     fireEvent.click(screen.getByRole("button", { name: "Test" }));
 
-    await waitFor(() => expect(screen.getByText(/Connected in 7 ms/)).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText(/Connected in 7 ms/)).toBeTruthy(),
+    );
     const test = calls.find((c) => c.method === "POST")!;
     expect(test.url).toBe("/coddy/ssh/test");
     expect(test.body).toMatchObject({ host: "nas.local", user: "admin" });
@@ -119,7 +141,10 @@ describe("SSH credentials", () => {
       "fetch",
       vi.fn(async (path: string, init?: RequestInit) => {
         if (path === "/coddy/ssh/hosts" && (init?.method ?? "GET") === "GET") {
-          return jsonResponse({ status: 200, body: { object: "coddy.ssh_hosts", hosts: [] } });
+          return jsonResponse({
+            status: 200,
+            body: { object: "coddy.ssh_hosts", hosts: [] },
+          });
         }
         return jsonResponse({
           status: 200,
@@ -132,7 +157,9 @@ describe("SSH credentials", () => {
       }),
     );
     renderSection();
-    await waitFor(() => expect(screen.getByText(/No host added yet/)).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText(/No host added yet/)).toBeTruthy(),
+    );
     const inputs = screen.getAllByRole("textbox") as HTMLInputElement[];
     fireEvent.change(inputs[0]!, { target: { value: "nas.local" } });
     fireEvent.change(inputs[1]!, { target: { value: "admin" } });

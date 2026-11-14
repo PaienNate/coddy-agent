@@ -148,7 +148,12 @@ export function arrayRowLabelValue(
   row: unknown,
   fields: readonly string[] | undefined,
 ): string {
-  if (!fields || row === null || typeof row !== "object" || Array.isArray(row)) {
+  if (
+    !fields ||
+    row === null ||
+    typeof row !== "object" ||
+    Array.isArray(row)
+  ) {
     return "";
   }
   const obj = row as Record<string, unknown>;

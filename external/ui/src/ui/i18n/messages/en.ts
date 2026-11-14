@@ -348,7 +348,8 @@ export const messagesEn: Record<string, string> = {
   "settings.section.status.label": "System",
   "settings.section.status.desc": "Version, disk, activity",
   "settings.section.ssh_credentials.label": "SSH",
-  "settings.section.ssh_credentials.desc": "Hosts and credentials for ssh_run_command",
+  "settings.section.ssh_credentials.desc":
+    "Hosts and credentials for ssh_run_command",
   "settings.section.opencode_import.label": "OpenCode",
   "settings.section.opencode_import.desc": "Import OpenCode v2 sessions",
   "settings.opencode.lead":
@@ -3058,7 +3059,8 @@ export const messagesEn: Record<string, string> = {
   "rawCapture.request": "Request",
   "rawCapture.response": "Response",
   "ssh.title": "SSH credentials",
-  "ssh.hint": "What ssh_run_command uses for a host: a password, a credential-helper command or a chosen key. The password is stored in a 0600 file under CODDY_HOME and is never returned to this page.",
+  "ssh.hint":
+    "What ssh_run_command uses for a host: a password, a credential-helper command or a chosen key. The password is stored in a 0600 file under CODDY_HOME and is never returned to this page.",
   "ssh.empty": "No host added yet.",
   "ssh.host": "Host",
   "ssh.user": "User",

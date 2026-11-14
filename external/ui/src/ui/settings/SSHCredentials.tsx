@@ -7,7 +7,7 @@ import {
   testSSHHost,
   type SSHHost,
   type SSHHostWrite,
-} from "./sshCredentials";
+} from "./sshCredentialsApi";
 
 /** What the form holds. Port stays a string while typing so it can be empty;
  * the password is never prefilled - an empty one keeps the stored secret. */
@@ -100,7 +100,11 @@ export function SSHCredentials() {
       return;
     }
     setError(null);
-    setNotice(t("ssh.saved", { host: `${result.data.host.user}@${result.data.host.host}` }));
+    setNotice(
+      t("ssh.saved", {
+        host: `${result.data.host.user}@${result.data.host.host}`,
+      }),
+    );
     setDraft(emptyDraft());
     await load();
   }, [draft, load, t]);
@@ -117,7 +121,10 @@ export function SSHCredentials() {
     setError(null);
     setTest(
       result.data.ok
-        ? { ok: true, text: t("ssh.testOk", { ms: result.data.latency_ms ?? 0 }) }
+        ? {
+            ok: true,
+            text: t("ssh.testOk", { ms: result.data.latency_ms ?? 0 }),
+          }
         : {
             ok: false,
             text: t("ssh.testFailed", {

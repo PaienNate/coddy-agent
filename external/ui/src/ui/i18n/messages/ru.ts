@@ -351,7 +351,8 @@ export const messagesRu: Record<string, string> = {
   "settings.section.status.label": "Система",
   "settings.section.status.desc": "Версия, диск, нагрузка",
   "settings.section.ssh_credentials.label": "SSH",
-  "settings.section.ssh_credentials.desc": "Хосты и доступы для ssh_run_command",
+  "settings.section.ssh_credentials.desc":
+    "Хосты и доступы для ssh_run_command",
   "settings.section.opencode_import.label": "OpenCode",
   "settings.section.opencode_import.desc": "Импорт сессий OpenCode v2",
   "settings.opencode.lead":
@@ -3182,7 +3183,8 @@ export const messagesRu: Record<string, string> = {
   "rawCapture.request": "Запрос",
   "rawCapture.response": "Ответ",
   "ssh.title": "SSH-доступы",
-  "ssh.hint": "То, чем ssh_run_command подключается к хосту: пароль, команда-помощник или выбранный ключ. Пароль хранится в файле под CODDY_HOME с правами 0600 и никогда не возвращается на эту страницу.",
+  "ssh.hint":
+    "То, чем ssh_run_command подключается к хосту: пароль, команда-помощник или выбранный ключ. Пароль хранится в файле под CODDY_HOME с правами 0600 и никогда не возвращается на эту страницу.",
   "ssh.empty": "Пока не добавлено ни одного хоста.",
   "ssh.host": "Хост",
   "ssh.user": "Пользователь",

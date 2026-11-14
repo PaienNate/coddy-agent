@@ -2803,7 +2803,8 @@ export const messagesZh: Record<string, string> = {
   "rawCapture.request": "请求",
   "rawCapture.response": "响应",
   "ssh.title": "SSH 凭据",
-  "ssh.hint": "ssh_run_command 连接主机时使用：密码、凭据命令或选定的密钥。密码保存在 CODDY_HOME 下权限为 0600 的文件中，绝不会返回给此页面。",
+  "ssh.hint":
+    "ssh_run_command 连接主机时使用：密码、凭据命令或选定的密钥。密码保存在 CODDY_HOME 下权限为 0600 的文件中，绝不会返回给此页面。",
   "ssh.empty": "尚未添加任何主机。",
   "ssh.host": "主机",
   "ssh.user": "用户",
