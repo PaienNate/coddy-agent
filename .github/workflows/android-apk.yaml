@@ -1,0 +1,92 @@
+# Builds the Android APK: the Go server (make android), the pinned BusyBox, the
+# jniLibs and the Gradle project, then uploads the debug APK as an artifact.
+#
+# The APK is unsigned debug output: install it with `adb install` or by opening
+# it on the phone. A release build needs a signing key, which is an operator's
+# secret and is not part of this repository.
+
+name: Android APK
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "android/**"
+      - ".github/workflows/android-apk.yaml"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  apk:
+    name: Build the APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "26"
+          cache: npm
+          cache-dependency-path: external/ui/package-lock.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      # The runner carries the Android SDK and an NDK; scripts/android-cc.sh
+      # finds the NDK under ANDROID_NDK_HOME or $ANDROID_HOME/ndk.
+      - name: Build the server for Android
+        run: make android TAGS="http ui scheduler memory"
+
+      - name: Stage the server into jniLibs
+        run: android/scripts/stage-binaries.sh
+
+      - name: Fetch the pinned BusyBox
+        run: |
+          android/scripts/fetch-busybox.sh arm64
+          android/scripts/fetch-busybox.sh amd64
+
+      - name: Build the debug APK
+        working-directory: android
+        env:
+          CODDY_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || format('0.0.0-{0}', github.sha) }}
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Name the artifact
+        id: apk
+        run: |
+          src=android/app/build/outputs/apk/debug/app-debug.apk
+          test -f "$src"
+          name="coddy-android-${GITHUB_SHA::8}-debug.apk"
+          cp "$src" "$name"
+          echo "path=$name" >> "$GITHUB_OUTPUT"
+          ls -lh "$name"
+
+      - name: Upload the APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: coddy-android-apk
+          path: ${{ steps.apk.outputs.path }}
+          if-no-files-found: error
+          retention-days: 30

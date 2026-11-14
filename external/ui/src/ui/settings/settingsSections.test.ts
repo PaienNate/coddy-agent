@@ -1,5 +1,9 @@
 import { afterEach, expect, test } from "vitest";
-import { deriveSettingsSections, knownSectionLabel } from "./settingsSections";
+import {
+  arrayRowLabelValue,
+  deriveSettingsSections,
+  knownSectionLabel,
+} from "./settingsSections";
 import type { JsonSchema } from "./SchemaForm";
 import { initLocale } from "../i18n/i18n";
 
@@ -85,6 +89,7 @@ test("derives tabs in schema order with Appearance first and System last", () =>
     "appearance",
     "sessions_manager",
     "status",
+    "ssh_credentials",
     "opencode_import",
     "providers",
     "models",
@@ -111,10 +116,11 @@ test("System is the last tab even when its keys come first", () => {
     ...rootSchema,
     "x-coddy-property-order": ["prompts", "providers", "logger"],
   } as JsonSchema).map((s) => s.id);
-  expect(ids.slice(0, 6)).toEqual([
+  expect(ids.slice(0, 7)).toEqual([
     "appearance",
     "sessions_manager",
     "status",
+    "ssh_credentials",
     "opencode_import",
     "providers",
     "logger",
@@ -145,14 +151,32 @@ test("the scheduler is its own tab, out of System", () => {
   expect(byId.scheduler?.description).toBe("Scheduled jobs");
 });
 
-test("array sections carry their label field", () => {
+test("array sections carry their label fields, in order of preference", () => {
   const byId = Object.fromEntries(
     deriveSettingsSections(rootSchema).map((s) => [s.id, s]),
   );
   expect(byId.providers?.kind).toBe("array");
-  expect(byId.providers?.labelField).toBe("name");
+  expect(byId.providers?.labelFields).toEqual(["display_name", "name"]);
   expect(byId.models?.kind).toBe("array");
-  expect(byId.models?.labelField).toBe("model");
+  expect(byId.models?.labelFields).toEqual(["model"]);
+});
+
+test("arrayRowLabelValue takes the first field that holds a value", () => {
+  const fields = ["display_name", "name"];
+  expect(
+    arrayRowLabelValue(
+      { display_name: "OpenAI (work)", name: "openai" },
+      fields,
+    ),
+  ).toBe("OpenAI (work)");
+  expect(arrayRowLabelValue({ name: "openai" }, fields)).toBe("openai");
+  expect(
+    arrayRowLabelValue({ display_name: "   ", name: "openai" }, fields),
+  ).toBe("openai");
+  expect(arrayRowLabelValue({}, fields)).toBe("");
+  expect(arrayRowLabelValue(null, fields)).toBe("");
+  expect(arrayRowLabelValue("nope", fields)).toBe("");
+  expect(arrayRowLabelValue({ name: "x" }, undefined)).toBe("");
 });
 
 // The servers live in mcp.json files, not in the settings document, so no
@@ -224,15 +248,17 @@ test("the schema-driven hooks tab gets its own label and blurb", () => {
   expect(byId.hooks?.description).toBe("Lifecycle hooks & trust");
 });
 
-test("Appearance, Sessions, System and OpenCode are present even without a schema", () => {
-  // All three are client-side tabs: the theme picker edits no config key, the
-  // session table talks to /coddy/sessions and the System tab reads
-  // /coddy/status, so none waits for the schema.
+test("Appearance, Sessions, System, SSH and OpenCode are present even without a schema", () => {
+  // All of them are client-side tabs: the theme picker edits no config key,
+  // the session table talks to /coddy/sessions, the System tab reads
+  // /coddy/status and the SSH tab keeps its credentials in its own file, so
+  // none waits for the schema.
   const sections = deriveSettingsSections(null);
   expect(sections.map((s) => s.id)).toEqual([
     "appearance",
     "sessions_manager",
     "status",
+    "ssh_credentials",
     "opencode_import",
   ]);
 });
@@ -288,7 +314,7 @@ test("the System tab follows Sessions in the head, before every tab the schema b
   const ids = sections.map((s) => s.id);
   expect(ids.slice(0, 3)).toEqual(["appearance", "sessions_manager", "status"]);
   expect(ids[0]).toBe("appearance");
-  expect(ids.indexOf("providers")).toBe(4);
+  expect(ids.indexOf("providers")).toBe(5);
   const status = sections.find((s) => s.id === "status")!;
   expect(status.kind).toBe("status");
   expect(status.label).toBe("System");

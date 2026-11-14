@@ -37,3 +37,19 @@ func LoadSigners(dir string) []gossh.Signer {
 	}
 	return signers
 }
+
+// loadSignerFile parses one private key the operator named for a host. Unlike
+// the discovery above it reports why a key did not load, so the settings page
+// and the tool can say "the key at that path is not a private key" instead of
+// silently falling back to a password.
+func loadSignerFile(path string) (gossh.Signer, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	signer, err := gossh.ParsePrivateKey(data)
+	if err != nil {
+		return nil, err
+	}
+	return signer, nil
+}

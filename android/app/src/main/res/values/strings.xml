@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Coddy</string>
+    <string name="notification_running">Coddy is running. Your assistant is ready.</string>
+    <string name="notification_channel">Coddy</string>
+    <string name="notification_channel_description">Keeps the assistant running while the app is in the background.</string>
+</resources>

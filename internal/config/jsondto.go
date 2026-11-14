@@ -102,7 +102,9 @@ type InstructionsJSON struct {
 // ProviderJSON mirrors ProviderConfig for JSON APIs.
 // Field order and types must match ProviderConfig (direct struct conversion is used below).
 type ProviderJSON struct {
-	Name          string `json:"name"`
+	Name string `json:"name"`
+	// DisplayName keeps the optional UI label; the id stays the identifier.
+	DisplayName   string `json:"display_name,omitempty"`
 	Type          string `json:"type"`
 	Mode          string `json:"mode,omitempty"`
 	Region        string `json:"region,omitempty"`
@@ -379,6 +381,7 @@ type HTTPServerJSON struct {
 	LoginSource     string           `json:"login_source,omitempty"`
 	PublicDocs      bool             `json:"public_docs,omitempty"`
 	AllowInsecure   bool             `json:"allow_insecure,omitempty"`
+	RawCapture      bool             `json:"raw_capture,omitempty"`
 	CORS            HTTPCORSJSON     `json:"cors,omitempty"`
 	Remotes         []HTTPRemoteJSON `json:"remotes,omitempty"`
 }
@@ -658,6 +661,7 @@ func ConfigToJSONDTO(c *Config) *ConfigJSON {
 		Port:                     c.HTTPServer.Port,
 		PublicDocs:               c.HTTPServer.PublicDocs,
 		AllowInsecure:            c.HTTPServer.AllowInsecure,
+		RawCapture:               c.HTTPServer.RawCapture,
 		// AuthToken is intentionally redacted; report only whether one is configured.
 		AuthConfigured: strings.TrimSpace(c.HTTPServer.AuthToken) != "",
 		Login: HTTPLoginJSON{

@@ -43,6 +43,12 @@ func Serve(ctx context.Context, opts Options) error {
 	llm.LogNeuralDeepAuthNotices(log, opts.Cfg)
 
 	s := New(opts.Cfg, opts.Mgr, log, opts.DefaultCWD)
+	// Whatever ends Serve - the context cancelled, the listener dead, a login
+	// form nobody can pass - the process-wide raw-capture recorder New may
+	// have installed must not outlive this server: stopRawCapture takes it
+	// out and drops the entries, so the rest of the process stops capturing
+	// the wire the moment the HTTP surface goes away.
+	defer s.stopRawCapture()
 	if home := s.activeCfg().Paths.Home; strings.TrimSpace(home) != "" {
 		if err := wallpaper.EnsureDefaults(ctx, home); err != nil {
 			log.Warn("wallpaper defaults initialization failed", "error", err)

@@ -25,6 +25,7 @@ Coddy 是一个封装在单个静态 Go 二进制中的通用智能体：一个�
 - [控制台（TUI）](surfaces/console.md) - 在终端中直接运行 coddy，布局、按键、斜杠命令、本地 shell、打印模式和远程模式。
 - [Web 界面](surfaces/web-ui.md) - 由 coddy serve 提供的嵌入式单页应用，包含会话、输入框、模式和模型、附件、设置、主题和语言。
 - [桌面窗口](surfaces/desktop.md) - coddy desktop，将 Web 界面作为应用窗口、聊天作为标签页，记住的端口、按键，以及各平台为窗口提供的功能。
+- [Android 应用](surfaces/android.md) - 在手机上运行完整服务器的 APK：环回 WebView、内置 BusyBox、带测试按钮的 SSH 凭据，以及构建产物。
 - [编辑器（ACP）](surfaces/editors.md) - Zed、VS Code、Obsidian 和脚本作为 coddy acp 的 ACP 客户端，以及它们与其他界面共享的内容。
 - [Telegram 网关](surfaces/gateway.md) - Telegram 机器人适配器、设置、访问级别、会话隔离、富消息、在浏览器中实时查看同一聊天，以及编写新适配器。
 - [Pachca 网关](surfaces/pachca.md) - Pachca (Пачка) 集成机器人、在工作区中的设置、事件历史轮询、群组、话题和私聊、命令、限制。

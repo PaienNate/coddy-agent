@@ -2059,6 +2059,49 @@ func TestLoadAgentModelOptional(t *testing.T) {
 	}
 }
 
+// compaction.model and compaction.fallback_models name logical models too, so
+// a Settings save (or a hand-edited config) that lists models must refuse a
+// name that resolves to none, the way agent.model is refused (issue #485).
+func TestCompactionModelReferencesValidated(t *testing.T) {
+	home := t.TempDir()
+	base := `{"providers":[{"name":"openai","type":"openai","api_key":"k"}],` +
+		`"models":[{"model":"openai/gpt-4o"},{"model":"openai/gpt-5"}]`
+	valid := `"compaction":{"model":"openai/gpt-5","fallback_models":["openai/gpt-4o","openai/gpt-5"]}}`
+	if _, err := config.ParseConfigJSONPreservingSecrets([]byte(base+","+valid), config.Paths{Home: home, CWD: t.TempDir()}, nil); err != nil {
+		t.Fatalf("a resolving compaction refs config should parse: %v", err)
+	}
+
+	cases := []struct {
+		name string
+		json string
+		want string
+	}{
+		{
+			"bad compaction.model",
+			`"compaction":{"model":"openai/typo"}}`,
+			`compaction.model "openai/typo": not found in models list`,
+		},
+		{
+			"bad compaction.fallback_models entry",
+			`"compaction":{"fallback_models":["openai/typo"]}}`,
+			`compaction.fallback_models "openai/typo": not found in models list`,
+		},
+		{
+			"bad compaction.fallback_models entry while model resolves",
+			`"compaction":{"model":"openai/gpt-5","fallback_models":["openai/gpt-4o","openai/typo"]}}`,
+			`compaction.fallback_models "openai/typo": not found in models list`,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := config.ParseConfigJSONPreservingSecrets([]byte(base+","+tc.json), config.Paths{Home: home, CWD: t.TempDir()}, nil)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("want %q, got err = %v", tc.want, err)
+			}
+		})
+	}
+}
+
 // Every workspace reads four folders, lowest priority first: the user's agents
 // skills, the project's agents skills, Coddy's own, the project's Coddy
 // skills. skills.dirs only adds directories after them, which win a name over

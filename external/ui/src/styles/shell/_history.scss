@@ -251,31 +251,23 @@
   min-width: 0;
 }
 
-/* A running turn is the unread dot a third darker, pulsing: the two marks are one
-   family - "working" and "done, not read yet" - and a spinner beside them read as
-   a third kind of state. Both take the theme's accent, never a fixed violet. */
-.session-activity-dot {
-  width: 8px;
-  height: 8px;
+/* A running turn carries a loading icon: a ring spinner in the theme's accent,
+   matching the branch menu's spinner. The unread dot a finished background turn
+   leaves behind stays a dot, so "working" and "done, not read yet" still read
+   apart. */
+.session-activity-spinner {
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--accent) 67%, #000);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+  border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-top-color: var(--accent);
+  box-sizing: border-box;
   flex-shrink: 0;
-  animation: session-activity-pulse 1.2s ease-in-out infinite;
-}
-
-@keyframes session-activity-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
-  }
+  animation: session-spin 0.8s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .session-activity-dot {
+  .session-activity-spinner {
     animation: none;
   }
 }

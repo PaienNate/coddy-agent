@@ -76,6 +76,25 @@
   place-items: center;
 }
 
+/* The discard button drops the unsaved edits of the form: a quiet danger tint
+   so it reads as throwing work away, distinct from Reload's neutral refresh. */
+.settings-btn-icon.settings-btn-discard {
+  color: mix-text(62%);
+  border-color: var(--coddy-glass-panel-border);
+}
+
+.settings-btn-icon.settings-btn-discard:hover:not(:disabled) {
+  background: color-mix(in srgb, #f87171 18%, var(--coddy-glass-panel-bg));
+  border-color: rgba(248, 113, 113, 0.7);
+  color: #fecaca;
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.35);
+}
+
+[data-theme="light"]
+  .settings-btn-icon.settings-btn-discard:hover:not(:disabled) {
+  color: #b91c1c;
+}
+
 /* The list forms' way back (< LLM providers): a quiet link, the app's chevron
    pointing left and the list's name, level with the fields below. */
 .settings-back-link {

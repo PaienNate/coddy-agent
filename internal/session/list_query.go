@@ -157,6 +157,7 @@ type SortKey string
 const (
 	SortUpdated  SortKey = "updated"
 	SortCreated  SortKey = "created"
+	SortLastUsed SortKey = "last_used"
 	SortTitle    SortKey = "title"
 	SortMessages SortKey = "messages"
 	SortTokens   SortKey = "tokens"
@@ -181,6 +182,8 @@ func ParseSortKey(s string) (SortKey, bool) {
 		return SortUpdated, true
 	case SortCreated:
 		return SortCreated, true
+	case SortLastUsed:
+		return SortLastUsed, true
 	case SortTitle:
 		return SortTitle, true
 	case SortMessages:
@@ -374,6 +377,8 @@ func compareSessionRows(a, b SessionListEntry, key SortKey, tokensOf func(id str
 		return compareOptionalStrings(strings.ToLower(strings.TrimSpace(a.Title)), strings.ToLower(strings.TrimSpace(b.Title)))
 	case SortCreated:
 		return compareOptionalTimestamps(a.CreatedAt, b.CreatedAt)
+	case SortLastUsed:
+		return compareOptionalTimestamps(a.LastUsedAt, b.LastUsedAt)
 	case SortMessages:
 		return compareInts(a.MessageCount, b.MessageCount), true
 	case SortTokens:

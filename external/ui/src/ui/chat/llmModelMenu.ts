@@ -72,6 +72,7 @@ export function shouldGroupLlmModels(ids: readonly string[]): boolean {
 export function filterLlmModels(
   ids: readonly string[],
   query: string,
+  labels?: Readonly<Record<string, string>>,
 ): string[] {
   const q = (query || "").trim().toLowerCase();
   if (!q) {
@@ -81,8 +82,25 @@ export function filterLlmModels(
     const full = id.toLowerCase();
     const vendor = llmVendorOf(id).toLowerCase();
     const name = llmModelNameOf(id).toLowerCase();
-    return full.includes(q) || vendor.includes(q) || name.includes(q);
+    const label = (labels?.[vendor] ?? "").trim().toLowerCase();
+    return (
+      full.includes(q) ||
+      vendor.includes(q) ||
+      name.includes(q) ||
+      (label !== "" && label.includes(q))
+    );
   });
+}
+
+/** The label of a vendor group: the provider's display name when one is set,
+ *  else the id prefix itself. An empty vendor (a slashless id) stays empty, so
+ *  the caller keeps its "other" wording. */
+export function llmVendorLabel(
+  vendor: string,
+  labels?: Readonly<Record<string, string>>,
+): string {
+  const label = (labels?.[vendor] ?? "").trim();
+  return label !== "" ? label : vendor;
 }
 
 export type LlmModelGroup = {

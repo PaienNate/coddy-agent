@@ -353,6 +353,54 @@ test("a copy landing during a save does not take a value put back meanwhile", as
   expect(input.value).toBe("40");
 });
 
+test("Discard in the footer drops the unsaved edits and saves nothing", async () => {
+  const onClose = vi.fn();
+  render(<Settings onClose={onClose} initialSection="agent" />);
+  const input = await maxTurns();
+  expect(input.value).toBe("40");
+  // Discard is disabled while the form holds nothing to throw away.
+  expect(screen.getByTestId("settings-discard")).toBeDisabled();
+
+  fireEvent.change(input, { target: { value: "41" } });
+  expect(screen.getByTestId("settings-discard")).not.toBeDisabled();
+  expect(status()).toBe("Unsaved changes");
+
+  fireEvent.click(screen.getByTestId("settings-discard"));
+  expect(input.value).toBe("40");
+  expect(saveButton().className).not.toContain("is-dirty");
+  expect(status()).toBe("");
+  expect(puts).toHaveLength(0);
+  expect(onClose).not.toHaveBeenCalled();
+  expect(screen.queryByTestId("settings-close-dialog")).toBeNull();
+});
+
+test("the close dialog's Discard answer drops the edits and closes without saving", async () => {
+  const onClose = vi.fn();
+  render(<Settings onClose={onClose} initialSection="agent" />);
+  const input = await maxTurns();
+  fireEvent.change(input, { target: { value: "41" } });
+
+  fireEvent.click(screen.getByTestId("settings-drawer-close"));
+  const dialog = screen.getByTestId("settings-close-dialog");
+  // The dialog names the third answer, a save, and the escape.
+  expect(
+    within(dialog).getByRole("button", { name: "Discard and close" }),
+  ).toBeInTheDocument();
+  expect(
+    within(dialog).getByRole("button", { name: "Save and close" }),
+  ).toBeInTheDocument();
+  fireEvent.click(
+    within(dialog).getByRole("button", { name: "Discard and close" }),
+  );
+  expect(onClose).toHaveBeenCalledTimes(1);
+  expect(screen.queryByTestId("settings-close-dialog")).toBeNull();
+  expect(puts).toHaveLength(0);
+  // The edits are gone: reopening the drawer (a fresh mount) shows the base.
+  cleanup();
+  render(<Settings onClose={() => {}} initialSection="agent" />);
+  expect(await maxTurns()).toHaveValue(40);
+});
+
 test("Kimi login puts its generated identity in the saved provider row", async () => {
   const identity = "0123456789abcdef0123456789abcdef";
   const providerSchema = {

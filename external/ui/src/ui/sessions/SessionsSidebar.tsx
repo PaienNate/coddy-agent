@@ -529,7 +529,7 @@ export function SessionsSidebar(props: {
             <span className="session-row-marks">
               {showsActivity ? (
                 <span
-                  className="session-activity-dot"
+                  className="session-activity-spinner"
                   role="img"
                   aria-label={activityLabel}
                   title={activityLabel}

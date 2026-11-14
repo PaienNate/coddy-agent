@@ -55,7 +55,7 @@ const providersSection: SectionDescriptor = {
   label: "LLM providers",
   kind: "array",
   schemaKey: "providers",
-  labelField: "name",
+  labelFields: ["display_name", "name"],
 };
 
 const rootSchema: JsonSchema = {
@@ -1082,7 +1082,7 @@ const modelsSection: SectionDescriptor = {
   label: "Logical models",
   kind: "array",
   schemaKey: "models",
-  labelField: "model",
+  labelFields: ["model"],
 };
 
 const modelsSchema: JsonSchema = {
@@ -1929,7 +1929,7 @@ test("a row form open under LLM providers does not survive switching to Logical 
     label: "Logical models",
     kind: "array",
     schemaKey: "models",
-    labelField: "model",
+    labelFields: ["model"],
   };
   function TabsHarness(props: { section: SectionDescriptor }) {
     const [doc, setDoc] = React.useState<Record<string, unknown>>({
@@ -2298,7 +2298,7 @@ const toolsetsSection: SectionDescriptor = {
   label: "Toolsets",
   kind: "array",
   schemaKey: "toolsets",
-  labelField: "name",
+  labelFields: ["name"],
 };
 
 function ToolsetsHarness(props: {

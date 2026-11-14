@@ -122,10 +122,13 @@ export const messagesRu: Record<string, string> = {
     "Сохранить: изменения применятся только после этого",
   "settings.save.dirtyAria": "Сохранить несохранённые изменения",
   "settings.status.unsaved": "Есть несохранённые изменения",
+  "settings.discard.title": "Отменить изменения",
+  "settings.discard.aria": "Отменить несохранённые изменения",
   "settings.close.title": "Сохранить перед закрытием?",
   "settings.close.message":
     "Изменения в форме не сохранены и применятся только после сохранения.",
   "settings.close.save": "Сохранить и закрыть",
+  "settings.close.discard": "Отменить и закрыть",
   "settings.close.keep": "Вернуться к правке",
   "settings.error.otherServer":
     "Страница переключена на другой сервер, перезагрузите её, чтобы изменить его настройки.",
@@ -347,6 +350,9 @@ export const messagesRu: Record<string, string> = {
   "settings.section.metrics.desc": "Экспортёр Prometheus, свой порт",
   "settings.section.status.label": "Система",
   "settings.section.status.desc": "Версия, диск, нагрузка",
+  "settings.section.ssh_credentials.label": "SSH",
+  "settings.section.ssh_credentials.desc":
+    "Хосты и доступы для ssh_run_command",
   "settings.section.opencode_import.label": "OpenCode",
   "settings.section.opencode_import.desc": "Импорт сессий OpenCode v2",
   "settings.opencode.lead":
@@ -502,6 +508,9 @@ export const messagesRu: Record<string, string> = {
   "settings.schema.providers.name.ph": "my-provider",
   "settings.schema.providers.name.desc":
     "Префикс идентификаторов моделей этого провайдера, как в provider/model-id. Латинские буквы, цифры, дефис и подчёркивание, первая буква.",
+  "settings.schema.providers.display_name.label": "Отображаемое имя",
+  "settings.schema.providers.display_name.desc":
+    "Необязательная метка для этой строки в интерфейсе - показывается везде, где провайдер подписан (строки настроек, меню моделей). Идентификатор остаётся идентификатором: models[].model, agent.model и все пути providers/<name> продолжают использовать name.",
   "settings.schema.providers.type.label": "Тип провайдера",
   "settings.schema.providers.type.desc":
     "Сетевой протокол для этой записи провайдера. Используйте deepseek для официального API DeepSeek с управлением рассуждением, учётом кэша промптов и пресетами V4 Flash/Pro; openai для любого другого OpenAI-совместимого эндпоинта.",
@@ -1734,6 +1743,7 @@ export const messagesRu: Record<string, string> = {
   "sessions.filter.env.print": "Запуски CLI",
 
   "sessions.sort.updated": "Последней активности",
+  "sessions.sort.lastUsed": "Последнего использования",
   "sessions.sort.created": "Дате создания",
   "sessions.sort.title": "Названию",
 
@@ -2392,6 +2402,10 @@ export const messagesRu: Record<string, string> = {
   "tasks.footExitCode": "Код выхода {code}",
   "tasks.openTranscript": "Показать транскрипт",
   "tasks.openTranscriptAria": "Показать транскрипт запуска {label}",
+  "tasks.openTranscriptReadOnly":
+    "Открыть транскрипт {label} только для чтения",
+  "tasks.openTranscriptReadOnlyAria":
+    "Открыть транскрипт {label} только для чтения",
   "tasks.agentTokensTitle": "Токены на входе {input}, на выходе {output}",
   "tasks.openTranscriptUnavailable": "Дочерняя сессия ещё не известна",
 
@@ -3161,5 +3175,34 @@ export const messagesRu: Record<string, string> = {
   "system.col.last": "Последний сбой",
   "system.updated": "Обновлено {ago}",
   "system.docs": "Документация по мониторингу",
+  "rawCapture.title": "Сырой перехват",
+  "rawCapture.count": "Перехвачено обменов: {count}",
+  "rawCapture.clear": "Очистить",
+  "rawCapture.loading": "Читаю перехваченные обмены…",
+  "rawCapture.empty": "Пока ничего не перехвачено.",
+  "rawCapture.request": "Запрос",
+  "rawCapture.response": "Ответ",
+  "ssh.title": "SSH-доступы",
+  "ssh.hint":
+    "То, чем ssh_run_command подключается к хосту: пароль, команда-помощник или выбранный ключ. Пароль хранится в файле под CODDY_HOME с правами 0600 и никогда не возвращается на эту страницу.",
+  "ssh.empty": "Пока не добавлено ни одного хоста.",
+  "ssh.host": "Хост",
+  "ssh.user": "Пользователь",
+  "ssh.port": "Порт",
+  "ssh.password": "Пароль",
+  "ssh.passwordPlaceholder": "пусто - сохранить текущий",
+  "ssh.passwordSet": "пароль задан",
+  "ssh.noCredential": "без учетных данных",
+  "ssh.passwordCommand": "Команда-помощник",
+  "ssh.keyPath": "Путь к ключу",
+  "ssh.edit": "Изменить",
+  "ssh.delete": "Удалить",
+  "ssh.save": "Сохранить",
+  "ssh.saved": "Сохранено: {host}.",
+  "ssh.test": "Проверить",
+  "ssh.testOk": "Подключение прошло за {ms} мс.",
+  "ssh.testFailed": "Не удалось подключиться: {message}",
+  "ssh.testFailedUnknown": "причина неизвестна",
+  "ssh.clear": "Очистить",
   "system.loadFailed": "Не удалось загрузить страницу. Перезагрузите её.",
 };

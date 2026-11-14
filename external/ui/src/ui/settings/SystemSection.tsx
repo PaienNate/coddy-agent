@@ -11,6 +11,7 @@ import {
   type DrawnText,
 } from "./settingsSections";
 import { Sparkline } from "./Sparkline";
+import { RawCaptureView } from "../rawCapture/RawCaptureView";
 import {
   ago,
   bytes,
@@ -462,6 +463,9 @@ export default function SystemSection() {
             </div>
           </section>
         ) : null}
+
+        {/* A debug viewer, self-hidden while httpserver.raw_capture is off. */}
+        <RawCaptureView />
       </div>
       <footer className="system-foot" lang={locale}>
         {at > 0 ? <Updated at={at} /> : <span />}

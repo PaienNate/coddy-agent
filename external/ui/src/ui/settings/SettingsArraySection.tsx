@@ -12,25 +12,19 @@ import { schemaFieldDesc } from "./schemaI18n";
 import { useT } from "../i18n/I18nProvider";
 import { translate } from "../i18n/i18n";
 
+import { arrayRowLabelValue } from "./settingsSections";
+
 type View = { mode: "list" } | { mode: "edit"; index: number };
 
 function rowLabel(
   row: unknown,
-  labelField: string | undefined,
+  labelFields: string[] | undefined,
   index: number,
 ): string {
-  if (
-    labelField &&
-    row !== null &&
-    typeof row === "object" &&
-    !Array.isArray(row)
-  ) {
-    const v = (row as Record<string, unknown>)[labelField];
-    if (v !== undefined && v !== null && String(v).trim() !== "") {
-      return String(v);
-    }
-  }
-  return translate("settings.array.unnamed", { n: index + 1 });
+  return (
+    arrayRowLabelValue(row, labelFields) ||
+    translate("settings.array.unnamed", { n: index + 1 })
+  );
 }
 
 /**
@@ -43,7 +37,7 @@ export function SettingsArraySection(props: {
   schema: JsonSchema;
   value: unknown[];
   onChange: (next: unknown[]) => void;
-  labelField?: string | undefined;
+  labelFields?: string[] | undefined;
   fieldOverride?: FieldOverride | undefined;
   addLabel?: string | undefined;
   /** Optional item factory for section-specific omission/default semantics. */
@@ -79,23 +73,13 @@ export function SettingsArraySection(props: {
     | ((item: Record<string, unknown>, index: number) => React.ReactNode)
     | undefined;
 }) {
-  const { schema, value, onChange, labelField, fieldOverride, i18nDomain } =
+  const { schema, value, onChange, labelFields, fieldOverride, i18nDomain } =
     props;
   const { t } = useT();
   const itemSchema = schema.items;
   const arr = Array.isArray(value) ? value : [];
-  const labelOf = (row: unknown): string => {
-    if (
-      !labelField ||
-      row === null ||
-      typeof row !== "object" ||
-      Array.isArray(row)
-    ) {
-      return "";
-    }
-    const v = (row as Record<string, unknown>)[labelField];
-    return v === undefined || v === null ? "" : String(v).trim();
-  };
+  const labelOf = (row: unknown): string =>
+    arrayRowLabelValue(row, labelFields);
   const findByLabel = (label: string) =>
     label ? arr.findIndex((row) => labelOf(row) === label) : -1;
 
@@ -240,7 +224,7 @@ export function SettingsArraySection(props: {
         data-settings-anchor={`row:${i18nDomain ?? ""}`}
         data-settings-row={labelOf(item)}
         role="group"
-        aria-label={labelOf(item) || rowLabel(item, labelField, index)}
+        aria-label={labelOf(item) || rowLabel(item, labelFields, index)}
       >
         {props.hideBackLink ? null : (
           <div className="settings-detail-head">
@@ -289,13 +273,13 @@ export function SettingsArraySection(props: {
                 data-testid={`settings-master-item-${i}`}
                 onClick={() => setView({ mode: "edit", index: i })}
               >
-                {rowLabel(row, labelField, i)}
+                {rowLabel(row, labelFields, i)}
               </button>
               <button
                 type="button"
                 className="settings-btn settings-btn-icon settings-btn-danger"
                 aria-label={t("settings.array.removeRowAria", {
-                  name: rowLabel(row, labelField, i),
+                  name: rowLabel(row, labelFields, i),
                 })}
                 title={t("settings.array.removeTitle")}
                 onClick={() => onChange(arr.filter((_, j) => j !== i))}

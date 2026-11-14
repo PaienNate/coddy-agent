@@ -125,10 +125,13 @@ export const messagesEn: Record<string, string> = {
   "settings.save.dirtyTitle": "Save: the changes take effect only after it",
   "settings.save.dirtyAria": "Save the unsaved changes",
   "settings.status.unsaved": "Unsaved changes",
+  "settings.discard.title": "Discard changes",
+  "settings.discard.aria": "Discard the unsaved changes",
   "settings.close.title": "Save before closing?",
   "settings.close.message":
     "The changes in the form are not saved and take effect only after Save.",
   "settings.close.save": "Save and close",
+  "settings.close.discard": "Discard and close",
   "settings.close.keep": "Keep editing",
   "settings.error.otherServer":
     "This page has been switched to another server; reload it to edit that server's settings.",
@@ -344,6 +347,9 @@ export const messagesEn: Record<string, string> = {
   "settings.section.metrics.desc": "Prometheus exporter, own port",
   "settings.section.status.label": "System",
   "settings.section.status.desc": "Version, disk, activity",
+  "settings.section.ssh_credentials.label": "SSH",
+  "settings.section.ssh_credentials.desc":
+    "Hosts and credentials for ssh_run_command",
   "settings.section.opencode_import.label": "OpenCode",
   "settings.section.opencode_import.desc": "Import OpenCode v2 sessions",
   "settings.opencode.lead":
@@ -493,6 +499,9 @@ export const messagesEn: Record<string, string> = {
   "settings.schema.providers.name.ph": "my-provider",
   "settings.schema.providers.name.desc":
     "Prefix of this provider's model ids, as in provider/model-id. Letters, digits, hyphen and underscore, starting with a letter.",
+  "settings.schema.providers.display_name.label": "Display name",
+  "settings.schema.providers.display_name.desc":
+    "Optional label shown in the UI wherever a provider is labelled (settings rows, the model menu). The id stays the identifier: models[].model, agent.model and every path under providers/<name> keep using name.",
   "settings.schema.providers.type.label": "Provider type",
   "settings.schema.providers.type.desc":
     "Wire protocol for this provider entry. Use deepseek for the official DeepSeek API, with its thinking controls, prompt-cache accounting and V4 Flash/Pro presets; openai for any other OpenAI-compatible endpoint.",
@@ -1678,6 +1687,7 @@ export const messagesEn: Record<string, string> = {
   "sessions.filter.env.print": "CLI runs",
 
   "sessions.sort.updated": "Last activity",
+  "sessions.sort.lastUsed": "Last used",
   "sessions.sort.created": "Date created",
   "sessions.sort.title": "Name",
 
@@ -2317,6 +2327,9 @@ export const messagesEn: Record<string, string> = {
   "tasks.footExitCode": "Exit code {code}",
   "tasks.openTranscript": "Show transcript",
   "tasks.openTranscriptAria": "Show the transcript of {label}",
+  "tasks.openTranscriptReadOnly": "Open the read-only transcript of {label}",
+  "tasks.openTranscriptReadOnlyAria":
+    "Open the read-only transcript of {label}",
   "tasks.agentTokensTitle": "Tokens in {input}, out {output}",
   "tasks.openTranscriptUnavailable": "The child session is not known yet",
 
@@ -3038,5 +3051,34 @@ export const messagesEn: Record<string, string> = {
   "system.col.last": "Last failure",
   "system.updated": "Updated {ago}",
   "system.docs": "Monitoring docs",
+  "rawCapture.title": "Raw capture",
+  "rawCapture.count": "{count} exchanges captured",
+  "rawCapture.clear": "Clear",
+  "rawCapture.loading": "Reading captured exchanges…",
+  "rawCapture.empty": "Nothing captured yet.",
+  "rawCapture.request": "Request",
+  "rawCapture.response": "Response",
+  "ssh.title": "SSH credentials",
+  "ssh.hint":
+    "What ssh_run_command uses for a host: a password, a credential-helper command or a chosen key. The password is stored in a 0600 file under CODDY_HOME and is never returned to this page.",
+  "ssh.empty": "No host added yet.",
+  "ssh.host": "Host",
+  "ssh.user": "User",
+  "ssh.port": "Port",
+  "ssh.password": "Password",
+  "ssh.passwordPlaceholder": "leave empty to keep the stored one",
+  "ssh.passwordSet": "password set",
+  "ssh.noCredential": "no credentials",
+  "ssh.passwordCommand": "Credential helper",
+  "ssh.keyPath": "Key path",
+  "ssh.edit": "Edit",
+  "ssh.delete": "Delete",
+  "ssh.save": "Save",
+  "ssh.saved": "Saved {host}.",
+  "ssh.test": "Test",
+  "ssh.testOk": "Connected in {ms} ms.",
+  "ssh.testFailed": "Connection failed: {message}",
+  "ssh.testFailedUnknown": "unknown reason",
+  "ssh.clear": "Clear",
   "system.loadFailed": "This page failed to load. Reload the page.",
 };

@@ -23,6 +23,9 @@ providers:
 providers[].name:
   en: "Logical id used as the first segment of models[].model. ASCII letters, digits, hyphen, underscore; must start with a letter."
   ru: "Логический идентификатор, который служит первым сегментом models[].model. Латинские буквы ASCII, цифры, дефис и подчёркивание; первой должна идти буква."
+providers[].display_name:
+  en: "Optional display name for this provider, shown in the UI wherever a provider is labelled (settings rows, the model menu). The id stays the identifier: models[].model, agent.model and every path under providers/<name> keep using name."
+  ru: "Необязательное отображаемое имя провайдера - показывается в интерфейсе везде, где провайдер подписан (строки настроек, меню моделей). Идентификатор остаётся идентификатором: models[].model, agent.model и все пути providers/<name> продолжают использовать name."
 providers[].type:
   en: "Wire protocol for this provider entry. Use deepseek for the official DeepSeek API, with its thinking controls, prompt-cache accounting and V4 Flash/Pro presets; openai for any other OpenAI-compatible endpoint."
   ru: "Протокол обмена для этой записи провайдера. Используйте deepseek для официального API DeepSeek с управлением рассуждением, учётом кэша промптов и пресетами V4 Flash/Pro; openai для любого другого OpenAI-совместимого эндпоинта."
@@ -605,6 +608,9 @@ httpserver.public_docs:
 httpserver.allow_insecure:
   en: "Say that a server without authentication is open on purpose: silences the two startup warnings about it - a non-loopback bind, and CORS that admits pages nobody listed (allow_loopback or \"*\") - and the --dry-run findings that mirror them, and turns off the refusal of a foreign Host on loopback and of a cross-origin write."
   ru: "Говорит, что сервер без аутентификации открыт сознательно. Подавляет два предупреждения при запуске о таком сервере - о привязке не к loopback и о CORS, который пускает никем не перечисленные страницы (allow_loopback или \"*\") - и соответствующие находки --dry-run, а также отключает отказ чужому Host на loopback и межсайтовой записи."
+httpserver.raw_capture:
+  en: "Keep, in memory only, the raw request and response of every provider call this server makes, for debugging a provider's wire protocol. Off by default: nothing is captured and the viewer is not shown. What it captures is a bounded ring, never written to disk, and the credential headers (Authorization, Proxy-Authorization, Cookie, Set-Cookie and the vendor key headers) are stripped from both directions, as is a credential query parameter in the URL."
+  ru: "Держит в памяти только сырой запрос и ответ каждого вызова провайдера, который делает этот сервер, чтобы отладить сетевой протокол провайдера. По умолчанию выключено: ничего не перехватывается, просмотрщик не показывается. Перехваченное - ограниченное кольцо, никогда не записывается на диск; заголовки с учетными данными (Authorization, Proxy-Authorization, Cookie, Set-Cookie и фирменные заголовки ключей) вырезаются в обе стороны, как и параметр запроса в URL, называющий ключ."
 httpserver.cors:
   en: "Cross-origin access so a browser UI on another origin can call this API (e.g. the bundled UI pointed at a remote server). Bearer auth still applies: CORS decides whether a browser shows a page the answer, never whether the server gives one."
   ru: "Кросс-доменный доступ, чтобы браузерный интерфейс с другого origin мог вызывать этот API (например, встроенный интерфейс, направленный на удалённый сервер). Bearer-аутентификация продолжает действовать - CORS решает только, покажет ли браузер ответ странице; отдаёт ли сервер ответ, от CORS не зависит."

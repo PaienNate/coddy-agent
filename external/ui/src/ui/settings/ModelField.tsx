@@ -34,6 +34,12 @@ export function ModelField(props: {
   const names = providers
     .map((p) => str(p.name).trim())
     .filter((n) => n !== "");
+  /** The row's display name labels the option; the value stays the id. */
+  const displayNameOf = (n: string): string => {
+    const row = providers.find((p) => str(p.name).trim() === n);
+    const label = str(row?.display_name).trim();
+    return label !== "" ? label : n;
+  };
 
   return (
     <>
@@ -42,7 +48,7 @@ export function ModelField(props: {
         <Combobox
           value={provider}
           onChange={(p) => emit(p, modelId)}
-          options={names.map((n) => ({ value: n }))}
+          options={names.map((n) => ({ value: n, label: displayNameOf(n) }))}
           ariaLabel={texts.second}
           testid="model-field-provider"
           placeholder={t("settings.field.providerPlaceholder")}
