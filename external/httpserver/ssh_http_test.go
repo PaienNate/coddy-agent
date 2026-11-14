@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -134,6 +135,11 @@ func TestSSHHostsCRUD(t *testing.T) {
 // TestSSHHostsFileMode checks the file the API writes is private: no other
 // account on the machine may read a password out of it.
 func TestSSHHostsFileMode(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		// Windows reports permissions from ACLs, not from os.Chmod's bits;
+		// the 0600 assertion belongs to the platforms that have those bits.
+		t.Skip("POSIX file modes do not exist on Windows")
+	}
 	ts, home := newSSHTestServer(t)
 	raw, _ := json.Marshal(map[string]interface{}{"host": "nas.local", "user": "admin", "password": "s3cret"})
 	req, _ := http.NewRequest(http.MethodPut, ts.URL+"/coddy/ssh/hosts", bytes.NewReader(raw))

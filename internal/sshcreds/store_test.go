@@ -3,6 +3,7 @@ package sshcreds
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -48,6 +49,11 @@ func TestStoreRoundTrip(t *testing.T) {
 }
 
 func TestStoreFileIsPrivate(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		// Windows reports permissions from ACLs, not from os.Chmod's bits;
+		// the 0600 assertion belongs to the platforms that have those bits.
+		t.Skip("POSIX file modes do not exist on Windows")
+	}
 	home := t.TempDir()
 	store := StoreForHome(home)
 	if err := store.Upsert(Entry{Host: "nas", User: "admin", Password: "s3cret"}); err != nil {
