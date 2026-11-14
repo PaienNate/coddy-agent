@@ -11,12 +11,46 @@ android {
         applicationId = "dev.coddy.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        // The workflow overrides it with the release tag when there is one.
+        // The workflow passes the release tag and a numeric code derived from
+        // it; a local build falls back to something installable.
         versionName = System.getenv("CODDY_VERSION") ?: "0.0.0"
+        versionCode = System.getenv("CODDY_VERSION_CODE")?.toIntOrNull() ?: 1
         ndk {
             // The Go build produces exactly these two ABIs (make android).
             abiFilters += listOf("arm64-v8a", "x86_64")
+        }
+    }
+
+    // One APK per ABI: the server binary is ~40 MB each, and a phone only ever
+    // runs one of them. A universal APK would double the download for nothing.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "x86_64")
+            isUniversalApk = false
+        }
+    }
+
+    // A release APK must be signed to install. The release workflow decodes a
+    // keystore into ANDROID_KEYSTORE_PATH when the repository carries one; a
+    // fork without the secret falls back to the debug build and says so.
+    val releaseKeystore = System.getenv("ANDROID_KEYSTORE_PATH")
+    signingConfigs {
+        if (!releaseKeystore.isNullOrBlank()) {
+            create("release") {
+                storeFile = file(releaseKeystore)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            signingConfigs.findByName("release")?.let { signingConfig = it }
         }
     }
 

@@ -25,10 +25,17 @@ reached outbound, so the phone needs no inbound port and no LAN address.
 
 ## Build and install
 
-CI builds the debug APK on every pull request that touches `android/` and on
-`workflow_dispatch`; download **`coddy-android-apk`** from the run and install
-it with `adb install coddy-android-<sha>-debug.apk`, or open the file on the
-phone. A release build needs a signing key of your own.
+A release carries one APK per ABI - `coddy_<version>_android_arm64.apk` and
+`coddy_<version>_android_amd64.apk` - signed with the release key when the
+repository holds `ANDROID_KEYSTORE_BASE64`; a fork without that secret gets
+debug-signed APKs suffixed `-debug`, and those cannot upgrade an install of
+one another. Add the keystore secrets (`ANDROID_KEYSTORE_BASE64` as base64 of
+the JKS, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
+`ANDROID_KEY_PASSWORD`) to publish installable release APKs.
+
+A debug build is also produced on every pull request that touches `android/`
+and on `workflow_dispatch`; download **`coddy-android-apk`** from the run and
+install it with `adb install`, or open the file on the phone.
 
 Locally, with the Android SDK, an NDK, Go and Node installed:
 
@@ -39,6 +46,9 @@ ANDROID_ARCHS=arm64 android/scripts/build-apk.sh   # a phone only
 
 The script runs `make android TAGS="http ui scheduler memory"`, stages the
 binaries into `jniLibs`, fetches BusyBox and runs `gradle :app:assembleDebug`.
+The binary is built with `-trimpath -s -w`: the Go runtime keeps its own
+function and line tables, so a crash still names its frames, while the ELF
+symbols and DWARF that made the binary a third larger do not ship.
 
 ## First launch
 

@@ -22,10 +22,15 @@ workflow **`.github/workflows/android-apk.yaml`** 在每次运行时产出 debug
 
 ## 构建与安装
 
-CI 在每个触及 `android/` 的拉取请求上以及 `workflow_dispatch` 时构建 debug APK；
-从运行记录下载 **`coddy-android-apk`**，用
-`adb install coddy-android-<sha>-debug.apk` 安装，或直接在手机上打开该文件。
-发布版构建需要你自己的签名密钥。
+发布版为每个 ABI 提供一个 APK - `coddy_<version>_android_arm64.apk` 和
+`coddy_<version>_android_amd64.apk` - 仓库带有 `ANDROID_KEYSTORE_BASE64` 时用发布密钥
+签名；没有该密钥的 fork 会得到带 `-debug` 后缀的 debug 签名 APK，这类包之间无法就地
+升级。添加密钥库密钥（`ANDROID_KEYSTORE_BASE64` 为 JKS 的 base64、
+`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`）即可发布
+可安装的发布版 APK。
+
+CI 仍在每个触及 `android/` 的拉取请求上以及 `workflow_dispatch` 时构建 debug APK；
+从运行记录下载 **`coddy-android-apk`**，用 `adb install` 安装，或直接在手机上打开该文件。
 
 本地构建（需安装 Android SDK、NDK、Go 和 Node）：
 
@@ -35,7 +40,9 @@ ANDROID_ARCHS=arm64 android/scripts/build-apk.sh   # 仅手机
 ```
 
 脚本执行 `make android TAGS="http ui scheduler memory"`，把二进制放入 `jniLibs`，
-获取 BusyBox，然后运行 `gradle :app:assembleDebug`。
+获取 BusyBox，然后运行 `gradle :app:assembleDebug`。二进制以 `-trimpath -s -w`
+构建：Go 运行时保留自己的函数与行号表，崩溃仍会给出调用帧，而让体积大出三分之一的
+ELF 符号和 DWARF 不再随包分发。
 
 ## 首次启动
 
@@ -86,4 +93,4 @@ aggregation）。许可证文本随 APK 分发，源码即 BusyBox 1.36.1 发行
   因此升级就是安装新的 APK。
 - **工作区是应用私有的。** 其外的文件需要后续工作；手机共享存储不会挂载进会话。
 
-<!-- docsgen:source sha256=279e172628a5b383 -->
+<!-- docsgen:source sha256=730bce9f9a43b166 -->

@@ -122,7 +122,7 @@ android:
 	@set -e; for arch in $(ANDROID_ARCHS); do \
 		cc=$$(scripts/android-cc.sh $$arch); \
 		echo "GOOS=android GOARCH=$$arch CGO_ENABLED=1 CC=$$cc go build -o $(BUILD_DIR)/coddy-android-$$arch"; \
-		GOOS=android GOARCH=$$arch CGO_ENABLED=1 CC=$$cc go build $(GO_TAGS_FLAG) -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/coddy-android-$$arch ./cmd/coddy/; \
+		GOOS=android GOARCH=$$arch CGO_ENABLED=1 CC=$$cc go build $(GO_TAGS_FLAG) -trimpath -ldflags "$(LDFLAGS) -s -w" -o $(BUILD_DIR)/coddy-android-$$arch ./cmd/coddy/; \
 	done
 
 # ---- Desktop window ----

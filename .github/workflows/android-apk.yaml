@@ -67,26 +67,32 @@ jobs:
           android/scripts/fetch-busybox.sh arm64
           android/scripts/fetch-busybox.sh amd64
 
-      - name: Build the debug APK
+      - name: Build the debug APKs
         working-directory: android
         env:
           CODDY_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || format('0.0.0-{0}', github.sha) }}
         run: gradle :app:assembleDebug --no-daemon
 
-      - name: Name the artifact
+      - name: Name the artifacts
         id: apk
         run: |
-          src=android/app/build/outputs/apk/debug/app-debug.apk
-          test -f "$src"
-          name="coddy-android-${GITHUB_SHA::8}-debug.apk"
-          cp "$src" "$name"
-          echo "path=$name" >> "$GITHUB_OUTPUT"
-          ls -lh "$name"
+          set -euo pipefail
+          out=apk
+          rm -rf "$out" && mkdir -p "$out"
+          for pair in "arm64-v8a:arm64" "x86_64:amd64"; do
+            abi="${pair%%:*}" arch="${pair##*:}"
+            src="android/app/build/outputs/apk/debug/app-${abi}-debug.apk"
+            test -f "$src"
+            name="coddy-android-${GITHUB_SHA::8}-${arch}-debug.apk"
+            cp "$src" "$out/$name"
+          done
+          ls -lh "$out"
+          echo "dir=$out" >> "$GITHUB_OUTPUT"
 
-      - name: Upload the APK
+      - name: Upload the APKs
         uses: actions/upload-artifact@v4
         with:
           name: coddy-android-apk
-          path: ${{ steps.apk.outputs.path }}
+          path: ${{ steps.apk.outputs.dir }}/*.apk
           if-no-files-found: error
           retention-days: 30
