@@ -1329,6 +1329,88 @@ func openAPISpec() map[string]interface{} {
 					},
 				},
 			},
+			"/coddy/ssh/hosts": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary":     "List configured SSH hosts",
+					"description": "Returns the hosts the settings page keeps for `ssh_run_command`, oldest first. A password is reported only as `has_password`; the value never leaves the process. The file lives under `CODDY_HOME` and is readable only by its owner.",
+					"operationId": "coddySSHHostsList",
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "`coddy.ssh_hosts` document with every configured host",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{"$ref": "#/components/schemas/CoddySSHHostList"},
+								},
+							},
+						},
+					},
+				},
+				"put": map[string]interface{}{
+					"summary":     "Add or update one SSH host",
+					"description": "Stores one host keyed by `user@host:port`. An empty `password` keeps the password already stored for that host, so a form can save it without ever holding the secret; `password_command` (a credential helper whose trimmed stdout is the password) and `key_path` replace what is stored, and an empty value clears them.",
+					"operationId": "coddySSHHostsPut",
+					"requestBody": map[string]interface{}{
+						"required": true,
+						"content": map[string]interface{}{
+							"application/json": map[string]interface{}{
+								"schema": map[string]interface{}{"$ref": "#/components/schemas/CoddySSHHostWrite"},
+							},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "The stored host, with `has_password` instead of the password",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{"$ref": "#/components/schemas/CoddySSHHost"},
+								},
+							},
+						},
+						"400": errorResponseRef(),
+					},
+				},
+				"delete": map[string]interface{}{
+					"summary":     "Remove one SSH host",
+					"description": "Removes the host named by the `host`, `user` and optional `port` query parameters. A **404** when no such host is configured.",
+					"operationId": "coddySSHHostsDelete",
+					"parameters": []interface{}{
+						map[string]interface{}{"name": "host", "in": "query", "required": true, "schema": map[string]string{"type": "string"}},
+						map[string]interface{}{"name": "user", "in": "query", "required": true, "schema": map[string]string{"type": "string"}},
+						map[string]interface{}{"name": "port", "in": "query", "required": false, "schema": map[string]string{"type": "integer"}},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{"description": "`{\"object\":\"coddy.ssh_host\",\"deleted\":true}`"},
+						"400": errorResponseRef(),
+						"404": errorResponseRef(),
+					},
+				},
+			},
+			"/coddy/ssh/test": map[string]interface{}{
+				"post": map[string]interface{}{
+					"summary":     "Test the credentials of one SSH host",
+					"description": "Dials the host with the same authentication chain `ssh_run_command` uses (agent, a configured key, the password or its credential helper), verifies the host key the way the tool does, and closes the connection without running a command. A refusal is a **200** with `ok: false` and the reason: the page shows the message as written. A host the form has not saved yet is tested from the credentials in the request.",
+					"operationId": "coddySSHTest",
+					"requestBody": map[string]interface{}{
+						"required": true,
+						"content": map[string]interface{}{
+							"application/json": map[string]interface{}{
+								"schema": map[string]interface{}{"$ref": "#/components/schemas/CoddySSHHostWrite"},
+							},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "`coddy.ssh_test` document",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{"$ref": "#/components/schemas/CoddySSHTestResult"},
+								},
+							},
+						},
+						"400": errorResponseRef(),
+					},
+				},
+			},
 			"/coddy/config/validate": map[string]interface{}{
 				"post": map[string]interface{}{
 					"summary":     "Validate configuration JSON without writing",
@@ -3829,6 +3911,52 @@ func openAPISpec() map[string]interface{} {
 				},
 			},
 			"schemas": map[string]interface{}{
+				"CoddySSHHost": map[string]interface{}{
+					"type":        "object",
+					"description": "One SSH host as the settings page lists it. The password is never returned: `has_password` says whether one (or a credential helper) is configured.",
+					"properties": map[string]interface{}{
+						"host":             map[string]string{"type": "string", "description": "Host name or address."},
+						"user":             map[string]string{"type": "string", "description": "SSH account."},
+						"port":             map[string]string{"type": "integer", "description": "SSH port; omitted when it is 22."},
+						"has_password":     map[string]string{"type": "boolean", "description": "A password or a credential helper is configured for this host."},
+						"password_command": map[string]string{"type": "string", "description": "Credential helper run through the host shell; its trimmed stdout is the password."},
+						"key_path":         map[string]string{"type": "string", "description": "Private key chosen for this host, ahead of the keys under ~/.ssh."},
+					},
+				},
+				"CoddySSHHostList": map[string]interface{}{
+					"type":        "object",
+					"description": "The configured SSH hosts, oldest first.",
+					"properties": map[string]interface{}{
+						"object": map[string]string{"type": "string", "description": "`coddy.ssh_hosts`."},
+						"hosts": map[string]interface{}{
+							"type":  "array",
+							"items": map[string]interface{}{"$ref": "#/components/schemas/CoddySSHHost"},
+						},
+					},
+				},
+				"CoddySSHHostWrite": map[string]interface{}{
+					"type":        "object",
+					"description": "One SSH host as a client writes it. An empty `password` keeps the stored one on update.",
+					"required":    []string{"host", "user"},
+					"properties": map[string]interface{}{
+						"host":             map[string]string{"type": "string"},
+						"user":             map[string]string{"type": "string"},
+						"port":             map[string]string{"type": "integer", "description": "Defaults to 22."},
+						"password":         map[string]string{"type": "string", "description": "Password; an empty value keeps the stored one."},
+						"password_command": map[string]string{"type": "string", "description": "Credential helper whose trimmed stdout is the password."},
+						"key_path":         map[string]string{"type": "string", "description": "Private key file, ~ expanded."},
+					},
+				},
+				"CoddySSHTestResult": map[string]interface{}{
+					"type":        "object",
+					"description": "The result of a connection test: a refusal is `ok: false` with the reason in `message`.",
+					"properties": map[string]interface{}{
+						"object":     map[string]string{"type": "string", "description": "`coddy.ssh_test`."},
+						"ok":         map[string]string{"type": "boolean"},
+						"message":    map[string]string{"type": "string", "description": "Why the connection failed; absent on success."},
+						"latency_ms": map[string]string{"type": "integer", "description": "Time spent dialing and authenticating."},
+					},
+				},
 				"CoddyRawCaptureDocument": map[string]interface{}{
 					"type":        "object",
 					"description": "The raw-capture document: whether httpserver.raw_capture is on and the exchanges kept, in memory only, oldest first.",

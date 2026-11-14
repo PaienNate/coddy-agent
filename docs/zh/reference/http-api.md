@@ -269,6 +269,10 @@ httpserver:
 | GET/PUT/DELETE | **`/coddy/sessions/{id}/plans/{slug}`** | 读取、自动保存或丢弃设计计划文件。 |
 | PATCH | **`/coddy/sessions/{id}/plans/{slug}`** | 正文 **`{"runPlan":true}`** 运行 **`RunPlan`**（同步），将会话切换到 **`agent`** 模式。流式传输优先使用带有 **`metadata.runPlanSlug`** 的 **`POST /v1/responses`**。当会话处于 **`ask`** 模式时为 **`409`**（只读：先切换模式，然后运行）；通过 **`metadata.runPlanSlug`** 或 **`@plans/...`** 提及的相同请求以相同方式被拒绝或只读。对于由 **`spawn_agent`** 生成的子会话也为 **`409`**（只读对话记录）。 |
 
+| GET | **`/coddy/ssh/hosts`** | 设置页面为 **`ssh_run_command`** 保存的 SSH 主机（设置 → SSH）。JSON **`{"object":"coddy.ssh_hosts","hosts":[{"host","user","port","has_password","password_command","key_path"}]}`**；密码只以 **`has_password`** 报告，绝不返回。文件为 **`<CODDY_HOME>/ssh-credentials.json`**，权限 **0600**。 |
+| PUT | **`/coddy/ssh/hosts`** | 按 **`user@host:port`** 添加或更新一台主机。空的 **`password`** 保留已保存的密码，使表单无需持有密钥即可保存主机；**`password_command`**（其去空白 stdout 作为密码的凭据命令）和 **`key_path`** 替换已保存的值，空值则清除它们。主机无效时为 **`400`**。 |
+| DELETE | **`/coddy/ssh/hosts?host=&user=&port=`** | 删除一台主机；未配置时为 **`404`**。 |
+| POST | **`/coddy/ssh/test`** | 使用与工具相同的认证链（agent、选定密钥、密码或其助手命令）连接主机，按工具相同的方式校验主机密钥，然后关闭连接，不执行任何内容。JSON **`{"object":"coddy.ssh_test","ok","message","latency_ms"}`**；拒绝是一次 **`200`** 且 **`ok:false`**，以便页面显示原因。对尚未保存的主机同样可用。 |
 在 **`PUT`** **`/coddy/config`** 之后，下一个 **`agent`**、**`plan`** 或 **`ask`** 轮次使用交换的进程内配置中更新的 **`models`**、**`tools`** 和其他字段。更改的 **`mcp.project_trust`** 在保存响应完成之前应用于空闲活动会话和未来会话；正在运行轮次的会话在该轮次结束时重新连接。超过保存截止时间的重连会使该会话保留其已有的服务器，并在其下一轮次重试，因此一个挂起的服务器无法剥离其他服务器。
 
 ### 壁纸画廊
@@ -585,4 +589,4 @@ HTML 页面在其头部开头获得桥接脚本和 `<meta name="referrer" conten
 服务器。自己发送 `Origin: null` 的客户端（`file://` 页面）以相同方式拒绝；不
 发送 `Origin` 的客户端不受影响。
 
-<!-- docsgen:source sha256=090b5ea3cfb8c6ef -->
+<!-- docsgen:source sha256=127f120bc47946a1 -->

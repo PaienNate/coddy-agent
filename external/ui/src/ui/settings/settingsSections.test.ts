@@ -89,6 +89,7 @@ test("derives tabs in schema order with Appearance first and System last", () =>
     "appearance",
     "sessions_manager",
     "status",
+    "ssh_credentials",
     "opencode_import",
     "providers",
     "models",
@@ -115,10 +116,11 @@ test("System is the last tab even when its keys come first", () => {
     ...rootSchema,
     "x-coddy-property-order": ["prompts", "providers", "logger"],
   } as JsonSchema).map((s) => s.id);
-  expect(ids.slice(0, 6)).toEqual([
+  expect(ids.slice(0, 7)).toEqual([
     "appearance",
     "sessions_manager",
     "status",
+    "ssh_credentials",
     "opencode_import",
     "providers",
     "logger",
@@ -243,15 +245,17 @@ test("the schema-driven hooks tab gets its own label and blurb", () => {
   expect(byId.hooks?.description).toBe("Lifecycle hooks & trust");
 });
 
-test("Appearance, Sessions, System and OpenCode are present even without a schema", () => {
-  // All three are client-side tabs: the theme picker edits no config key, the
-  // session table talks to /coddy/sessions and the System tab reads
-  // /coddy/status, so none waits for the schema.
+test("Appearance, Sessions, System, SSH and OpenCode are present even without a schema", () => {
+  // All of them are client-side tabs: the theme picker edits no config key,
+  // the session table talks to /coddy/sessions, the System tab reads
+  // /coddy/status and the SSH tab keeps its credentials in its own file, so
+  // none waits for the schema.
   const sections = deriveSettingsSections(null);
   expect(sections.map((s) => s.id)).toEqual([
     "appearance",
     "sessions_manager",
     "status",
+    "ssh_credentials",
     "opencode_import",
   ]);
 });
@@ -307,7 +311,7 @@ test("the System tab follows Sessions in the head, before every tab the schema b
   const ids = sections.map((s) => s.id);
   expect(ids.slice(0, 3)).toEqual(["appearance", "sessions_manager", "status"]);
   expect(ids[0]).toBe("appearance");
-  expect(ids.indexOf("providers")).toBe(4);
+  expect(ids.indexOf("providers")).toBe(5);
   const status = sections.find((s) => s.id === "status")!;
   expect(status.kind).toBe("status");
   expect(status.label).toBe("System");

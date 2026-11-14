@@ -892,7 +892,8 @@ export function Settings(props: {
     if (
       section.kind === "appearance" ||
       section.kind === "sessions" ||
-      section.kind === "status"
+      section.kind === "status" ||
+      section.kind === "ssh"
     ) {
       return (
         <div

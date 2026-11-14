@@ -3,6 +3,8 @@ package ssh
 import (
 	"os"
 	"testing"
+
+	"github.com/EvilFreelancer/coddy-agent/internal/sshcreds"
 )
 
 func TestAgentAuth_NoSocket(t *testing.T) {
@@ -67,7 +69,7 @@ func TestBuildAuthMethods_NoAgentNoKeys(t *testing.T) {
 		}
 	})
 
-	methods, closer := buildAuthMethods(t.TempDir()) // empty dir, no keys
+	methods, closer, _ := buildAuthMethods(t.Context(), t.TempDir(), sshcreds.Entry{}, false) // empty dir, no keys
 	if closer != nil {
 		t.Error("closer should be nil when no agent")
 		_ = closer.Close()

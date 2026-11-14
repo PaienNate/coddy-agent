@@ -518,6 +518,7 @@ test("the index lists the tabs, their blocks and their fields in the drawer's or
     "appearance",
     "sessions_manager",
     "status",
+    "ssh_credentials",
     "opencode_import",
   ]);
   expect(bare.every((e) => e.kind === "section" || e.kind === "landmark")).toBe(

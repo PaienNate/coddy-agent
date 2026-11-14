@@ -14,6 +14,7 @@ import { NeuralDeepAuthField } from "./NeuralDeepAuthField";
 import { KimiAuthField } from "./KimiAuthField";
 import { OpenCodeAuthField } from "./OpenCodeAuthField";
 import { OpenCodeImportSection } from "./OpenCodeImportSection";
+import { SSHCredentials } from "./SSHCredentials";
 import { ModelField } from "./ModelField";
 import { ModelPicker } from "./ModelPicker";
 import { ProviderModelList } from "./ProviderModelList";
@@ -801,6 +802,13 @@ export function SettingsSection(props: {
         </Suspense>
       </ChunkBoundary>
     );
+  }
+
+  // The SSH credentials the agent's ssh_run_command uses: hosts with a
+  // password, a helper or a key, and a Test button. They live in their own
+  // file, so this tab edits no settings key.
+  if (section.kind === "ssh") {
+    return <SSHCredentials />;
   }
 
   if (section.kind === "skills") {

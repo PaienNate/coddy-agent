@@ -10,6 +10,7 @@ export type SectionKind =
   | "subagents"
   | "appearance"
   | "sessions"
+  | "ssh"
   | "status"
   | "opencode";
 
@@ -41,6 +42,7 @@ const SECTION_LABEL_KEYS = {
   appearance: "settings.section.appearance.label",
   sessions_manager: "settings.section.sessions_manager.label",
   status: "settings.section.status.label",
+  ssh_credentials: "settings.section.ssh_credentials.label",
   opencode_import: "settings.section.opencode_import.label",
   providers: "settings.section.providers.label",
   models: "settings.section.models.label",
@@ -75,6 +77,7 @@ const SECTION_DESC_KEYS = {
   appearance: "settings.section.appearance.desc",
   sessions_manager: "settings.section.sessions_manager.desc",
   status: "settings.section.status.desc",
+  ssh_credentials: "settings.section.ssh_credentials.desc",
   opencode_import: "settings.section.opencode_import.desc",
   providers: "settings.section.providers.desc",
   models: "settings.section.models.desc",
@@ -209,6 +212,15 @@ export function deriveSettingsSections(
     kind: "status",
   };
 
+  // SSH credentials for ssh_run_command: they live in their own file under
+  // CODDY_HOME, not in the settings document, so this tab edits no config key.
+  const sshCredentials: SectionDescriptor = {
+    id: "ssh_credentials",
+    label: labelFor("ssh_credentials"),
+    description: translate(SECTION_DESC_KEYS.ssh_credentials),
+    kind: "ssh",
+  };
+
   const opencodeImport: SectionDescriptor = {
     id: "opencode_import",
     label: labelFor("opencode_import"),
@@ -222,7 +234,7 @@ export function deriveSettingsSections(
   const relay = opts.relay === true || schema?.["x-coddy-relay"] === true;
   const head = relay
     ? [appearance]
-    : [appearance, sessionsManager, status, opencodeImport];
+    : [appearance, sessionsManager, status, sshCredentials, opencodeImport];
   if (!schema || schema.type !== "object" || !schema.properties) {
     return head;
   }
