@@ -100,6 +100,17 @@ test("a child transcript can send its already-active parent tab back to the pare
   expect(view.onSelectSession).toHaveBeenCalledWith("b");
 });
 
+test("a new chat stays reachable when the tab strip overflows", async () => {
+  // The strip scrolls sideways on a narrow screen; a button inside it would
+  // need the strip scrolled to its end to be tapped. It lives outside.
+  renderTabs();
+  await screen.findByText("Alpha");
+  const strip = screen.getByRole("tablist");
+  const newChat = screen.getByLabelText("New chat in this project");
+  expect(strip.contains(newChat)).toBe(false);
+  expect(newChat.closest(".project-tabs")).toBeTruthy();
+});
+
 test("a project renders one tab per conversation and the active one is selected", async () => {
   renderTabs();
   expect(await screen.findByText("Alpha")).toBeTruthy();

@@ -531,16 +531,20 @@ export function ProjectTabs(props: Props) {
             </div>
           );
         })}
-        <button
-          type="button"
-          className="project-tabs-new"
-          onClick={() => props.onNewChat(props.project)}
-          title={t("projects.tabs.newChat")}
-          aria-label={t("projects.tabs.newChat")}
-        >
-          <IconPlus />
-        </button>
       </div>
+
+      {/* Outside the strip on purpose: the strip scrolls, and a phone sees a
+          few tabs at a time - a new chat must not need the strip scrolled to
+          its end to be reachable. */}
+      <button
+        type="button"
+        className="project-tabs-new"
+        onClick={() => props.onNewChat(props.project)}
+        title={t("projects.tabs.newChat")}
+        aria-label={t("projects.tabs.newChat")}
+      >
+        <IconPlus />
+      </button>
 
       {error ? (
         <span className="project-tabs-error" role="status">
