@@ -99,6 +99,10 @@ class CoddyRuntime(private val context: Context) {
             CoddyState.log(context, "port $wanted was busy; using $port")
         }
         writeConfigIfMissing()
+        // The loopback port is shared with every other app: give the server
+        // its own sign-in account before it starts, so the API is never
+        // anonymous on the phone.
+        CoddyAuth.ensureAccount(context, this)
         installApplets()
         CoddyState.log(context, "CODDY_HOME=${home.absolutePath}")
         CoddyState.log(context, "TMPDIR=${tmp.absolutePath}")

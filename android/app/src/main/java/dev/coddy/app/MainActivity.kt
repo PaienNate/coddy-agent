@@ -174,6 +174,7 @@ class MainActivity : AppCompatActivity() {
             val conn = URL("http://127.0.0.1:$port$path").openConnection() as HttpURLConnection
             conn.connectTimeout = 1500
             conn.readTimeout = 1500
+            CoddyAuth.cookieHeader()?.let { conn.setRequestProperty("Cookie", it) }
             val code = conn.responseCode
             conn.disconnect()
             code

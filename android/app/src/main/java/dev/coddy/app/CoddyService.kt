@@ -78,16 +78,25 @@ class CoddyService : Service() {
                 logVersion(runtime)
                 val started = builder.start()
                 process = started
-                CoddyState.setRunning()
                 Log.i(TAG, "coddy serve started")
                 // Both streams go to the launcher and the file, so a crash is
-                // readable on the phone instead of only over adb.
-                started.inputStream.bufferedReader().forEachLine { line ->
-                    // Logcat is a second copy of the same text; it gets the
-                    // redacted line too.
-                    Log.i(TAG, Redaction.line(line))
-                    CoddyState.log(this, line)
+                // readable on the phone instead of only over adb. The reader
+                // runs beside the sign-in below: a pipe nobody drains would
+                // block a chatty start-up.
+                Thread({
+                    started.inputStream.bufferedReader().forEachLine { line ->
+                        // Logcat is a second copy of the same text; it gets
+                        // the redacted line too.
+                        Log.i(TAG, Redaction.line(line))
+                        CoddyState.log(this, line)
+                    }
+                }, "coddy-log").start()
+                if (waitForServer(runtime.port)) {
+                    CoddyAuth.signIn(this, runtime.port)
+                } else {
+                    CoddyState.log(this, "the server did not answer on 127.0.0.1:${runtime.port}")
                 }
+                CoddyState.setRunning()
                 val code = started.waitFor()
                 CoddyState.log(this, "coddy serve exited with code $code")
                 process = null
@@ -103,6 +112,31 @@ class CoddyService : Service() {
                 notifyText("Coddy could not start: ${e.message}")
             }
         }, "coddy-serve").start()
+
+    }
+
+    /** Waits for the listener: 200 or 401 both mean the port answers. */
+    private fun waitForServer(port: Int): Boolean {
+        repeat(100) {
+            val code = try {
+                val conn = java.net.URL("http://127.0.0.1:$port/coddy/info")
+                    .openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 500
+                conn.readTimeout = 500
+                val c = conn.responseCode
+                conn.disconnect()
+                c
+            } catch (_: Exception) {
+                -1
+            }
+            if (code == 200 || code == 401) return true
+            try {
+                Thread.sleep(200)
+            } catch (_: InterruptedException) {
+                return false
+            }
+        }
+        return false
     }
 
     /** The binary's own build line, before the server says anything. */

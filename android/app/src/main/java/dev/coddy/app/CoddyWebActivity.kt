@@ -67,12 +67,32 @@ class CoddyWebActivity : AppCompatActivity() {
             settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             // Only the loopback page is ours; nothing may navigate away.
             webViewClient = object : WebViewClient() {
+                private var reauth = false
+
                 override fun shouldOverrideUrlLoading(
                     view: WebView,
                     request: WebResourceRequest,
                 ): Boolean {
                     val host = request.url.host ?: return true
                     return host != "127.0.0.1" && host != "localhost"
+                }
+
+                // A restarted server keeps no session, so the cookie the page
+                // holds is dead: sign in again once and reload, rather than
+                // leave a page that silently fails every request.
+                override fun onReceivedHttpError(
+                    view: WebView,
+                    request: WebResourceRequest,
+                    errorResponse: android.webkit.WebResourceResponse,
+                ) {
+                    if (errorResponse.statusCode != 401 || reauth) return
+                    reauth = true
+                    Thread({
+                        if (CoddyAuth.signIn(this@CoddyWebActivity, CoddyRuntime.portFor(this@CoddyWebActivity))) {
+                            runOnUiThread { view.reload() }
+                        }
+                        reauth = false
+                    }, "coddy-reauth").start()
                 }
             }
             setBackgroundColor(0xFF101014.toInt())
@@ -85,6 +105,11 @@ class CoddyWebActivity : AppCompatActivity() {
             "utf-8",
             null,
         )
+        if (CoddyAuth.cookieHeader() == null) {
+            // The service normally signs in; a page opened before it finished,
+            // or after a server restart, does it here.
+            Thread({ CoddyAuth.signIn(this, CoddyRuntime.portFor(this)) }, "coddy-signin").start()
+        }
         waitForServer(attemptsLeft = 100)
     }
 
@@ -103,6 +128,7 @@ class CoddyWebActivity : AppCompatActivity() {
                         .openConnection() as java.net.HttpURLConnection
                     conn.connectTimeout = 1000
                     conn.readTimeout = 1000
+                    CoddyAuth.cookieHeader()?.let { conn.setRequestProperty("Cookie", it) }
                     val code = conn.responseCode
                     conn.disconnect()
                     if (code in 200..399) {

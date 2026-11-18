@@ -128,6 +128,13 @@ pages are read with the built-in **`webfetch`** tool, not with a local
 - **A loopback port of its own.** The app prefers 8765 and moves to the next
   free port when another process holds it, because 127.0.0.1 is shared by every
   app on the phone. The launcher's status line names the port the server chose.
+- **The API behind the app's own sign-in.** 127.0.0.1 is not private on a
+  phone, so the config carries a web sign-in account the app creates on first
+  start: a random password in the app's private preferences, its argon2id hash
+  written into the config by `coddy serve set-password`. The app signs in before
+  it opens the page and keeps the session cookie for the WebView and its own
+  probes, so another app cannot read `/coddy/config` (where provider keys live)
+  or drive the agent without that password.
 - **No self-update.** `coddy update` replaces a binary on disk; here the
   binary is part of the APK, so an upgrade is a new APK.
 - **The workspace is app-private.** Files outside it need another path in
