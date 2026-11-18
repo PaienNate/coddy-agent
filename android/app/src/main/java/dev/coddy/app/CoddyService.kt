@@ -17,8 +17,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  * It is a foreground service because the process must survive the activity
  * being backgrounded: a turn, a background task or a long tool call keeps
  * going while the person is elsewhere, and Android otherwise freezes or kills
- * the process. The notification is the price of that, and it is the one place
- * the phone says Coddy is working.
+ * the process. Every line the server prints, and the exit code when it ends,
+ * goes to [CoddyState], which the launcher draws and keeps in a file.
  */
 class CoddyService : Service() {
 
@@ -27,76 +27,150 @@ class CoddyService : Service() {
         private const val CHANNEL_ID = "coddy"
         private const val NOTIFICATION_ID = 1
 
-        @Volatile
-        var running: Boolean = false
-            private set
+        const val ACTION_STOP = "dev.coddy.app.STOP"
     }
 
+    @Volatile
     private var process: Process? = null
-    private val stopped = AtomicBoolean(false)
+    private val stopping = AtomicBoolean(false)
 
     override fun onCreate() {
         super.onCreate()
         createChannel()
         startForeground(NOTIFICATION_ID, notification())
-        startServer()
+        CoddyState.scrubLogFile(this)
+        CoddyState.setStopped()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (!running && process == null) {
-            startServer()
+        if (intent?.action == ACTION_STOP) {
+            stopServer()
+            stopSelf()
+            return START_NOT_STICKY
         }
+        if (process == null) startServer()
         return START_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        stopped.set(true)
-        process?.destroy()
-        process = null
-        running = false
+        stopServer()
         super.onDestroy()
     }
 
     private fun startServer() {
         val runtime = CoddyRuntime(this)
         if (!runtime.isReady()) {
-            Log.e(TAG, "libcoddy.so is missing from the APK's native libraries")
+            CoddyState.log(this, "libcoddy.so is missing from the APK's native libraries")
+            CoddyState.log(this, "nativeLibraryDir=${applicationInfo.nativeLibraryDir}")
             notifyText("Coddy could not start: the binary is missing")
             return
         }
-        if (running) return
-
+        stopping.set(false)
+        CoddyState.setStarting()
         Thread({
             try {
+                // First run writes the config and links the busybox applets;
+                // that is file work and one exec, so it stays off the main
+                // thread together with the server itself.
                 val builder = runtime.prepare()
-                Log.i(TAG, "starting ${builder.command().joinToString(" ")}")
+                logVersion(runtime)
                 val started = builder.start()
                 process = started
-                running = true
-                // Drain the server's output into logcat (adb logcat -s Coddy),
-                // so a failed start is diagnosable from a phone.
-                started.inputStream.bufferedReader().forEachLine { line ->
-                    Log.i(TAG, line)
+                Log.i(TAG, "coddy serve started")
+                // Both streams go to the launcher and the file, so a crash is
+                // readable on the phone instead of only over adb. The reader
+                // runs beside the sign-in below: a pipe nobody drains would
+                // block a chatty start-up.
+                Thread({
+                    started.inputStream.bufferedReader().forEachLine { line ->
+                        // Logcat is a second copy of the same text; it gets
+                        // the redacted line too.
+                        Log.i(TAG, Redaction.line(line))
+                        CoddyState.log(this, line)
+                    }
+                }, "coddy-log").start()
+                if (waitForServer(runtime.port)) {
+                    CoddyAuth.signIn(this, runtime.port)
+                } else {
+                    CoddyState.log(this, "the server did not answer on 127.0.0.1:${runtime.port}")
                 }
+                CoddyState.setRunning()
                 val code = started.waitFor()
-                Log.w(TAG, "coddy serve exited with $code")
-                running = false
+                CoddyState.log(this, "coddy serve exited with code $code")
                 process = null
-                if (!stopped.get()) {
+                CoddyState.setExited(code)
+                if (!stopping.get()) {
                     notifyText("Coddy stopped unexpectedly (exit $code)")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "coddy serve failed to start", e)
+                CoddyState.log(this, "failed to start: ${e}")
+                process = null
+                CoddyState.setExited(-1)
                 notifyText("Coddy could not start: ${e.message}")
             }
         }, "coddy-serve").start()
+
+    }
+
+    /** Waits for the listener: 200 or 401 both mean the port answers. */
+    private fun waitForServer(port: Int): Boolean {
+        repeat(100) {
+            val code = try {
+                val conn = java.net.URL("http://127.0.0.1:$port/coddy/info")
+                    .openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 500
+                conn.readTimeout = 500
+                val c = conn.responseCode
+                conn.disconnect()
+                c
+            } catch (_: Exception) {
+                -1
+            }
+            if (code == 200 || code == 401) return true
+            try {
+                Thread.sleep(200)
+            } catch (_: InterruptedException) {
+                return false
+            }
+        }
+        return false
+    }
+
+    /** The binary's own build line, before the server says anything. */
+    private fun logVersion(runtime: CoddyRuntime) {
+        try {
+            val p = ProcessBuilder(runtime.binary.absolutePath, "-v")
+                .redirectErrorStream(true)
+                .start()
+            val line = p.inputStream.bufferedReader().readText().trim()
+            p.waitFor()
+            if (line.isNotEmpty()) CoddyState.log(this, line)
+        } catch (e: Exception) {
+            CoddyState.log(this, "version check failed: $e")
+        }
+    }
+
+    private fun stopServer() {
+        stopping.set(true)
+        process?.let { p ->
+            CoddyState.log(this, "stopping coddy serve")
+            p.destroy()
+            try {
+                p.waitFor()
+            } catch (_: InterruptedException) {
+                p.destroyForcibly()
+            }
+        }
+        process = null
+        CoddyState.setStopped()
     }
 
     private fun notifyText(text: String) {
-        val manager = getSystemService(NotificationManager::class.java)
-        manager?.notify(
+        val manager = getSystemService(NotificationManager::class.java) ?: return
+        manager.notify(
             NOTIFICATION_ID,
             Notification.Builder(this, CHANNEL_ID)
                 .setContentTitle(getString(R.string.app_name))
@@ -107,15 +181,14 @@ class CoddyService : Service() {
         )
     }
 
-    private fun notification(): Notification {
-        val builder = Notification.Builder(this, CHANNEL_ID)
+    private fun notification(): Notification =
+        Notification.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.app_name))
             .setContentText(getString(R.string.notification_running))
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
             .setOngoing(true)
             .setContentIntent(openAppIntent())
-        return builder.build()
-    }
+            .build()
 
     private fun openAppIntent(): PendingIntent {
         val intent = Intent(this, MainActivity::class.java)

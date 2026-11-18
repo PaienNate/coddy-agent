@@ -17,7 +17,12 @@ produces a debug APK on every run.
 - **`CoddyService`** - a foreground service running `libcoddy.so serve -H
   127.0.0.1 -P 8765`, so a turn keeps running while the person is in another
   app. Its notification is the price of that.
-- **`MainActivity`** - one WebView on `http://127.0.0.1:8765/`, with a
+- **`MainActivity`** - the launcher: **Start**, **Stop**, **Open Coddy**, and
+  the log panel. It keeps the server's own output, the command it was started
+  with and the code it exited with, so a failed start is readable on the phone
+  instead of a black page. The probe line names the status of `/coddy/info`
+  and `/`, and a `404` on `/` is called out as a build without the `ui` tag.
+- **`CoddyWebActivity`** - one WebView on `http://127.0.0.1:8765/`, with a
   starting page that polls `/coddy/info` until the server answers.
 
 Only loopback is exposed: providers, remote MCP servers and SSH hosts are
@@ -25,10 +30,17 @@ reached outbound, so the phone needs no inbound port and no LAN address.
 
 ## Build and install
 
-CI builds the debug APK on every pull request that touches `android/` and on
-`workflow_dispatch`; download **`coddy-android-apk`** from the run and install
-it with `adb install coddy-android-<sha>-debug.apk`, or open the file on the
-phone. A release build needs a signing key of your own.
+A release carries one APK per ABI - `coddy_<version>_android_arm64.apk` and
+`coddy_<version>_android_amd64.apk` - signed with the release key when the
+repository holds `ANDROID_KEYSTORE_BASE64`; a fork without that secret gets
+debug-signed APKs suffixed `-debug`, and those cannot upgrade an install of
+one another. Add the keystore secrets (`ANDROID_KEYSTORE_BASE64` as base64 of
+the JKS, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
+`ANDROID_KEY_PASSWORD`) to publish installable release APKs.
+
+A debug build is also produced on every pull request that touches `android/`
+and on `workflow_dispatch`; download **`coddy-android-apk`** from the run and
+install it with `adb install`, or open the file on the phone.
 
 Locally, with the Android SDK, an NDK, Go and Node installed:
 
@@ -39,12 +51,31 @@ ANDROID_ARCHS=arm64 android/scripts/build-apk.sh   # a phone only
 
 The script runs `make android TAGS="http ui scheduler memory"`, stages the
 binaries into `jniLibs`, fetches BusyBox and runs `gradle :app:assembleDebug`.
+The binary is built with `-trimpath -s -w`: the Go runtime keeps its own
+function and line tables, so a crash still names its frames, while the ELF
+symbols and DWARF that made the binary a third larger do not ship.
 
 ## First launch
 
-The app writes **`CODDY_HOME/config.yaml`** with the loopback bind on the first
-start. The web UI's onboarding then asks for a provider, exactly as on a
-desktop server, and the settings screen edits the same file afterwards.
+The launch screen starts the server on its own the first time; after that
+**Start** and **Stop** are the controls, and **Open Coddy** checks
+`/coddy/info` before it opens the page. The first start writes
+**`CODDY_HOME/config.yaml`** with the loopback bind. The web UI's onboarding
+then asks for a provider, exactly as on a desktop server, and the settings
+screen edits the same file afterwards.
+
+If a start fails, the log panel says why: the command, every line the server
+printed, and the exit code. **Copy log** puts the whole panel on the
+clipboard, and the same lines are kept in `files/coddy.log`. A `probe` line
+records what `/coddy/info` and `/` answered once the server came up; a `404`
+on `/` there means the binary was built without the `ui` tag.
+
+The log is masked before it is stored, drawn or copied: an `Authorization`
+header, an `x-api-key`, a `token`, `password` or `api_key` assignment, a
+credential in a URL query and an `sk-` shaped key become `***`. The launcher
+never prints the config file's contents, only its path, and a log written by an
+earlier build is scrubbed once at start. The server's own startup banner names
+whether a token is required, never the token.
 
 The state lives in the app's sandbox: `files/coddy` is `CODDY_HOME` (config,
 sessions, SSH credentials), `files/workspace` is the default working
@@ -94,8 +125,16 @@ pages are read with the built-in **`webfetch`** tool, not with a local
   could reach `127.0.0.1:8765`. The server is bound to loopback and the app is
   the only intended client; putting a token or a pairing step in front of it
   is the next hardening step, not something this build claims.
-- **Fixed port 8765.** A second Coddy server on the phone waits for this one
-  to stop.
+- **A loopback port of its own.** The app prefers 8765 and moves to the next
+  free port when another process holds it, because 127.0.0.1 is shared by every
+  app on the phone. The launcher's status line names the port the server chose.
+- **The API behind the app's own sign-in.** 127.0.0.1 is not private on a
+  phone, so the config carries a web sign-in account the app creates on first
+  start: a random password in the app's private preferences, its argon2id hash
+  written into the config by `coddy serve set-password`. The app signs in before
+  it opens the page and keeps the session cookie for the WebView and its own
+  probes, so another app cannot read `/coddy/config` (where provider keys live)
+  or drive the agent without that password.
 - **No self-update.** `coddy update` replaces a binary on disk; here the
   binary is part of the APK, so an upgrade is a new APK.
 - **The workspace is app-private.** Files outside it need another path in

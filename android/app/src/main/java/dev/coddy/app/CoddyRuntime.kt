@@ -21,9 +21,37 @@ class CoddyRuntime(private val context: Context) {
     companion object {
         private const val TAG = "CoddyRuntime"
 
-        /** Loopback port the server listens on. Fixed, so the WebView and the
-         *  person's bookmarks agree; the app is the only client. */
-        const val PORT = 8765
+        /** The port the app asks for first; a busy one moves up the range. */
+        const val DEFAULT_PORT = 8765
+        private const val PORT_RANGE = 20
+        private const val PREFS = "coddy"
+        private const val PREF_PORT = "port"
+
+        /** The loopback port the server uses, as the last start chose it. */
+        fun portFor(context: Context): Int =
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getInt(PREF_PORT, DEFAULT_PORT)
+
+        private fun canBind(port: Int): Boolean = try {
+            java.net.ServerSocket(port, 1, java.net.InetAddress.getByName("127.0.0.1")).use { true }
+        } catch (_: Exception) {
+            false
+        }
+
+        /**
+         * A phone is shared with every other app, and 127.0.0.1 is not
+         * private: a port another process already holds makes `serve` exit 1
+         * with "address already in use" and leaves the WebView talking to
+         * whatever that process is - a bare "404 page not found" on a black
+         * screen. The first free port in the range wins.
+         */
+        private fun choosePort(context: Context): Int {
+            val wanted = portFor(context)
+            for (port in wanted until wanted + PORT_RANGE) {
+                if (canBind(port)) return port
+            }
+            return wanted
+        }
 
         private val APPLET_BLACKLIST = setOf(
             // Daemons and privileged helpers have no place in an app sandbox
@@ -37,11 +65,15 @@ class CoddyRuntime(private val context: Context) {
     val binary = File(nativeDir, "libcoddy.so")
     val busybox = File(nativeDir, "libbusybox.so")
 
+    /** Resolved by [prepare]; the page and the probes read it back. */
+    var port: Int = portFor(context)
+        private set
+
     val home = File(context.filesDir, "coddy").apply { mkdirs() }
     val workspace = File(context.filesDir, "workspace").apply { mkdirs() }
     private val tmp = File(context.cacheDir, "tmp").apply { mkdirs() }
     private val binDir = File(context.filesDir, "bin").apply { mkdirs() }
-    private val config = File(home, "config.yaml")
+    val config = File(home, "config.yaml")
 
     fun isReady(): Boolean {
         if (!binary.exists()) return false
@@ -59,17 +91,36 @@ class CoddyRuntime(private val context: Context) {
      * so `sed`, `awk`, `tar` and the rest are the pinned busybox.
      */
     fun prepare(): ProcessBuilder {
+        val wanted = portFor(context)
+        port = choosePort(context)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putInt(PREF_PORT, port).apply()
+        if (port != wanted) {
+            CoddyState.log(context, "port $wanted was busy; using $port")
+        }
         writeConfigIfMissing()
+        // The loopback port is shared with every other app: give the server
+        // its own sign-in account before it starts, so the API is never
+        // anonymous on the phone.
+        CoddyAuth.ensureAccount(context, this)
         installApplets()
+        CoddyState.log(context, "CODDY_HOME=${home.absolutePath}")
+        CoddyState.log(context, "TMPDIR=${tmp.absolutePath}")
+        CoddyState.log(context, "PATH=${binDir.absolutePath}:/system/bin:/system/xbin")
 
         val command = listOf(
             binary.absolutePath,
             "serve",
             "-H", "127.0.0.1",
-            "-P", PORT.toString(),
+            "-P", port.toString(),
             "-config", config.absolutePath,
             "-cwd", workspace.absolutePath,
         )
+        // The path only. The file can carry a provider key or an API token,
+        // and the launcher's log is drawn on screen, copied on one tap and
+        // kept on disk.
+        CoddyState.log(context, "config ${config.absolutePath} (contents not shown)")
+        CoddyState.log(context, "exec ${command.joinToString(" ")}")
         val builder = ProcessBuilder(command)
         val env = builder.environment()
         env["HOME"] = context.filesDir.absolutePath
@@ -98,12 +149,13 @@ class CoddyRuntime(private val context: Context) {
             httpserver:
               enable: true
               host: 127.0.0.1
-              port: $PORT
+              port: $port
               allow_insecure: true
         """.trimIndent() + "\n"
         config.writeText(document)
         config.setReadable(true, true)
         config.setWritable(true, true)
+        CoddyState.log(context, "wrote ${config.absolutePath}")
     }
 
     /**
@@ -115,6 +167,7 @@ class CoddyRuntime(private val context: Context) {
     private fun installApplets() {
         if (!busybox.canExecute()) {
             Log.w(TAG, "busybox is missing; PATH keeps the system tools only")
+            CoddyState.log(context, "busybox: missing (system tools only)")
             return
         }
         val listed = try {
@@ -144,5 +197,6 @@ class CoddyRuntime(private val context: Context) {
             }
         }
         Log.i(TAG, "busybox: $linked applets linked in ${binDir.absolutePath}")
+        CoddyState.log(context, "busybox: $linked applets linked")
     }
 }

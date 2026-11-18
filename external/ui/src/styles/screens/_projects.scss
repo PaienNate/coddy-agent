@@ -624,6 +624,48 @@
   }
 }
 
+/* The phone tier: one row. The head keeps the project switch and drops the
+   desktop extras (the All-projects link and the count live in the Projects
+   screen), the strip keeps the tabs it can show, and the new-chat button stays
+   outside the strip, so it never scrolls out of reach. */
+@media (max-width: 599px) {
+  .project-tabs {
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 6px 10px 0;
+    min-height: 40px;
+  }
+
+  .project-tabs-folder,
+  .project-tabs-all,
+  .project-tabs-spacer,
+  .project-tabs-count {
+    display: none;
+  }
+
+  .project-tabs-select {
+    max-width: 46vw;
+    height: 28px;
+    font-size: 0.8rem;
+  }
+
+  .project-tabs-strip {
+    order: 0;
+    flex: 1 1 auto;
+    flex-basis: auto;
+  }
+
+  .project-tab {
+    min-width: 64px;
+    height: 30px;
+  }
+
+  .project-tabs-new {
+    width: 30px;
+    height: 30px;
+  }
+}
+
 /* The project switcher beside the nav rail: one compact column of projects,
    so a conversation can move to another project without leaving the chat. */
 .project-rail {

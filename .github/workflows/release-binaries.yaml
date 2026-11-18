@@ -117,6 +117,19 @@ jobs:
         if: steps.gate.outputs.skip != 'true'
         run: make ui-build
 
+      - name: Set up Java
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        if: steps.gate.outputs.skip != 'true'
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
       - name: Cross-compile release binaries, build packages, render the cask
         if: steps.gate.outputs.skip != 'true'
         env:
@@ -196,11 +209,67 @@ jobs:
           # from the ones just built rather than from a published release.
           scripts/build-homebrew-cask.sh --version "${VERSION}" --out "$DIST"
 
+          # The APK ships the same Android binaries the Termux archives carry,
+          # staged where Android runs them: a native library under lib/<abi>.
+          for pair in arm64-v8a:arm64 x86_64:amd64; do
+            abi="${pair%%:*}"
+            goarch="${pair##*:}"
+            mkdir -p "android/app/src/main/jniLibs/${abi}"
+            install -m 0755 \
+              "$DIST/_staging/coddy_${VERSION}_android_${goarch}/coddy" \
+              "android/app/src/main/jniLibs/${abi}/libcoddy.so"
+          done
+          android/scripts/fetch-busybox.sh arm64
+          android/scripts/fetch-busybox.sh amd64
+
           rm -rf "$DIST/_staging"
           # `coddy update` verifies every asset it downloads against this list,
           # packages included.
           (cd "$DIST" && sha256sum coddy_*.tar.gz coddy_*.zip coddy_*.deb coddy_*.rpm > SHA256SUMS)
           ls -la "$DIST"
+
+      # The APK is the app the phone installs; the Android tarballs above are
+      # the Termux build of the same binaries. One APK per ABI, because a
+      # universal one would carry both ~40 MB servers and a phone uses one.
+      - name: Build the Android APKs
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          VERSION: ${{ steps.git_tag.outputs.tag }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          DIST="$GITHUB_WORKSPACE/dist"
+          VERSION="${VERSION#v}"
+          CODE="$(echo "$VERSION" | awk -F. '{printf "%d%03d%03d", $1, $2, $3}')"
+          variant=debug
+          suffix="-debug"
+          if [ -n "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+            variant=release
+            suffix=""
+            KS="${RUNNER_TEMP}/coddy-release.jks"
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$KS"
+            export ANDROID_KEYSTORE_PATH="$KS"
+          else
+            echo "::warning::ANDROID_KEYSTORE_BASE64 is not set: the APKs are debug-signed and cannot be upgraded in place"
+          fi
+          if [ "$variant" = release ]; then task=assembleRelease; else task=assembleDebug; fi
+          ( cd android \
+              && CODDY_VERSION="$VERSION" CODDY_VERSION_CODE="$CODE" \
+                 gradle :app:testDebugUnitTest --no-daemon \
+              && CODDY_VERSION="$VERSION" CODDY_VERSION_CODE="$CODE" \
+                 gradle ":app:${task}" --no-daemon )
+          for pair in arm64-v8a:arm64 x86_64:amd64; do
+            abi="${pair%%:*}"
+            arch="${pair##*:}"
+            src="android/app/build/outputs/apk/${variant}/app-${abi}-${variant}.apk"
+            test -f "$src"
+            cp "$src" "$DIST/coddy_${VERSION}_android_${arch}${suffix}.apk"
+          done
+          ( cd "$DIST" && sha256sum coddy_*.apk >> SHA256SUMS )
+          ls -lh "$DIST"/coddy_*.apk
 
       # Official releases must be signed by a key the updater trusts. A missing
       # or mismatched secret stops publication (docs/contributing/build.md,

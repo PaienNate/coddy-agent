@@ -14,7 +14,10 @@ workflow **`.github/workflows/android-apk.yaml`** 在每次运行时产出 debug
 - **`libbusybox.so`** - 固定版本的静态 BusyBox，见下一节。
 - **`CoddyService`** - 运行 `libcoddy.so serve -H 127.0.0.1 -P 8765` 的前台服务，
   因此即使用户切到其他应用，回合仍会继续。它的通知就是为此付出的代价。
-- **`MainActivity`** - 一个加载 `http://127.0.0.1:8765/` 的 WebView，启动页会轮询
+- **`MainActivity`** - 启动器：**启动**、**停止**、**打开 Coddy** 以及日志面板。面板保留
+  服务器输出、启动命令和退出码，因此启动失败可以在手机上直接读出原因，而不是只剩黑屏。
+  `probe` 行记录 `/coddy/info` 与 `/` 的状态，`/` 返回 `404` 时会明确指出构建缺少 `ui` tag。
+- **`CoddyWebActivity`** - 一个加载 `http://127.0.0.1:8765/` 的 WebView，启动页会轮询
   `/coddy/info`，直到服务器应答。
 
 对外只暴露环回地址：提供商、远程 MCP 服务器和 SSH 主机都是主动外连，因此手机
@@ -22,10 +25,15 @@ workflow **`.github/workflows/android-apk.yaml`** 在每次运行时产出 debug
 
 ## 构建与安装
 
-CI 在每个触及 `android/` 的拉取请求上以及 `workflow_dispatch` 时构建 debug APK；
-从运行记录下载 **`coddy-android-apk`**，用
-`adb install coddy-android-<sha>-debug.apk` 安装，或直接在手机上打开该文件。
-发布版构建需要你自己的签名密钥。
+发布版为每个 ABI 提供一个 APK - `coddy_<version>_android_arm64.apk` 和
+`coddy_<version>_android_amd64.apk` - 仓库带有 `ANDROID_KEYSTORE_BASE64` 时用发布密钥
+签名；没有该密钥的 fork 会得到带 `-debug` 后缀的 debug 签名 APK，这类包之间无法就地
+升级。添加密钥库密钥（`ANDROID_KEYSTORE_BASE64` 为 JKS 的 base64、
+`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`）即可发布
+可安装的发布版 APK。
+
+CI 仍在每个触及 `android/` 的拉取请求上以及 `workflow_dispatch` 时构建 debug APK；
+从运行记录下载 **`coddy-android-apk`**，用 `adb install` 安装，或直接在手机上打开该文件。
 
 本地构建（需安装 Android SDK、NDK、Go 和 Node）：
 
@@ -35,12 +43,24 @@ ANDROID_ARCHS=arm64 android/scripts/build-apk.sh   # 仅手机
 ```
 
 脚本执行 `make android TAGS="http ui scheduler memory"`，把二进制放入 `jniLibs`，
-获取 BusyBox，然后运行 `gradle :app:assembleDebug`。
+获取 BusyBox，然后运行 `gradle :app:assembleDebug`。二进制以 `-trimpath -s -w`
+构建：Go 运行时保留自己的函数与行号表，崩溃仍会给出调用帧，而让体积大出三分之一的
+ELF 符号和 DWARF 不再随包分发。
 
 ## 首次启动
 
-应用在首次启动时写入 **`CODDY_HOME/config.yaml`**，绑定到环回地址。随后 Web 界面的
-引导流程会询问提供商 - 与桌面服务器一致 - 之后设置页面编辑的仍是同一个文件。
+首次打开时启动器会自动启动服务器；之后由 **启动** 和 **停止** 控制，**打开 Coddy** 会先
+检查 `/coddy/info` 再打开页面。首次启动写入 **`CODDY_HOME/config.yaml`**，绑定到环回地址。
+随后 Web 界面的引导流程会询问提供商 - 与桌面服务器一致 - 之后设置页面编辑的仍是同一个文件。
+
+启动失败时，日志面板会说明原因：启动命令、服务器打印的每一行，以及退出码。**复制日志**
+把整个面板放进剪贴板，同样的内容也保存在 `files/coddy.log`。`probe` 行记录服务器起来后
+`/coddy/info` 与 `/` 的响应；其中 `/` 的 `404` 意味着该构建缺少 `ui` tag。
+
+日志在保存、显示和复制之前就已脱敏：`Authorization` 头、`x-api-key`、`token`、`password`
+或 `api_key` 赋值、URL 查询参数中的凭据以及 `sk-` 形式的密钥都会变成 `***`。启动器从不
+打印配置文件内容，只打印路径；旧版本写入的日志会在启动时被重新清洗一次。服务器自己的启动
+横幅只说明是否需要令牌，从不打印令牌本身。
 
 状态保存在应用沙箱内：`files/coddy` 是 `CODDY_HOME`（配置、会话、SSH 凭据），
 `files/workspace` 是默认工作目录，`cache/tmp` 是 `TMPDIR`，因为 Android 上 Go 的
@@ -81,9 +101,15 @@ aggregation）。许可证文本随 APK 分发，源码即 BusyBox 1.36.1 发行
 - **环回端口没有身份验证。** 同一手机上的其他应用可以访问 `127.0.0.1:8765`。
   服务器只绑定环回，应用是唯一预期的客户端；加令牌或配对步骤是下一步加固，
   不是本构建的承诺。
-- **固定端口 8765。** 手机上的第二个 Coddy 服务器会等待这一个停止。
+- **使用自己的环回端口。** 应用优先使用 8765；若该端口被其他进程占用，则顺延到下一个空闲
+  端口 - 手机上的 127.0.0.1 由所有应用共享。启动器的状态行会显示服务器实际选择的端口。
+- **API 位于应用自己的登录之后。** 手机上的 127.0.0.1 并非私有，因此配置中带有应用首次启动
+  时创建的网页登录账号：随机密码保存在应用私有偏好中，其 argon2id 哈希由
+  `coddy serve set-password` 写入配置。应用在打开页面之前登录，并为 WebView 和自己的探测
+  保留会话 cookie，因此其他应用没有该密码就无法读取 `/coddy/config`（提供商密钥所在）或
+  驱动代理。
 - **不能自更新。** `coddy update` 替换磁盘上的二进制；这里的二进制是 APK 的一部分，
   因此升级就是安装新的 APK。
 - **工作区是应用私有的。** 其外的文件需要后续工作；手机共享存储不会挂载进会话。
 
-<!-- docsgen:source sha256=279e172628a5b383 -->
+<!-- docsgen:source sha256=98f4df09a09e5b27 -->
