@@ -57,6 +57,11 @@ ELF 符号和 DWARF 不再随包分发。
 把整个面板放进剪贴板，同样的内容也保存在 `files/coddy.log`。`probe` 行记录服务器起来后
 `/coddy/info` 与 `/` 的响应；其中 `/` 的 `404` 意味着该构建缺少 `ui` tag。
 
+日志在保存、显示和复制之前就已脱敏：`Authorization` 头、`x-api-key`、`token`、`password`
+或 `api_key` 赋值、URL 查询参数中的凭据以及 `sk-` 形式的密钥都会变成 `***`。启动器从不
+打印配置文件内容，只打印路径；旧版本写入的日志会在启动时被重新清洗一次。服务器自己的启动
+横幅只说明是否需要令牌，从不打印令牌本身。
+
 状态保存在应用沙箱内：`files/coddy` 是 `CODDY_HOME`（配置、会话、SSH 凭据），
 `files/workspace` 是默认工作目录，`cache/tmp` 是 `TMPDIR`，因为 Android 上 Go 的
 默认值 `/data/local/tmp` 不可写。
@@ -102,4 +107,4 @@ aggregation）。许可证文本随 APK 分发，源码即 BusyBox 1.36.1 发行
   因此升级就是安装新的 APK。
 - **工作区是应用私有的。** 其外的文件需要后续工作；手机共享存储不会挂载进会话。
 
-<!-- docsgen:source sha256=e3c3650dde429099 -->
+<!-- docsgen:source sha256=3ca4d743a4529ef3 -->

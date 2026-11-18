@@ -38,6 +38,7 @@ class CoddyService : Service() {
         super.onCreate()
         createChannel()
         startForeground(NOTIFICATION_ID, notification())
+        CoddyState.scrubLogFile(this)
         CoddyState.setStopped()
     }
 
@@ -82,7 +83,9 @@ class CoddyService : Service() {
                 // Both streams go to the launcher and the file, so a crash is
                 // readable on the phone instead of only over adb.
                 started.inputStream.bufferedReader().forEachLine { line ->
-                    Log.i(TAG, line)
+                    // Logcat is a second copy of the same text; it gets the
+                    // redacted line too.
+                    Log.i(TAG, Redaction.line(line))
                     CoddyState.log(this, line)
                 }
                 val code = started.waitFor()

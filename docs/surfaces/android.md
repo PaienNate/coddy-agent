@@ -70,6 +70,13 @@ clipboard, and the same lines are kept in `files/coddy.log`. A `probe` line
 records what `/coddy/info` and `/` answered once the server came up; a `404`
 on `/` there means the binary was built without the `ui` tag.
 
+The log is masked before it is stored, drawn or copied: an `Authorization`
+header, an `x-api-key`, a `token`, `password` or `api_key` assignment, a
+credential in a URL query and an `sk-` shaped key become `***`. The launcher
+never prints the config file's contents, only its path, and a log written by an
+earlier build is scrubbed once at start. The server's own startup banner names
+whether a token is required, never the token.
+
 The state lives in the app's sandbox: `files/coddy` is `CODDY_HOME` (config,
 sessions, SSH credentials), `files/workspace` is the default working
 directory, and `cache/tmp` is `TMPDIR`, because Go's Android default

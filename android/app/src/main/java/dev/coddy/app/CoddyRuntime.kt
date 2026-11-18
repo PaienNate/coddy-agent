@@ -112,13 +112,10 @@ class CoddyRuntime(private val context: Context) {
             "-config", config.absolutePath,
             "-cwd", workspace.absolutePath,
         )
-        runCatching {
-            CoddyState.log(
-                context,
-                "config ${config.absolutePath}: " +
-                    config.readText().lines().filter { it.isNotBlank() }.joinToString(" | "),
-            )
-        }
+        // The path only. The file can carry a provider key or an API token,
+        // and the launcher's log is drawn on screen, copied on one tap and
+        // kept on disk.
+        CoddyState.log(context, "config ${config.absolutePath} (contents not shown)")
         CoddyState.log(context, "exec ${command.joinToString(" ")}")
         val builder = ProcessBuilder(command)
         val env = builder.environment()

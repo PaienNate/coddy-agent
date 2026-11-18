@@ -67,6 +67,10 @@ jobs:
           android/scripts/fetch-busybox.sh arm64
           android/scripts/fetch-busybox.sh amd64
 
+      - name: Unit tests
+        working-directory: android
+        run: gradle :app:testDebugUnitTest --no-daemon
+
       - name: Build the debug APKs
         working-directory: android
         env:

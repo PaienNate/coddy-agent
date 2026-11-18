@@ -54,9 +54,9 @@ object CoddyState {
         notifyListeners()
     }
 
-    /** Appends one line; the file keeps what a crash takes with it. */
+    /** Appends one line, redacted; the file keeps what a crash takes with it. */
     fun log(context: Context?, line: String) {
-        val stamped = "${timestamp()} $line"
+        val stamped = "${timestamp()} ${Redaction.line(line)}"
         synchronized(lines) {
             lines.addLast(stamped)
             while (lines.size > MAX_LINES) lines.removeFirst()
@@ -72,6 +72,20 @@ object CoddyState {
     }
 
     fun snapshot(): List<String> = synchronized(lines) { lines.toList() }
+
+    /**
+     * Rewrites a log file an earlier build wrote before it redacted: that build
+     * dumped the whole config, which can carry a provider key or an API token.
+     * Runs once at service start.
+     */
+    fun scrubLogFile(context: Context) {
+        val file = File(context.filesDir, LOG_FILE)
+        if (!file.exists()) return
+        runCatching {
+            val scrubbed = file.readLines().joinToString("\n") { Redaction.line(it) }
+            file.writeText(scrubbed + "\n")
+        }
+    }
 
     fun clear() {
         synchronized(lines) { lines.clear() }
