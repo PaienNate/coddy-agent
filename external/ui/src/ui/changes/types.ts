@@ -14,6 +14,12 @@ export interface ChangedFile {
   binary: boolean;
   /** The patch was cut at the server cap; the line counts still cover the file. */
   truncated: boolean;
+  /** At least one side is a raster image the detail route can serve raw. */
+  image?: boolean;
+  beforeImage?: boolean;
+  afterImage?: boolean;
+  beforeSize?: number;
+  afterSize?: number;
   /** Present only when the request asked for it (list) or always (detail). */
   patch?: string;
 }
@@ -37,6 +43,8 @@ export interface SessionChanges {
 /** A single file with its unified patch, from the detail route. */
 export interface SessionChangeDetail extends ChangedFile {
   patch: string;
+  before?: string;
+  after?: string;
 }
 
 export const EMPTY_SESSION_CHANGES: SessionChanges = {

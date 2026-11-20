@@ -3,6 +3,7 @@
 package httpserver
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -558,5 +559,86 @@ func TestSessionChangesCarryADigest(t *testing.T) {
 	}
 	if moved, _ := row["digest"].(string); moved == first {
 		t.Fatalf("a rewrite kept the digest %q", first)
+	}
+}
+
+// A PNG carries its own signature, and the working copy is where a viewer has
+// to read it from: the row says which sides are images and how large they are,
+// and the raw form of the detail route serves the bytes themselves.
+func TestSessionChangesServeImageSidesRaw(t *testing.T) {
+	e := newChangesEnv(t)
+	before := []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + "old")
+	after := []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + "newer!")
+	e.commitWorkspace(t, map[string]string{"logo.png": string(before)})
+	writeInWorkspace(t, e.cwd, "logo.png", string(after))
+
+	row := changedFiles(t, e.do(t, http.MethodGet, "/coddy/sessions/"+e.id+"/changes"))["logo.png"]
+	if row["image"] != true || row["beforeImage"] != true || row["afterImage"] != true {
+		t.Fatalf("an image row must say so per side: %v", row)
+	}
+	// An image has no line diff, so the row reads as binary with its sizes.
+	if row["binary"] != true {
+		t.Fatalf("an image must not claim a line diff: %v", row)
+	}
+	if row["beforeSize"].(float64) != float64(len(before)) || row["afterSize"].(float64) != float64(len(after)) {
+		t.Fatalf("sizes must be the raw bytes: %v", row)
+	}
+
+	target := "/coddy/sessions/" + e.id + "/changes/file?path=logo.png&raw=1&side="
+	served := e.do(t, http.MethodGet, target+"after")
+	if served.Code != http.StatusOK {
+		t.Fatalf("raw after: status %d: %s", served.Code, served.Body.String())
+	}
+	if got := served.Header().Get("Content-Type"); got != "image/png" {
+		t.Fatalf("Content-Type %q", got)
+	}
+	if got := served.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("nosniff missing: %q", got)
+	}
+	if served.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("a working copy must not be cached: %q", served.Header().Get("Cache-Control"))
+	}
+	if !bytes.Equal(served.Body.Bytes(), after) {
+		t.Fatalf("raw bytes differ from the working copy: %q", served.Body.Bytes())
+	}
+	// No side names the before side, which is what a deleted or unchanged-sides
+	// renderer asks for.
+	if plain := e.do(t, http.MethodGet, target[:len(target)-len("side=")]); !bytes.Equal(plain.Body.Bytes(), before) {
+		t.Fatalf("raw without a side must answer the before side: %q", plain.Body.Bytes())
+	}
+	if bad := e.do(t, http.MethodGet, target+"middle"); bad.Code != http.StatusBadRequest {
+		t.Fatalf("a wrong side must be 400, got %d", bad.Code)
+	}
+}
+
+// The raw form exists for images alone: a text side has no bytes a browser
+// should be handed under a type it chose.
+func TestSessionChangesRawRefusesANonImage(t *testing.T) {
+	e := newChangesEnv(t)
+	e.commitWorkspace(t, map[string]string{"a.txt": "old\n"})
+	writeInWorkspace(t, e.cwd, "a.txt", "new\n")
+
+	rec := e.do(t, http.MethodGet, "/coddy/sessions/"+e.id+"/changes/file?path=a.txt&raw=1")
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("a text side must be 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// A deleted image has no working-copy side, so asking for one is 404 rather
+// than an empty picture.
+func TestSessionChangesRawRefusesAMissingSide(t *testing.T) {
+	e := newChangesEnv(t)
+	png := "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + "gone"
+	e.commitWorkspace(t, map[string]string{"old.png": png})
+	if err := os.Remove(filepath.Join(e.cwd, "old.png")); err != nil {
+		t.Fatal(err)
+	}
+
+	base := "/coddy/sessions/" + e.id + "/changes/file?path=old.png&raw=1&side="
+	if before := e.do(t, http.MethodGet, base+"before"); before.Code != http.StatusOK {
+		t.Fatalf("the deleted side still has its bytes: %d: %s", before.Code, before.Body.String())
+	}
+	if after := e.do(t, http.MethodGet, base+"after"); after.Code != http.StatusNotFound {
+		t.Fatalf("a side the file does not have must be 404, got %d", after.Code)
 	}
 }

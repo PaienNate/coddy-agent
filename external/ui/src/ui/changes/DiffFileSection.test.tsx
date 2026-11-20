@@ -119,3 +119,118 @@ test("repeated copies reset the 1200 ms feedback timer", async () => {
   });
   expect(button.textContent).toBe("⧉");
 });
+
+// A file with two changes far apart, so both gaps and both file ends have
+// hidden context the reader can open.
+const FAR_APART_BEFORE = Array.from(
+  { length: 40 },
+  (_, i) => `line ${i + 1}`,
+).join("\n");
+const FAR_APART_AFTER = [
+  "line 1",
+  "changed 2",
+  ...Array.from({ length: 37 }, (_, i) => `line ${i + 3}`),
+].join("\n");
+const FAR_APART_PATCH = [
+  "--- a/far.txt",
+  "+++ b/far.txt",
+  "@@ -2,1 +2,1 @@",
+  "-line 2",
+  "+changed 2",
+  "@@ -30,1 +30,1 @@",
+  "-line 30",
+  "+line 30 changed",
+].join("\n");
+
+function renderExpandable() {
+  return render(
+    <DiffFileSection
+      file={{
+        path: "far.txt",
+        status: "modified",
+        additions: 1,
+        deletions: 1,
+        binary: false,
+        truncated: false,
+        before: FAR_APART_BEFORE,
+        after: FAR_APART_AFTER,
+      }}
+      patch={FAR_APART_PATCH}
+      loading={false}
+      error=""
+      collapsed={false}
+      view="unified"
+      onToggle={() => {}}
+      registerRef={() => {}}
+    />,
+  );
+}
+
+test("hidden context opens ten lines at a time and closes again", () => {
+  const { container, getAllByLabelText, getByTestId } = renderExpandable();
+  const count = () => container.querySelectorAll(".dv-line--ctx").length;
+  // The patch carries no context lines of its own, so every unchanged line on
+  // screen was opened by the reader.
+  expect(count()).toBe(0);
+
+  // The gap between the two hunks opens ten lines each way at once.
+  fireEvent.click(getAllByLabelText("Show 10 lines in both directions")[0]!);
+  expect(count()).toBe(20);
+
+  // One control at the head opens every gap, and the same control puts the
+  // file back as git wrote it.
+  const toggle = getByTestId("dv-expand-lines-far.txt");
+  expect(toggle.getAttribute("aria-pressed")).toBe("false");
+  fireEvent.click(toggle);
+  expect(toggle.getAttribute("aria-pressed")).toBe("true");
+  expect(count()).toBeGreaterThan(20);
+
+  fireEvent.click(toggle);
+  expect(toggle.getAttribute("aria-pressed")).toBe("false");
+  expect(count()).toBe(0);
+});
+
+test("a file without both sides offers no context controls", () => {
+  const { queryAllByLabelText, queryByTestId } = renderView("unified");
+  expect(queryByTestId("dv-expand-lines-README.md")).toBeNull();
+  expect(queryAllByLabelText("Show 10 lines above")).toHaveLength(0);
+});
+
+test("a Markdown change offers the rich diff beside its source", () => {
+  const { getByLabelText, container } = render(
+    <DiffFileSection
+      file={{
+        path: "README.md",
+        status: "modified",
+        additions: 1,
+        deletions: 1,
+        binary: false,
+        truncated: false,
+        before: "# Title\n\nold\n",
+        after: "# Title\n\nnew\n",
+      }}
+      patch={PATCH}
+      loading={false}
+      error=""
+      collapsed={false}
+      view="unified"
+      onToggle={() => {}}
+      registerRef={() => {}}
+    />,
+  );
+
+  // The source diff is the default view; the rich one renders the Markdown.
+  expect(container.querySelector(".dv-diff")).not.toBeNull();
+  fireEvent.click(getByLabelText("Display the rich diff"));
+  expect(container.querySelector(".dv-diff")).toBeNull();
+  expect(container.querySelector(".dv-rich--markdown")).not.toBeNull();
+
+  fireEvent.click(getByLabelText("Display the source diff"));
+  expect(container.querySelector(".dv-rich")).toBeNull();
+  expect(container.querySelector(".dv-diff")).not.toBeNull();
+});
+
+test("a plain text change offers no rich view", () => {
+  const { queryByLabelText } = renderView("unified");
+  expect(queryByLabelText("Display the rich diff")).toBeNull();
+});

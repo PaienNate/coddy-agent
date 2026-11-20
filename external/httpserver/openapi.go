@@ -2446,7 +2446,8 @@ func openAPISpec() map[string]interface{} {
 				"get": map[string]interface{}{
 					"summary": "Read one changed file of the session's folder",
 					"description": "One file of **GET .../changes**, always carrying **`patch`**, **`before`** and **`after`**; only that file is read. " +
-						"**`path`** is matched against what git reports, never resolved on disk, so this route cannot be pointed at a file outside the change set: an unchanged, ignored, unknown or traversing path yields **404**. Either separator names the same file.",
+						"**`path`** is matched against what git reports, never resolved on disk, so this route cannot be pointed at a file outside the change set: an unchanged, ignored, unknown or traversing path yields **404**. Either separator names the same file. " +
+						"With **`raw=1`** the route serves the exact bytes of one side instead of JSON - how a viewer renders an image, since the decoded content fields cannot carry binary data. **`side=before|after`** picks the side (**`before`** by default); a side the file does not have is **404** and a side that is not a PNG, JPEG, GIF, WebP or BMP image is **400**, because the raw form exists for images alone. The bytes are served as their signature says, with **`X-Content-Type-Options: nosniff`**, a sandboxing **`Content-Security-Policy`** and **`Cache-Control: no-store`**. **`side`** is read only for **`raw=1`**; the JSON answer ignores it.",
 					"operationId": "coddySessionChangeFile",
 					"parameters": []interface{}{
 						map[string]interface{}{
@@ -2459,14 +2460,29 @@ func openAPISpec() map[string]interface{} {
 							"schema":      map[string]string{"type": "string"},
 							"description": "Path relative to the session's folder, as listed by GET .../changes.",
 						},
+						map[string]interface{}{
+							"name": "raw", "in": "query", "required": false,
+							"schema":      map[string]string{"type": "string", "enum": "1"},
+							"description": "Serve the exact bytes of one side as an image instead of the JSON document.",
+						},
+						map[string]interface{}{
+							"name": "side", "in": "query", "required": false,
+							"schema":      map[string]string{"type": "string"},
+							"description": "With raw=1, which side's bytes to serve: before (default) or after.",
+						},
 					},
 					"responses": map[string]interface{}{
 						"200": map[string]interface{}{
-							"description": "One changed file",
+							"description": "One changed file, or with raw=1 the bytes of one side as an image",
 							"content": map[string]interface{}{
 								"application/json": map[string]interface{}{
 									"schema": sessionChangeFileSchema(),
 								},
+								"image/png":  map[string]interface{}{"schema": map[string]string{"type": "string", "format": "binary"}},
+								"image/jpeg": map[string]interface{}{"schema": map[string]string{"type": "string", "format": "binary"}},
+								"image/gif":  map[string]interface{}{"schema": map[string]string{"type": "string", "format": "binary"}},
+								"image/webp": map[string]interface{}{"schema": map[string]string{"type": "string", "format": "binary"}},
+								"image/bmp":  map[string]interface{}{"schema": map[string]string{"type": "string", "format": "binary"}},
 							},
 						},
 						"400": errorResponseRef(),
@@ -5360,6 +5376,26 @@ func sessionChangeFileSchema() map[string]interface{} {
 			"digest": map[string]string{
 				"type":        "string",
 				"description": "SHA-256 of the status and both raw sides: a rewrite that keeps the line counts still moves it, and the same content answers the same value on every read. It fingerprints content only, so two paths with identical sides share it - the SPA's Viewed marks compare it per path.",
+			},
+			"image": map[string]string{
+				"type":        "boolean",
+				"description": "At least one side is a PNG, JPEG, GIF, WebP or BMP image the raw form of the detail route can serve. Such a row reads as binary too: an image can be plain ASCII and still have no line diff.",
+			},
+			"beforeImage": map[string]string{
+				"type":        "boolean",
+				"description": "The side at HEAD is a recognised image.",
+			},
+			"afterImage": map[string]string{
+				"type":        "boolean",
+				"description": "The side in the working copy is a recognised image. A file may change its kind, so this pair is not always equal.",
+			},
+			"beforeSize": map[string]string{
+				"type":        "integer",
+				"description": "Bytes of the side at HEAD, as they stand.",
+			},
+			"afterSize": map[string]string{
+				"type":        "integer",
+				"description": "Bytes of the side in the working copy, as they stand.",
 			},
 			"additions": map[string]string{"type": "integer"},
 			"deletions": map[string]string{"type": "integer"},

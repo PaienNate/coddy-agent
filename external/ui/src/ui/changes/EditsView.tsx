@@ -43,6 +43,9 @@ interface PatchState {
   patch?: string;
   error?: string;
   truncated?: boolean;
+  /** The raw sides, so the section can expand hidden context and count images. */
+  before?: string;
+  after?: string;
 }
 
 /**
@@ -96,7 +99,16 @@ function usePatches(
           copy.set(
             path,
             res.ok
-              ? { patch: res.data.patch, truncated: res.data.truncated }
+              ? {
+                  patch: res.data.patch,
+                  truncated: res.data.truncated,
+                  ...(res.data.before !== undefined
+                    ? { before: res.data.before }
+                    : {}),
+                  ...(res.data.after !== undefined
+                    ? { after: res.data.after }
+                    : {}),
+                }
               : { error: res.message },
           );
           return copy;
@@ -575,7 +587,14 @@ export function EditsView(props: {
                     file={{
                       ...file,
                       truncated: state?.truncated ?? file.truncated,
+                      ...(state?.before !== undefined
+                        ? { before: state.before }
+                        : {}),
+                      ...(state?.after !== undefined
+                        ? { after: state.after }
+                        : {}),
                     }}
+                    sessionId={sessionId}
                     patch={state?.patch ?? ""}
                     loading={!state}
                     error={state?.error ?? ""}
