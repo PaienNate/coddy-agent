@@ -158,7 +158,7 @@ See the documentation (README.md) for details.
 ```
 # 好
 本系统采用消息队列（Message Queue）实现异步通信，
-使用死信队列（Dead Letter Queue）处理消费失败的消息。
+使用无法投递队列（Dead Letter Queue）处理消费失败的消息。
 
 # 后续出现直接使用
 消息队列的消费者需要实现幂等性……
