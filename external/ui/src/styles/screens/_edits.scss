@@ -32,6 +32,58 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* How much of the change set has been read: a ring and a count. */
+.edits-viewed-summary {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--text) 62%, transparent);
+}
+
+.edits-viewed-summary.is-complete {
+  color: var(--accent);
+}
+
+.edits-viewed-track,
+.edits-viewed-value {
+  fill: none;
+  stroke-width: 2;
+}
+
+.edits-viewed-track {
+  stroke: color-mix(in srgb, var(--text) 18%, transparent);
+}
+
+.edits-viewed-value {
+  stroke: currentColor;
+  stroke-linecap: round;
+}
+
+.edits-viewed-summary-label {
+  color: color-mix(in srgb, var(--text) 45%, transparent);
+}
+
+/* The Viewed toggle of one file's header: a ring that fills when read. */
+.dv-viewed {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--text) 26%, transparent);
+  background: transparent;
+  color: transparent;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dv-viewed.is-viewed {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* Git's short status at the right end of a file's row: A, M or D. */
 .edits-tree-status {
   flex: none;

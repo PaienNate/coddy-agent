@@ -144,6 +144,7 @@ test("is framed and headed like the Files window", async () => {
   );
   expect(order.filter((id) => id !== "edits-totals")).toEqual([
     "edits-toggle-tree",
+    "edits-viewed-summary",
     "edits-more",
     "edits-expand",
     "edits-close",
@@ -527,7 +528,11 @@ test("a file's head ends with its counts, after copy and discard, with one chevr
   const actions = [...head.querySelectorAll(".dv-file-actions button")].map(
     (b) => b.getAttribute("data-testid"),
   );
-  expect(actions).toEqual(["dv-copy-src/a.ts", "dv-discard-src/a.ts"]);
+  expect(actions).toEqual([
+    "dv-viewed-src/a.ts",
+    "dv-copy-src/a.ts",
+    "dv-discard-src/a.ts",
+  ]);
   expect(head.querySelectorAll(".coddy-chevron")).toHaveLength(1);
   // No status dot before the name: the tree says the status, the name is enough.
   expect(head.querySelector(".dv-file-badge")).toBeNull();
@@ -539,6 +544,28 @@ test("the header copies the file path", async () => {
   await screen.findByTestId("dv-file-src/a.ts");
   fireEvent.click(screen.getByTestId("dv-copy-src/a.ts"));
   expect(navigator.clipboard.writeText).toHaveBeenCalledWith("src/a.ts");
+});
+
+test("a file is marked viewed, and the progress follows the change set", async () => {
+  window.localStorage.clear();
+  open();
+  const toggle = await screen.findByTestId("dv-viewed-src/a.ts");
+  expect(toggle).toHaveAttribute("aria-pressed", "false");
+  expect(screen.getByTestId("edits-viewed-summary").textContent).toMatch(
+    /\b0 \/ /,
+  );
+
+  fireEvent.click(toggle);
+  expect(toggle).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByTestId("edits-viewed-summary").textContent).toMatch(
+    /\b1 \/ /,
+  );
+
+  fireEvent.click(toggle);
+  expect(toggle).toHaveAttribute("aria-pressed", "false");
+  expect(screen.getByTestId("edits-viewed-summary").textContent).toMatch(
+    /\b0 \/ /,
+  );
 });
 
 test("the header copies the path without a clipboard API and says so only when that worked", async () => {

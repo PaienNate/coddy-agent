@@ -147,6 +147,9 @@ export function DiffFileSection(props: {
   /** Puts this file back at HEAD, after asking. */
   onDiscard?: (() => void) | undefined;
   discardBusy?: boolean;
+  /** Whether the reader has marked this file read; bound to its digest. */
+  viewed?: boolean;
+  onToggleViewed?: (() => void) | undefined;
 }) {
   const { t } = useT();
   const [copied, setCopied] = useState(false);
@@ -231,6 +234,19 @@ export function DiffFileSection(props: {
         {/* Copy and discard are always in sight; the name folds the diff,
             so there is no second chevron here. */}
         <span className="dv-file-actions">
+          {props.onToggleViewed ? (
+            <button
+              type="button"
+              className={"dv-viewed" + (props.viewed ? " is-viewed" : "")}
+              aria-pressed={Boolean(props.viewed)}
+              title={t("changes.viewer.viewed")}
+              aria-label={t("changes.viewer.viewed")}
+              data-testid={`dv-viewed-${file.path}`}
+              onClick={props.onToggleViewed}
+            >
+              {props.viewed ? "✓" : ""}
+            </button>
+          ) : null}
           <button
             type="button"
             className="dv-icon-btn"

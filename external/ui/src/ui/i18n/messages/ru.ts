@@ -2356,6 +2356,11 @@ export const messagesRu: Record<string, string> = {
   "changes.viewer.expandAll": "Развернуть все различия",
   "changes.viewer.collapseAll": "Свернуть все различия",
   "changes.viewer.split": "В две колонки",
+  "changes.viewer.viewed": "Просмотрено",
+  "changes.viewer.viewedSummary": "{viewed} / {total} просмотрено",
+  "changes.viewer.viewedSummaryTitle":
+    "Просмотрено {viewed} из {total} изменённых файлов",
+  "changes.viewer.viewedSummaryLabel": "просмотрено",
   "changes.viewer.showFiles": "Показать изменённые файлы",
   "changes.viewer.hideFiles": "Скрыть изменённые файлы",
   "changes.viewer.files": "Изменённые файлы",

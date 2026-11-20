@@ -8,6 +8,8 @@ export interface ChangedFile {
   status: ChangeStatus;
   additions: number;
   deletions: number;
+  /** SHA-256 of the status and both raw versions; a Viewed mark binds to it. */
+  digest?: string;
   /** No line diff exists; additions, deletions and patch are empty. */
   binary: boolean;
   /** The patch was cut at the server cap; the line counts still cover the file. */

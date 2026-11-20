@@ -2279,6 +2279,11 @@ export const messagesEn: Record<string, string> = {
   "changes.viewer.expandAll": "Expand all diffs",
   "changes.viewer.collapseAll": "Collapse all diffs",
   "changes.viewer.split": "Side by side",
+  "changes.viewer.viewed": "Viewed",
+  "changes.viewer.viewedSummary": "{viewed} / {total} viewed",
+  "changes.viewer.viewedSummaryTitle":
+    "{viewed} of {total} changed files viewed",
+  "changes.viewer.viewedSummaryLabel": "viewed",
   "changes.viewer.showFiles": "Show the changed files",
   "changes.viewer.hideFiles": "Hide the changed files",
   "changes.viewer.files": "Changed files",

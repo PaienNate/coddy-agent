@@ -24,6 +24,8 @@ import {
 } from "../files/windowIcons";
 import { DiffFileSection } from "./DiffFileSection";
 import { EditsTree } from "./EditsTree";
+import { isFileViewed, setFileViewed } from "./viewedFiles";
+import { ViewedProgress } from "./ViewedProgress";
 import { readDiffViewCookie, writeDiffViewCookie } from "./diffViewPrefs";
 import type { DiffView } from "./diffViewPrefs";
 import { fetchSessionChangeFile } from "./api";
@@ -164,6 +166,9 @@ export function EditsView(props: {
   // A file picked in the tree, scrolled to once the diffs are on screen (on a
   // phone the tree gives way to them first).
   const [jump, setJump] = useState<{ path: string; seq: number } | null>(null);
+  // Bumped by a Viewed toggle: the marks live in the browser's store, so the
+  // window needs a reason to read them again.
+  const [, bumpViewed] = useState(0);
 
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -218,6 +223,31 @@ export function EditsView(props: {
       return file ? [file] : [];
     });
   }, [changes.files]);
+
+  // A mark is bound to the content it was taken against, so the same path
+  // rewritten is not read as already reviewed.
+  const changeRevision = useCallback(
+    (file: ChangedFile, patch: string | undefined) =>
+      file.digest ??
+      patch ??
+      `${file.status}:${file.additions}:${file.deletions}`,
+    [],
+  );
+  const isViewed = (file: ChangedFile, patch: string | undefined) =>
+    isFileViewed(workspacePath, file.path, changeRevision(file, patch));
+  const viewedCount = files.filter((file) =>
+    isViewed(file, patches.get(file.path)?.patch),
+  ).length;
+  const toggleViewed = (file: ChangedFile) => {
+    const revision = changeRevision(file, patches.get(file.path)?.patch);
+    setFileViewed(
+      workspacePath,
+      file.path,
+      revision,
+      !isFileViewed(workspacePath, file.path, revision),
+    );
+    bumpViewed((n) => n + 1);
+  };
   // Until the reader picks or scrolls, the file at the top is the one on show.
   const onShow = files.some((f) => f.path === active)
     ? active
@@ -385,6 +415,9 @@ export function EditsView(props: {
                   {"−" + changes.totals.deletions}
                 </span>
               </span>
+              {files.length > 0 ? (
+                <ViewedProgress viewed={viewedCount} total={files.length} />
+              ) : null}
             </p>
           </div>
         </div>
@@ -553,6 +586,8 @@ export function EditsView(props: {
                     view={effectiveView}
                     onToggle={() => toggleOne(file.path)}
                     registerRef={registerRef}
+                    viewed={isViewed(file, state?.patch)}
+                    onToggleViewed={() => toggleViewed(file)}
                     discardBusy={discard.busy}
                     onDiscard={() =>
                       void discard.discardFile(file.path, file.status)
