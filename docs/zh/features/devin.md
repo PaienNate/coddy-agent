@@ -48,7 +48,7 @@ coddy providers login devin --devin-cli
 
 请求使用以下第一个持有令牌的来源：
 
-1. 该行的 `api_key`、`api_key_command`，或 `DEVIN_API_KEY` 变量（对于名为 `devin` 的行；名称遵循通常的 `NAME_API_KEY` 规则）。值是 Devin 会话令牌，`devin-session-token$...`；裸令牌会获得该前缀；
+1. 该行的 `api_key`、`api_key_command`，或 `DEVIN_API_KEY` 变量（对于名为 `devin` 的行；名称遵循通常的 `NAME_API_KEY` 规则）。值是 Devin 会话令牌，`devin-session-token$...`；令牌本身会获得该前缀；
 2. Coddy 管理的登录，`$CODDY_HOME/providers/<name>/devin-auth.json`；
 3. Devin CLI 登录，用于其服务的那一行（唯一的 devin 行，或多个中名为 `devin` 的行），`credentials.toml` 位于 `$XDG_DATA_HOME/devin` 或 `~/.local/share/devin` 下（macOS 上还有 `~/Library/Application Support/devin`，Windows 上为 `%LOCALAPPDATA%\devin`）。`CODDY_DEVIN_CLI_CREDENTIALS` 显式指定该文件。
 
@@ -93,7 +93,7 @@ models:
 - **ACU** 计划从已用/限制对中读取单个 `acu` 计量器，没有重置时钟；
 - **credits** 计划、未知计费策略，或仅指明计划的状态，只读作计划本身 - Coddy 不会虚构服务器未发送的计量器、请求计数或重置，缺失的配额会读作 `quota unavailable`，而不是 `0%`。
 
-计划的配额并不是唯一能阻止一轮的东西。模型可能因自身速率限制而拒绝一轮 - `HTTP 429 resource_exhausted: Reached free model rate limit ... Your limit will reset in 20 minutes` - 并且 `GetUserStatus` 的任何字段都不携带该限制，因此当该模型拒绝每个请求时，`day` 和 `week` 计量器仍读作剩余 100%。Devin 在拒绝时不发送 `Retry-After` 头，而是将窗口重新打开的时刻写入消息中。Coddy 会读取该短语，因此重置时间会到达面板，且该轮不会以一个裸错误结束；同时 [`agent.wait_for_limit_reset`](../reference/config.md#agent) 会等待该限制结束并重新发出相同调用，面板中会显示倒计时。在遇到此类限制之前，没有任何东西会显示它，因为账户不报告其计数器。
+计划的配额并不是唯一能阻止一轮的东西。模型可能因自身速率限制而拒绝一轮 - `HTTP 429 resource_exhausted: Reached free model rate limit ... Your limit will reset in 20 minutes` - 并且 `GetUserStatus` 的任何字段都不携带该限制，因此当该模型拒绝每个请求时，`day` 和 `week` 计量器仍读作剩余 100%。Devin 在拒绝时不发送 `Retry-After` 头，而是将窗口重新打开的时刻写入消息中。Coddy 会读取该短语，因此重置时间会到达面板，且该轮不会以一个原始错误结束；同时 [`agent.wait_for_limit_reset`](../reference/config.md#agent) 会等待该限制结束并重新发出相同调用，面板中会显示倒计时。在遇到此类限制之前，没有任何东西会显示它，因为账户不报告其计数器。
 
 该行上的 `usage_limits_panel: false` 会在所有界面隐藏面板，并停止 `GetUserStatus` 读取。该协议未由 Cognition 发布，因此读取遵循编辑器当前的线上格式（3.10.31 描述符），并可能在 Devin 改动它时失效。
 

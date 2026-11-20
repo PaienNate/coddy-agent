@@ -77,7 +77,7 @@ The text above is the message this turn started with, verbatim. Coddy compacted 
 - [结果驱逐](#结果驱逐) 会立即为该轮次剩余部分启动，无论 `start_percent` 和 `start_tokens` 说什么：该门槛保护提供商的提示词缓存，而拒绝过请求的提供商对于它不会读取的内容的缓存毫无用处。下一轮次开始时门槛恢复。
 - 重试对每个步骤只有一次。成功的调用会重新开始计数，因此两个不同的步骤可以各自恢复，而同一步骤再次被拒则结束该轮次。会话日志会收到一条通知，说明请求被拒并已再次请求，智能体日志记录大小（`estimatedTokens`、`providerTokens`、`providerLimit`、`limitTokens`）。压缩期间的 Stop 会以停止方式结束轮次；关闭或截止时间会以拒绝的解释和 `(the compaction after the refusal was interrupted: ...)` 结束它。
 
-当没有任何可折叠的内容、钩子否决了压缩、摘要器失败、更小的请求也被拒，或 `compaction.auto_enable` 为 false 时，轮次会以一个说明此事的错误结束，替代提供商裸的应答：
+当没有任何可折叠的内容、钩子否决了压缩、摘要器失败、更小的请求也被拒，或 `compaction.auto_enable` 为 false 时，轮次会以一个说明此事的错误结束，替代提供商原始应答：
 
 ```text
 context window exceeded: the provider refused the request because it does not fit the model's context window (Coddy estimated about 38000 tokens; the window is 49152 tokens; the provider counted 51402 tokens against a limit of 49152); run /compact, start a new session or split the task into smaller steps: provider "local" (http://127.0.0.1:8080/v1): openai stream: ...
@@ -97,7 +97,7 @@ context window exceeded: the provider refused the request because it does not fi
 
 ## 历史大于一次摘要请求
 
-在此之前，头部会先去重：会话中已经逐字出现过的行会被丢弃，只在原处保留第一份副本，并且每个条目说明有多少次重复被去掉。会话通过重复自己来填满窗口 - 每次尝试后都粘贴同样的构建日志、同一个文件被读取十几次 - 而摘要器从第二份副本中什么也学不到，却要为此付出全额（issue #273）。短行保持原样：一个右花括号和一个裸数字是结构，丢掉它们会破坏摘要必须读取的代码。
+在此之前，头部会先去重：会话中已经逐字出现过的行会被丢弃，只在原处保留第一份副本，并且每个条目说明有多少次重复被去掉。会话通过重复自己来填满窗口 - 每次尝试后都粘贴同样的构建日志、同一个文件被读取十几次 - 而摘要器从第二份副本中什么也学不到，却要为此付出全额（issue #273）。短行保持原样：一个右花括号和一个单个数字是结构，丢掉它们会破坏摘要必须读取的代码。
 
 以前折叠是一次调用：把对话的整个头部放进一次对摘要器的请求中。当会话接近它所依据的窗口时这还行，而恰恰在压缩最重要的时候它就不行了。一个远超其窗口的会话 - 一个不断读取大文件的模型、一个因为窗口未知而从未触发的自动触发器 - 到达 `/compact` 时，历史是摘要器自身窗口的数倍，提供商就会拒绝该请求：
 
@@ -220,7 +220,7 @@ compaction:
 | `result_eviction.start_percent` | `50` | 驱逐开始前上下文必须有多满；`0` 表示从第一个结果起就驱逐 |
 | `result_eviction.start_tokens` | `60000` | 同一门槛的对话 token 形式；两者中较小者开始驱逐；`0` 只保留 `start_percent` |
 
-`start_percent` 之所以存在，是因为驱逐和提供商的提示词缓存方向相反。占位符被写入 **重放历史的中部**，而提供商按前缀缓存请求，因此一个被折叠的结果会丢弃其后每条消息的缓存副本。在滑动工作窗口下，这几乎在每一步都会发生，于是长对话会以全价重新处理，只为省下窗口尚未短缺的几千个 token。因此在该标记以下，历史完全按提供商已有的样子发出；在该标记以上，空间比缓存更重要。`start_tokens`（默认 60000）是同一门槛的 token 形式：宽窗口的一半远在死结果真正开始碍事之前，因此驱逐在窗口的 `start_percent` 与 `start_tokens` 中较小者处开始。门槛只测量对话：系统提示词、工具定义和规则不计入，因为它们无法被驱逐，而很大的 `AGENTS.md` 否则会在第一个结果处就打开门槛。没有 `max_context_tokens` 的模型条目无法被测量，会像以往一样从第一个结果起驱逐读取和 grep；此类条目的列表会等待会话所工作的窗口的 `start_percent`，即 [上下文窗口](#上下文窗口) 所解析的那个窗口。关于同一故事的另一半 - Coddy 出于同样原因不再放入系统提示词的内容 - 见 [react-agent.md](../contributing/react-agent.md) 中的 *The turn context block*。
+`start_percent` 之所以存在，是因为驱逐和提供商的提示词缓存方向相反。占位符被写入 **重放历史的中部**，而提供商按前缀缓存请求，因此一个被折叠的结果会丢弃其后每条消息的缓存副本。在滑动工作窗口下，这几乎在每一步都会发生，于是长对话会以全价重新处理，只为省下窗口尚未短缺的几千个 token。因此在该标记以下，历史完全按提供商已有的样子发出；在该标记以上，空间比缓存更重要。`start_tokens`（默认 60000）是同一门槛的 token 形式：宽窗口的一半远在过期结果真正开始碍事之前，因此驱逐在窗口的 `start_percent` 与 `start_tokens` 中较小者处开始。门槛只测量对话：系统提示词、工具定义和规则不计入，因为它们无法被驱逐，而很大的 `AGENTS.md` 否则会在第一个结果处就打开门槛。没有 `max_context_tokens` 的模型条目无法被测量，会像以往一样从第一个结果起驱逐读取和 grep；此类条目的列表会等待会话所工作的窗口的 `start_percent`，即 [上下文窗口](#上下文窗口) 所解析的那个窗口。关于同一故事的另一半 - Coddy 出于同样原因不再放入系统提示词的内容 - 见 [react-agent.md](../contributing/react-agent.md) 中的 *The turn context block*。
 
 带类型和验证的字段表在 [config.yaml 参考](../reference/config.md#compaction) 中；这些键是普通设置，可在 Web 界面设置中的 **Context compaction** 标签页编辑，该标签页跟在 **ReAct loop** 之后，因为它就是决定向模型发送什么内容的同一个循环（`#/settings/compaction`）。阈值所依据的窗口属于模型条目：它的 `max_context_tokens`，否则是其提供商报告的窗口，再否则是 128000（[上下文窗口](#上下文窗口)）。
 

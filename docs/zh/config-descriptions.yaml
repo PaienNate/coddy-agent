@@ -150,7 +150,7 @@ toolsets[].name:
   zh: 预设名称：字母、数字、'.'、'_' 和 '-'。default 是保留名称：会话选择它会获得该模式提供的每个工具。
 toolsets[].tools:
   en: 'Allowlist: tool names, a bare *, or a prefix* (context7__* admits every tool of that MCP server). Absent or empty admits every tool the mode would. coddy -t warns about an entry that matches no tool.'
-  zh: 允许列表：工具名称、裸 *，或 prefix*（context7__* 允许该 MCP 服务器的每个工具）。不存在或为空则允许该模式会允许的每个工具。coddy -t 会对不匹配任何工具的条目发出警告。
+  zh: 允许列表：工具名称、单独的 *，或 prefix*（context7__* 允许该 MCP 服务器的每个工具）。不存在或为空则允许该模式会允许的每个工具。coddy -t 会对不匹配任何工具的条目发出警告。
 toolsets[].disallowed_tools:
   en: Denylist applied after tools, with the same names and patterns; a name in both lists is removed. coddy -t warns about an entry that matches no tool.
   zh: 在 tools 之后应用的拒绝列表，使用相同的名称和模式；同时出现在两个列表中的名称会被移除。coddy -t 会对不匹配任何工具的条目发出警告。
@@ -571,7 +571,7 @@ httpserver.host:
   zh: HTTP API 的绑定地址。为空表示 127.0.0.1；设置为 0.0.0.0 以接受来自其他机器的连接。
 httpserver.port:
   en: Default listen port when coddy serve does not pass -P/--port. 0 falls back to 12345.
-  zh: 当 coddy serve 未传递 -P/--port 时使用的默认监听端口。0 回退到 12345。
+  zh: 当 coddy serve 未传递 -P/--port 时使用的默认侦听端口。0 回退到 12345。
 httpserver.max_body_bytes:
   en: Largest request body accepted by POST /v1/chat/completions and POST /v1/responses, in bytes. 0 means the built-in 512 MiB. A larger body is refused with 413 and the request_too_large error.
   zh: POST /v1/chat/completions 和 POST /v1/responses 接受的最大请求体，以字节计。0 表示内置的 512 MiB。更大的请求体将以 413 和 request_too_large 错误拒绝。
@@ -646,7 +646,7 @@ swarm.host:
   zh: 当 CLI 未传递 --swarm-host 时中继的绑定地址。为空回退到 0.0.0.0。
 swarm.port:
   en: Listen port for the relay. 0 falls back to 12346.
-  zh: 中继的监听端口。0 回退到 12346。
+  zh: 中继的侦听端口。0 回退到 12346。
 swarm.name:
   en: 'Label for this relay in topology views, in /swarm/info and in a child''s node path. Empty: the host name it runs on.'
   zh: 此中继在拓扑视图、/swarm/info 和子节点路径中的标签。为空：其运行所在的主机名。
@@ -763,7 +763,7 @@ metrics.host:
   zh: 导出器的绑定地址。留空则回退到 127.0.0.1，仅本机可访问。
 metrics.port:
   en: Listen port of the exporter. 0 falls back to 12347.
-  zh: 导出器的监听端口。0 会回退到 12347。
+  zh: 导出器的侦听端口。0 会回退到 12347。
 metrics.token:
   en: Bearer credential a scrape must present in its Authorization header. ${ENV} references are expanded at load. Empty means no authentication, so set one before binding off loopback. Never echoed back.
   zh: 抓取时必须在 Authorization 请求头中提供的 Bearer 凭据。${ENV} 引用会在加载时展开。留空表示不进行身份验证，因此在绑定到非回环地址前应设置一个。绝不会回显。

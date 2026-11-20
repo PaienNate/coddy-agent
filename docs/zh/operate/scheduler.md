@@ -114,7 +114,7 @@ Frontmatter 字段：
   subagents/<run session>/     the run's transcript (subagentRun, schedulerJobId, schedulerTrigger)
 ```
 
-运行的任务行携带 **`kind: "agent"`**、标签 **`<job_id> · cron 2026-09-18 10:00 UTC`**（或 **`· manual …`**）以及 **`agent: {"name": <job_id or its definition>, "session_id": <run session>}`**。其进度日志就是任务面板为任何子智能体运行显示的内容（`→ tool`、`✓ tool`、`[assistant]` 行，结尾的 `=== subagent report ===` 块）；其对话记录是运行会话，只读，并带有一条通知，指出任务并链接回任务的运行记录。状态来自任务池：**`running`**、**`succeeded`**、**`failed`**（轮次以错误结束）、**`timed_out`**（达到 **`scheduler.timeout`**）、**`stopped`**（已取消）、**`orphaned`**（进程在运行进行中死亡）。
+运行的任务行携带 **`kind: "agent"`**、标签 **`<job_id> · cron 2026-09-18 10:00 UTC`**（或 **`· manual …`**）以及 **`agent: {"name": <job_id or its definition>, "session_id": <run session>}`**。其进度日志就是任务面板为任何子智能体运行显示的内容（`→ tool`、`✓ tool`、`[assistant]` 行，结尾的 `=== subagent report ===` 块）；其对话记录是运行会话，只读，并带有一条通知，指出任务并链接回任务的运行记录。状态来自任务池：**`running`**、**`succeeded`**、**`failed`**（轮次以错误结束）、**`timed_out`**（达到 **`scheduler.timeout`**）、**`stopped`**（已取消）、**`orphaned`**（进程在运行进行中退出）。
 
 - **每个任务一次只运行一个。** 守护进程会在任何东西启动之前预留任务，因此 cron tick 和手动运行不能同时启动它；在运行进行中到来的到期槽位会被跳过并记录日志。
 - **`scheduler.max_queue`** 限制所有任务中同时进行的运行数量。超过上限的 tick 会跳过该槽位的任务并给出警告；超过上限的手动运行会返回 **409**。
@@ -123,7 +123,7 @@ Frontmatter 字段：
 - **取消**会停止运行的任务；运行会被记录为 **`stopped`**。
 - **保留。** **`scheduler.retain_sessions`**（默认 **5**）为每个任务保留那么多个**已完成**运行，按开始时间取最新；当一次运行完成时，较旧的运行会丢失其任务记录和对话记录。运行面板中的 **清除**（**`DELETE /coddy/scheduler/jobs/{job_id}/runs`**）会丢弃所有已完成运行。删除任务会删除其任务会话及其下的每次运行。
 - **运行之间不会在内存中保留任何东西。** 已完成运行的会话会退役，其池条目会释放；当面板请求时，记录会从 bundle 中恢复。运行留下的工作（一个转入后台的 `run_command`、它生成的子智能体）会在运行的轮次返回时停止，如同任何子项一样。
-- **重启。** 进程死亡时正在进行的运行会显示为 **`orphaned`**；检查点会阻止其槽位再次触发。
+- **重启。** 进程退出时正在进行的运行会显示为 **`orphaned`**；检查点会阻止其槽位再次触发。
 
 计划运行位于 spawn 深度 **0**：在 **`subagents.max_depth`** 内，它可以生成自己的子智能体，这些子智能体会像任何 spawn 一样计入 **`subagents.max_concurrent`**。它永远不会被已完成任务唤醒（对于它启动的一切，`notify_on_finish` 都关闭）。
 

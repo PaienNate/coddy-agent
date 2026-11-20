@@ -14,12 +14,12 @@
 | `background_output` | 捕获的 stdout 和 stderr，包括任务仍在运行时的输出（`tail_lines`，默认 100）。 |
 | `background_wait` | 阻塞一段有界时间（默认 60s，最大 300s），并在任务结束后返回输出。 |
 | `background_stop` | 终止任务及其启动的整个进程组，包括早先 coddy 运行遗留的进程。 |
-| `background_reap` | 杀掉本会话中所有比启动它们的 coddy 运行存活更久的后台进程。 |
+| `background_reap` | 结束本会话中所有比启动它们的 coddy 运行存活更久的后台进程。 |
 
 三个额外的 `run_command` 参数驱动任务池：
 
 - **`background`**（bool）：以分离方式运行。
-- **`expected_seconds`**（int）：模型自己对这项工作耗时的估计。它是**建议性**的：它驱动操作者看到的状态计时器，并在省略 `timeout_seconds` 时决定硬超时。估低了只会把任务标记为**逾期**；它绝不会提前杀掉任务。
+- **`expected_seconds`**（int）：模型自己对这项工作耗时的估计。它是**建议性**的：它驱动操作者看到的状态计时器，并在省略 `timeout_seconds` 时决定硬超时。估低了只会把任务标记为**逾期**；它绝不会提前结束任务。
 - **`notify_on_finish`**（bool）：在此任务结束时唤醒智能体。对于后台命令、分离的子智能体以及在可用唤醒器时因前台超时而被接管的命令，它默认为 true。显式设为 false 可禁用唤醒（见下文）。
 
 **模型在每次请求时都会被告知仍在运行的内容。** 模型启动一个任务，继续工作，若干步之后必须记得该任务存在，以及它启动的服务器在写总结时仍在运行。结束每次请求的轮次上下文块（[上下文压缩](compaction.md) 保持系统提示词冻结，因此会变化的内容放在历史之后）带有一个 `## Background tasks` 章节，每个正在运行的会话任务一行，采用 `background_list`（`bg_3 [running] make test (elapsed 2m5s, estimated 5m) silent for 1m10s`）的措辞。每个任务只花一行，却省掉了原本唯一能查明情况的 `background_list` 调用。已完成的任务和[系统任务](#系统任务)会被略去，而在 `tools.background.enable: false` 下该章节根本不会写入（`backgroundTasksSection` 在 `internal/agent/turn_context.go` 中）。
@@ -38,7 +38,7 @@
 
 | 进程 | 被唤醒的轮次在哪里运行 |
 |---|---|
-| 裸 `coddy`（控制台） | 在控制台里，在其自己的 UI goroutine 上运行，像手动输入的提示词一样：受门控的工具会打开权限弹窗 |
+| 单独的 `coddy`（控制台） | 在控制台里，在其自己的 UI goroutine 上运行，像手动输入的提示词一样：受门控的工具会打开权限弹窗 |
 | `coddy acp` | 通过管理器运行，由编辑器作为发送方：更新落入编辑器打开的线程，受门控的工具也在那里询问 |
 | `coddy serve` | 拥有该会话的界面（绑定到它的 Telegram 或 Pachca 聊天），否则是 HTTP 服务器；二者都未启动时则是管理器本身（见下文） |
 | `coddy -p`、子智能体、调度运行 | 无处运行：没有任何东西会启动该轮次 |
@@ -75,9 +75,9 @@
 
 - **一起完成的任务只花费一个轮次。** 一个短暂的稳定窗口会把突发合并，因此三个结果会作为一个轮次、三行内容到达，而不是三个轮次。
 - 该轮次会获取**输入框轮次锁**，该锁会拒绝而不是排队：已有轮次在执行的会话会立即回答 `ErrSessionTurnBusy`。因此等待是唤醒器的职责：它会**重试同一批任务**（1 s，翻倍直到上限 15 s），直到会话空闲，然后才启动轮次。HTTP 服务器会在注册被唤醒轮次的中继之前获取该锁，因此被拒绝的尝试绝不会切断正在运行的轮次的监视器。
-- **在自身轮次内就死掉的任务仍然会被报告。** 这是普通情况，而不是罕见情况：模型启动一个任务，继续说话，而任何在最初几秒内失败的东西都会在启动它的轮次仍然打开时完成。结果会等待该轮次，并在其后到达，而不是被丢弃。等待期间完成的任何东西都会加入同一批，因此一个长轮次仍然只花费一次唤醒。轮次永不结束的会话会在 30 分钟后放弃并记录 `background_wake_abandoned`；其他所有轮次失败都会记录为 `background_wake_failed` 且不重试，因为那只会空转。
+- **在自身轮次内就退出的任务仍然会被报告。** 这是普通情况，而不是罕见情况：模型启动一个任务，继续说话，而任何在最初几秒内失败的东西都会在启动它的轮次仍然打开时完成。结果会等待该轮次，并在其后到达，而不是被丢弃。等待期间完成的任何东西都会加入同一批，因此一个长轮次仍然只花费一次唤醒。轮次永不结束的会话会在 30 分钟后放弃并记录 `background_wake_abandoned`；其他所有轮次失败都会记录为 `background_wake_failed` 且不重试，因为那只会空转。
 - **控制台会为它未显示的会话保留唤醒。** 操作者用 `/new` 或 `/resume` 离开的会话中的任务，会等待他们回到该会话，即唤醒器的忙碌重试，并且控制台会说明一次它正在何处等待。
-- **关闭不会唤醒任何东西。** 排空会停止正在运行的任务，而停止是终结性的；没有这道保护，每个被关闭杀死的任务都会启动一个没人会读的轮次。
+- **关闭不会唤醒任何东西。** 排空会停止正在运行的任务，而停止是终结性的；没有这道保护，每个被关闭结束的任务都会启动一个没人会读的轮次。
 - 被唤醒的轮次可以启动另一个会通知的任务，这既是无人值守工作的合理模式，也可能让一整夜的 token 在循环中烧掉。`maxWakesPerSession`（每进程 50，`internal/agent/background_notify.go`）是兜底；达到它就会停止启动轮次并记录 `background_wake_capped`。预算只计算实际运行过的轮次：被忙碌会话或关闭拒绝的尝试会退还，因此等完一个长轮次不会耗尽它。
 
 ### 哪些任务会唤醒智能体
@@ -97,18 +97,18 @@
 任务始终有一个硬限制，按以下顺序解析：
 
 1. 显式的 `timeout_seconds` 优先，包括刻意设得很紧的值；
-2. 否则声明的 `expected_seconds` 会换来其自身的 **3×**，下限为 **60s**，以免过度乐观的估计杀掉只是稍慢的工作；
+2. 否则声明的 `expected_seconds` 会换来其自身的 **3×**，下限为 **60s**，以免过度乐观的估计结束只是稍慢的工作；
 3. 否则为 `tools.background.default_timeout_seconds`（900s）。
 
 结果由 `tools.background.max_timeout_seconds`（3600s）封顶。达到限制会终止进程组并把任务记录为 `timed_out`，这是失败而不是成功，模型会被告知要这样报告。
 
-**被接管的**任务（见下文）是唯一没有调用方提供限制的情况：它直接获得 `max_timeout_seconds`。它背后没有估计，而绝不能复用的数字正是它刚刚超出的前台超时：显式的 `timeout_seconds` 会原样优先，因此传入已过期的值会在几毫秒内杀掉任务。
+**被接管的**任务（见下文）是唯一没有调用方提供限制的情况：它直接获得 `max_timeout_seconds`。它背后没有估计，而绝不能复用的数字正是它刚刚超出的前台超时：显式的 `timeout_seconds` 会原样优先，因此传入已过期的值会在几毫秒内结束任务。
 
 ## 接管：超出其超时的前台命令
 
-前台 `run_command` 默认等待 30 秒。此时杀掉仍在运行的任何东西有双重错误：开发服务器或监视器正在做被要求的事，而 shell 生成的任何东西在只针对 shell 的 kill 下仍会存活，同时仍持有继承的输出管道，这过去会让 `cmd.Wait` 永久卡住并挂起整个轮次。
+前台 `run_command` 默认等待 30 秒。此时结束仍在运行的任何东西有双重错误：开发服务器或监视器正在做被要求的事，而 shell 生成的任何东西在只针对 shell 的 kill 下仍会存活，同时仍持有继承的输出管道，这过去会让 `cmd.Wait` 永久卡住并挂起整个轮次。
 
-因此命令会被**交给任务池而不是杀掉**。进程继续在同一个进程组中运行，其输出流被重定向到任务的输出汇中，并首先刷入目前捕获的所有内容，然后工具回答：
+因此命令会被**交给任务池而不是结束**。进程继续在同一个进程组中运行，其输出流被重定向到任务的输出汇中，并首先刷入目前捕获的所有内容，然后工具回答：
 
 ```
 Command still running after 30s. It was NOT cancelled: it now runs as background task bg_3 (hard timeout 1h).
@@ -158,22 +158,22 @@ Output captured so far:
 
 **卡住**：任务正在运行但什么也没做。从外部无法知道这一点，因此任务池报告它唯一拥有的事实：任务已经多久没有产生输出。`background_list` 会在一分钟安静之后把正在运行的任务标记为 `silent for …`。这是提示，不是裁决：`sleep`、开发服务器和监视器本来就都应该安静。模型读取命令，做出决定，并调用 `background_stop`。硬超时仍然是无人查看时的兜底。
 
-**遗留**：进程比启动它的 coddy 运行存活更久，因为那次运行是被杀死而不是排空。任务记录会持久化**进程组领导者 pid**，因此新的 coddy 可以区分进程已消失的记录（报告为 `orphaned`）与进程仍在本机上的记录。`background_list` 会把那些标记为 `still alive from an earlier run`，`background_stop` 可按 id 访问一个，`background_reap` 会一次性杀掉该会话的所有这类进程。
+**遗留**：进程比启动它的 coddy 运行存活更久，因为那次运行是被结束而不是排空。任务记录会持久化**进程组领导者 pid**，因此新的 coddy 可以区分进程已消失的记录（报告为 `orphaned`）与进程仍在本机上的记录。`background_list` 会把那些标记为 `still alive from an earlier run`，`background_stop` 可按 id 访问一个，`background_reap` 会一次性结束该会话的所有这类进程。
 
-只有在其进程死亡时仍声称处于**运行中**的记录，才会成为回收候选。正常完成的任务会留下过期 pid，而操作系统会复用 pid；对其中一个采取行动会杀掉无关进程。
+只有在其进程退出时仍声称处于**运行中**的记录，才会成为回收候选。正常完成的任务会留下过期 pid，而操作系统会复用 pid；对其中一个采取行动会结束无关进程。
 
 其背后的探测必须回答**“此任务的进程是否仍在运行”**，而不是“是否有东西应答这个编号”，而两个平台需要不同的工作才能做到：
 
 - 在 unix 上，向**进程组** `-pid` 发信号已经同时完成两项检查：已退出的任务会留下空组（`ESRCH`），而复用的 pid 只有在同时也领导一个组时才会匹配，这在很大程度上缩小了复用范围，但没有完全排除。改为检查领导者的启动时间会打开更糟的漏洞：组比其领导者存活更久，而一个已退出但其子进程继续运行的领导者，正是值得寻找的幸存者。
-- Windows 没有可比的组探测，而显而易见的替代方案（按 pid 打开进程）在两个方向上都是错的。只要有人持有句柄，进程**对象**就比进程本身存活更久（而且 `os.FindProcess` 每次探测都会打开一个句柄，因此探测本身让尸体保持可解析）；而按编号打开会匹配**任何**进程，没有组领导者要求来过滤 pid 复用。因此 Windows 探测会以零超时询问 `WaitForSingleObject`，这能区分正在运行的进程与保留的尸体，然后要求其精确的**创建时间**等于任务启动时从 Windows 捕获的 `process_started_at`。缺失或不可读的身份会按失败关闭处理。
+- Windows 没有可比的组探测，而显而易见的替代方案（按 pid 打开进程）在两个方向上都是错的。只要有人持有句柄，进程**对象**就比进程本身存活更久（而且 `os.FindProcess` 每次探测都会打开一个句柄，因此探测本身让已结束的进程保持可解析）；而按编号打开会匹配**任何**进程，没有组领导者要求来过滤 pid 复用。因此 Windows 探测会以零超时询问 `WaitForSingleObject`，这能区分正在运行的进程与已结束的进程，然后要求其精确的**创建时间**等于任务启动时从 Windows 捕获的 `process_started_at`。缺失或不可读的身份会按失败关闭处理。
 
-证明身份然后按编号杀死，仍会在两者之间留下窗口，因此在 Windows 上，杀死操作会重新打开 pid，重新检查创建时间，并**在整个 `taskkill` 期间保持该句柄打开**。只要其进程对象的任何句柄打开着，Windows 就会保持 pid 已分配，因此在这期间没有任何东西能继承该编号，而 `taskkill /T` 仍会解析将其命名为父进程的子进程。那里刻意不要求存活：已经退出的领导者可以有正在运行的子进程，而那些才是重点。
+证明身份然后按编号结束，仍会在两者之间留下窗口，因此在 Windows 上，结束操作会重新打开 pid，重新检查创建时间，并**在整个 `taskkill` 期间保持该句柄打开**。只要其进程对象的任何句柄打开着，Windows 就会保持 pid 已分配，因此在这期间没有任何东西能继承该编号，而 `taskkill /T` 仍会解析将其命名为父进程的子进程。那里刻意不要求存活：已经退出的领导者可以有正在运行的子进程，而那些才是重点。
 
 这种比较正是回收永远不需要操作者提供新 pid 的原因：记录携带了证明 pid 仍然意味着它曾经意味的东西所需的一切。
 
-**升级**：在 `process_started_at` 存在之前写入的记录携带 pid 而没有身份。在 Windows 上它们再也无法被证明，因此不会被列为遗留，`background_reap` 也不会碰它们，这是同一规则的失败关闭一侧。如果这样的运行确实留下了进程，请从操作系统杀死它并删除过期的会话包。Unix 不受影响：其探测从未消费该身份。
+**升级**：在 `process_started_at` 存在之前写入的记录携带 pid 而没有身份。在 Windows 上它们再也无法被证明，因此不会被列为遗留，`background_reap` 也不会碰它们，这是同一规则的失败关闭一侧。如果这样的运行确实留下了进程，请从操作系统结束它并删除过期的会话包。Unix 不受影响：其探测从未消费该身份。
 
-刻意**没有**工具可以杀死任意 pid。`run_command` 已经可以运行 `kill`，而且它会经过权限门控；专用工具会绕过这一点。
+刻意**没有**工具可以结束任意 pid。`run_command` 已经可以运行 `kill`，而且它会经过权限门控；专用工具会绕过这一点。
 
 ## 权限
 
@@ -198,14 +198,14 @@ Output captured so far:
 
 行包含原始快照以及服务器计算的 `elapsed_seconds`、`overdue` 和 `running`，因此每个客户端在时钟运算上都能达成一致。由较早进程记录的任务会从会话包中作为 `orphaned` 合并进来。
 
-SPA **轮询**这些端点，而不是监听 SSE：后台任务比启动它的轮次的流存活更久。有任何任务运行时节奏为 2.5s，否则为 15s。
+SPA **轮询**这些端点，而不是侦听 SSE：后台任务比启动它的轮次的流存活更久。有任何任务运行时节奏为 2.5s，否则为 15s。
 
 ## 界面
 
 面板**停靠在会话内部**，位于对话记录右侧，地址为 `#/s/<sessionId>/tasks`（单个任务为 `#/s/<sessionId>/tasks/<task_id>`）。路由携带聊天，因此重新加载会同时恢复对话和面板。这个位置回答了“哪个会话生成了这个进程”：面板是启动这些任务的对话的一部分，因此没有什么需要标注。
 
 - **每个任务都是同一张卡片**，无论它是什么、正在运行还是已经完成：一个状态点，一个说明其背后是什么的**标签**（命令为 `shell`，子智能体运行为智能体名称，委派给[记忆子智能体](memory.md)为 `memory`，预览服务器为 `server`），标题（命令，或智能体被要求做的事），以及其下的一行：它何时开始、已运行多久相对于估计（`12:49 · 1m 28s`），然后完成后还显示何时结束（`12:49 · 20s · 12:50`），若是另一天则前面带日期；悬停卡片会显示完整的开始和结束时间、日期和秒数。当标题已经以标签名称开头时，标签会被省略，因此名称只写一次：调度运行卡片只以其任务为标题，而运行如何以及何时启动则在悬停文本中。未命名任何智能体的智能体运行也不带标签。任务如何结束由点的颜色表示；卡片只在打开时用文字说明。子智能体运行（委派，包括对记忆子智能体的委派）和调度运行还会在该行右侧标明它们运行的模型、当模型有级别时它们调用该模型时使用的推理级别，以及它们的调用已消耗的 token（`qwen3.8-27b · High · 212k tokens`），并在运行期间更新；悬停卡片会显示完整模型 id 以及分开的输入和输出 token。正在运行的卡片会增加一个停止控件、任务结束时将唤醒智能体时位于标题后的**铃铛**（悬停：*结束时唤醒智能体*），并且**仅**在模型提供了估计时增加进度条；已完成卡片在其结束确实唤醒了智能体时保留铃铛（悬停：*结束时唤醒了智能体*）。正在运行的任务位于面板顶部，不带标题；**已完成 N** 计数器之上的任何内容都是正在运行。
-- **点击卡片任意位置会在原处打开它。** 没有第二个窗格：打开的卡片会显示带有复制按钮的命令（智能体运行和预览服务器背后都没有 shell，那里不显示任何内容）、运行以错误结束时的错误（不是命令裸露的 `exit status 2`，那只会重复退出码）、位于可自行滚动框中的捕获输出，以及底部的任务结束方式和退出码（`Failed · Exit code 2`；智能体运行和预览服务器背后没有进程，因此它们的该项只说明结果）。它运行了多久以及预览服务器的地址留在卡片自己的行上，无论卡片是否打开都能读到，子智能体运行的**显示对话记录**也是如此，它是折叠卡片上的文本链接，可在不打开卡片的情况下打开子聊天。想打开多少卡片就打开多少：每张卡片都会在其任务运行时继续读取自己的输出。哪些卡片打开不是地址的一部分，地址只说明面板正在显示。
+- **点击卡片任意位置会在原处打开它。** 没有第二个窗格：打开的卡片会显示带有复制按钮的命令（智能体运行和预览服务器背后都没有 shell，那里不显示任何内容）、运行以错误结束时的错误（不是命令只给出的 `exit status 2`，那只会重复退出码）、位于可自行滚动框中的捕获输出，以及底部的任务结束方式和退出码（`Failed · Exit code 2`；智能体运行和预览服务器背后没有进程，因此它们的该项只说明结果）。它运行了多久以及预览服务器的地址留在卡片自己的行上，无论卡片是否打开都能读到，子智能体运行的**显示对话记录**也是如此，它是折叠卡片上的文本链接，可在不打开卡片的情况下打开子聊天。想打开多少卡片就打开多少：每张卡片都会在其任务运行时继续读取自己的输出。哪些卡片打开不是地址的一部分，地址只说明面板正在显示。
 - **在桌面宽度的窗口中，面板会跟随聊天。** 打开它，然后在历史中选择其他聊天：面板保持打开并显示每个所选聊天的任务，点击历史之外以关闭历史时面板仍保持打开。在平板或手机上，面板是全屏的，打开历史会关闭它，和以前一样。
 - **已完成 N** 是一个计数器，而不是列表。展开它会显示已完成的卡片；其余内容留在磁盘上。这就是“保留每个日志”和“不要加载整个应用”如何同时成立：列表只计数，卡片按需渲染，任务的输出只在其卡片被打开时获取。
 - **清除**会丢弃此会话的已完成历史（`DELETE /coddy/sessions/{id}/background-tasks`）。正在运行的任务不受影响。
@@ -253,7 +253,7 @@ tools:
 
 第三种任务既不是命令也不是智能体运行：`kind: server` 是 `preview_server` 工具在项目目录上启动的静态文件服务器（[预览服务器](preview-server.md)）。它是 Coddy 进程的 goroutine，通过与子智能体运行相同的回调启动，因此它没有 pid，没有值得显示的退出码，崩溃后也没有任何东西可供 `background_reap` 查找。其行携带 `url`，即它应答的地址：服务器运行时，任务面板会把它作为链接显示在卡片本身上，无需先展开；`/tasks` 显示同一行，`background_list` 在标签后打印地址，`background_output` 是请求日志。
 
-它也是唯一没有硬限制的任务种类。操作者要求保持打开的页面没有可估计的持续时间，因此任务池不会为它设置计时器，`timeout_seconds` 读取为 `0`；只有 `preview_server` 调用本身的 `timeout_seconds` 会提前结束它，原样且不受 `max_timeout_seconds` 封顶。安静的服务器永远不会被标记为 `silent for …`。其他一切都是普通生命周期：它会计入 `max_concurrent`，`background_stop` 和停止按钮会结束它，删除会话或排空进程会将其关闭，而死亡进程留下的 `running` 记录会以 `orphaned` 回来。
+它也是唯一没有硬限制的任务种类。操作者要求保持打开的页面没有可估计的持续时间，因此任务池不会为它设置计时器，`timeout_seconds` 读取为 `0`；只有 `preview_server` 调用本身的 `timeout_seconds` 会提前结束它，原样且不受 `max_timeout_seconds` 封顶。安静的服务器永远不会被标记为 `silent for …`。其他一切都是普通生命周期：它会计入 `max_concurrent`，`background_stop` 和停止按钮会结束它，删除会话或排空进程会将其关闭，而退出进程留下的 `running` 记录会以 `orphaned` 回来。
 
 ## 系统任务
 
@@ -274,7 +274,7 @@ type Handle interface {
 type LaunchFunc func(taskID string, out io.Writer) (Handle, error)
 ```
 
-**子智能体运行**（`docs/features/subagents.md`）是一种 `agent` 类型的任务，通过 `Pool.Launch(spec, launch)` 启动。`Launch` 与 `Start` 和 `Adopt` 共用单条调度路径：准入（每会话限制、排空）先发生，因此 `ErrPoolFull` 或 `ErrDraining` 保证回调从未运行且未创建任何东西；然后任务池分配并注册任务 id，之后才用该 id 和任务的输出汇回调，因此子会话在创建时就知道自己属于哪个任务。回调返回一个 `Handle`，其 `Stop` 会取消子上下文，其 `Wait` 会阻塞直到运行落定。`PID` 为 0，`ProcessStartedAt` 为零时间，这就是为什么幸存者探测绝不会把这样的任务误认为它可以杀死的 pid。
+**子智能体运行**（`docs/features/subagents.md`）是一种 `agent` 类型的任务，通过 `Pool.Launch(spec, launch)` 启动。`Launch` 与 `Start` 和 `Adopt` 共用单条调度路径：准入（每会话限制、排空）先发生，因此 `ErrPoolFull` 或 `ErrDraining` 保证回调从未运行且未创建任何东西；然后任务池分配并注册任务 id，之后才用该 id 和任务的输出汇回调，因此子会话在创建时就知道自己属于哪个任务。回调返回一个 `Handle`，其 `Stop` 会取消子上下文，其 `Wait` 会阻塞直到运行落定。`PID` 为 0，`ProcessStartedAt` 为零时间，这就是为什么幸存者探测绝不会把这样的任务误认为它可以结束的 pid。
 
 这在界面上改变了什么：
 
@@ -295,10 +295,10 @@ type LaunchFunc func(taskID string, out io.Writer) (Handle, error)
 - Web 界面中面板的打开器在 `features/background_tasks_web_ui.feature` 中规定，实时行中正在运行任务段在 `features/turn_progress_web_ui.feature`（`external/ui/bdd_turn_progress_ui_test.go`，每一步都是一个命名的 vitest 测试）中规定。
 - 轮次上下文的正在运行任务章节固定在 `internal/agent/turn_context_tasks_test.go`：正在运行的任务按 `background_list` 列出它的方式列出，系统任务和另一会话的任务不会列出，已停止任务会离开该块，关闭后台运行时不会写入任何内容。
 - 边界情况位于普通单元测试中：超时解析、并发上限、输出窗口截断、孤儿标记、跨重启 id 唯一性（`internal/bgtask`）、元字符授权拒绝（`internal/permission`），以及 UI 辅助函数（`external/ui/src/ui/tasks/`）。
-- 存活探测在 `internal/platform` 中有自己的测试：`procgroup_test.go` 针对两个平台都应有的行为（找到正在运行的进程，找不到已退出的进程，探测可重复），`procgroup_windows_test.go` 针对只有 Windows 会出错的地方：因句柄仍打开而把已杀死进程报告为存活、接受记录未描述的创建时间，以及在这样的记录上杀死 pid。读取 `process_started_at` 存在之前写入的会话包固定在 `internal/bgtask`（`TestLoadPersistedLeavesALegacyRecordWithoutAProcessIdentity`）。
+- 存活探测在 `internal/platform` 中有自己的测试：`procgroup_test.go` 针对两个平台都应有的行为（找到正在运行的进程，找不到已退出的进程，探测可重复），`procgroup_windows_test.go` 针对只有 Windows 会出错的地方：因句柄仍打开而把已结束进程报告为存活、接受记录未描述的创建时间，以及在这样的记录上结束 pid。读取 `process_started_at` 存在之前写入的会话包固定在 `internal/bgtask`（`TestLoadPersistedLeavesALegacyRecordWithoutAProcessIdentity`）。
 - 任务池上的子智能体运行在 `features/subagents.feature`（`internal/agent/bdd_subagents_test.go`）、`features/subagents_http.feature`（`external/httpserver/bdd_subagents_test.go`，包括在事件流上宣告并通过子会话回答的分离提示）、`features/subagents_detached_prompts.feature`（`internal/serve`）和 `features/subagents_web_ui.feature`（在父聊天中回答提示）中规定；`Pool.Launch` 排序和 `Snapshot.Agent` 持久化是 `internal/bgtask` 中的单元测试。参见 `docs/features/subagents.md`。
 - 控制台侧在 `features/cli_tui.feature`（针对真实池化命令的覆盖层：列出、输出、停止；状态行的轮次数）和 `features/cli_remote.feature`（同一覆盖层和针对假远程服务器的 `turn_progress` 行）中规定，覆盖层的渲染和按键、正在运行计数和轮询节奏在 `external/cli/tasks_test.go` 中规定。`examples/cli/capture_tasks.py` 在 pty 中针对脚本化模型驱动真实二进制，并渲染本页和控制台指南的截图。
 - 预览服务器在 `features/preview_server.feature`（`internal/tools/preview/bdd_preview_server_test.go`：真实任务池、真实目录和真实 HTTP 客户端）中规定，拒绝情况（工作区外的目录、点文件、外来 `Host`、指向根之外的符号链接）在 `internal/tools/preview/preview_test.go` 中，无计时任务在 `internal/bgtask` 中。
-- 针对真实模型的端到端测试：`examples/httpserver/http_e2e_background.py`、`examples/httpserver/http_e2e_background_reap.py`（在任务中途杀死自己的 coddy，并让新的 coddy 清理它）、`examples/acp/acp_e2e_background.py`，以及针对服务器种类的 `examples/httpserver/http_e2e_preview_server.py`。
+- 针对真实模型的端到端测试：`examples/httpserver/http_e2e_background.py`、`examples/httpserver/http_e2e_background_reap.py`（在任务中途结束自己的 coddy，并让新的 coddy 清理它）、`examples/acp/acp_e2e_background.py`，以及针对服务器种类的 `examples/httpserver/http_e2e_preview_server.py`。
 
 <!-- docsgen:source sha256=37a286e370aa1d6b -->

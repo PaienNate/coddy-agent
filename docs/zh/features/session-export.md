@@ -21,7 +21,7 @@
 
 ### 格式
 
-当 `/export` 后的第一个单词表示一种格式时，该单词就是格式：`md`（或 `markdown`）、`html`、`json`、`jsonl`。没有该单词时，由目标的扩展名决定（`.md`、`.markdown`、`.html`、`.htm`、`.json`、`.jsonl`）；空目标或目录会导出 markdown。既不是格式也不是现有目录的裸词会被拒绝，因此 `/export yaml` 会报告支持的格式，而不会创建名为 `yaml` 的文件。
+当 `/export` 后的第一个单词表示一种格式时，该单词就是格式：`md`（或 `markdown`）、`html`、`json`、`jsonl`。没有该单词时，由目标的扩展名决定（`.md`、`.markdown`、`.html`、`.htm`、`.json`、`.jsonl`）；空目标或目录会导出 markdown。既不是格式也不是现有目录的单词会被拒绝，因此 `/export yaml` 会报告支持的格式，而不会创建名为 `yaml` 的文件。
 
 ### 路径
 

@@ -6,7 +6,7 @@
 
 导出器是 [`coddy serve`](serve.md) 的辅助子系统，默认关闭：单独启用它永远不够（仅启用 `metrics` 的配置会被拒绝），并且随时可以停止。它需要 `metrics` 构建标签，发布二进制、Docker 镜像和 Linux 软件包都带有该标签；不带该标签的二进制会拒绝 `metrics.enable: true` 并指出该标签。
 
-- 它在自己的监听器上提供 `GET /metrics`，与 [HTTP API](../reference/http-api.md) 不共享路由或令牌。
+- 它在自己的侦听器上提供 `GET /metrics`，与 [HTTP API](../reference/http-api.md) 不共享路由或令牌。
 - 计数随进程启动而开始，无论 `metrics.enable` 如何设置，因此稍后启用的导出器也会显示之前发生的情况。计数器随进程重启归零。
 - 只有 `coddy serve` 会导出，控制台或 `coddy acp` 不会。
 
@@ -30,11 +30,11 @@ metrics:
 
 *同一标签页，宽 390 px，深色主题*
 
-[配置更改](serve.md#接收配置更改) 会应用到正在运行的进程，且保留计数器：新令牌从下一次抓取开始生效，新的 `metrics.host` 或 `metrics.port` 会原地重建监听器，`metrics.enable` 会启动或停止它。无法绑定的监听器只会停止导出器（`subsystem failed`，日志中带 `subsystem=metrics`），Prometheus 会看到目标不可用（`CoddyDown`）。在迁移地址前运行 `coddy serve --dry-run`：它会报告另一个进程在 `metrics.port` 占用的端口。
+[配置更改](serve.md#接收配置更改) 会应用到正在运行的进程，且保留计数器：新令牌从下一次抓取开始生效，新的 `metrics.host` 或 `metrics.port` 会原地重建侦听器，`metrics.enable` 会启动或停止它。无法绑定的侦听器只会停止导出器（`subsystem failed`，日志中带 `subsystem=metrics`），Prometheus 会看到目标不可用（`CoddyDown`）。在迁移地址前运行 `coddy serve --dry-run`：它会报告另一个进程在 `metrics.port` 占用的端口。
 
 ## 绑定到回环之外
 
-导出器监听 `127.0.0.1:12347`，只有本机可以访问。这些数字不包含对话内容（参见[从不导出的内容](#从不导出的内容)），但会显示负载和提供商使用情况。要从另一台机器抓取，将 `metrics.host` 设为可访问的地址（`0.0.0.0` 表示全部）并设置 `metrics.token`。没有令牌时，绑定到回环之外（除 `localhost`、`127.x.x.x` 和 `::1` 之外的任何地址）会记录启动警告，清除此类导出器令牌的重新加载会再次记录该警告，并且 `coddy serve --dry-run` 会在 `metrics.host` 发出警告。
+导出器侦听 `127.0.0.1:12347`，只有本机可以访问。这些数字不包含对话内容（参见[从不导出的内容](#从不导出的内容)），但会显示负载和提供商使用情况。要从另一台机器抓取，将 `metrics.host` 设为可访问的地址（`0.0.0.0` 表示全部）并设置 `metrics.token`。没有令牌时，绑定到回环之外（除 `localhost`、`127.x.x.x` 和 `::1` 之外的任何地址）会记录启动警告，清除此类导出器令牌的重新加载会再次记录该警告，并且 `coddy serve --dry-run` 会在 `metrics.host` 发出警告。
 
 在容器中，回环是容器自身的回环，发布的端口无法访问它：在有令牌的情况下绑定 `0.0.0.0` 并发布端口 `12347`。镜像参见 [Docker](../getting-started/docker.md#镜像默认包含的内容)，令牌保护的内容参见[安全与信任](security.md#指标导出器)。
 
@@ -97,7 +97,7 @@ curl -s -H "Authorization: Bearer $CODDY_METRICS_TOKEN" http://127.0.0.1:12347/m
 | `coddy_subsystem_up{subsystem}` | gauge | 对于进程正在运行或正在启动的子系统为 1，对于已启用但未运行的子系统为 0；导出器不包含在内。 |
 | `coddy_restart_required` | gauge | 当某项已保存的更改只有新进程才能应用、并等待一个不会自行执行的重新启动时为 1：例如迁移了 HTTP 或集群地址，或某个界面在未使用会话存储启动的进程中运行轮次（[自行重启](serve.md#自行重启)）。 |
 | `coddy_turns_running` | gauge | 有轮次正在运行的会话数。 |
-| `coddy_turn_oldest_running_seconds` | gauge | 运行时间最长的轮次的时长，没有轮次运行时为 0。等待权限或用量限制是合理的，因此不能证明卡死。 |
+| `coddy_turn_oldest_running_seconds` | gauge | 运行时间最长的轮次的时长，没有轮次运行时为 0。等待权限或用量限制是合理的，因此不能证明无响应。 |
 | `coddy_background_tasks{kind,status}` | gauge | 按类型（`command`、`agent`、`server`）和状态（`queued`、`running`）统计的模型后台任务。 |
 | `coddy_sessions_disk_available_bytes`, `coddy_sessions_disk_size_bytes` | gauge | 会话存储所在磁盘上非 root 写入者可用的空闲空间及其大小；读取失败或进程没有会话存储时不存在。 |
 
@@ -113,7 +113,7 @@ curl -s -H "Authorization: Bearer $CODDY_METRICS_TOKEN" http://127.0.0.1:12347/m
 | `coddy_swarm_joins{relay,transport,state}` | gauge | 此进程注册到父中继（`swarm.join`）的情况，按中继主机、传输方式（`direct`、`tunnel`）以及最后一次尝试的状态（`online`、`offline`）分组。 |
 | `coddy_swarm_nodes{kind,transport,state}` | gauge | 此进程的中继已知的节点，按类型（`agent`、`relay`）、传输方式和状态分组；仅在运行中继的进程中存在。 |
 
-提示词在请求它的调用等待期间计数，包括子智能体的提示词。在回答前流已结束的提示词不在任何调用中等待，因此只有在恢复时才再次计数。等待提示词的轮次不是卡死，等待中的提示词可将 `CoddyTurnLongRunning` 与卡住的轮次区分开。
+提示词在请求它的调用等待期间计数，包括子智能体的提示词。在回答前流已结束的提示词不在任何调用中等待，因此只有在恢复时才再次计数。等待提示词的轮次不是无响应，等待中的提示词可将 `CoddyTurnLongRunning` 与卡住的轮次区分开。
 
 配额指标族从会话管理器为各界面用量面板保留的缓存中读取，因此抓取不会向提供商询问任何内容，数值的新旧程度与各界面最后一次读取时相同（轮次结束时会再次读取）。它们存在于具有用量读取器的提供商类型：`neuraldeep`、`codex` 和 `devin`，并启用 `providers[].usage_limits_panel`。`window` 是 `session`、`day`、`week`、`acu` 和 `window-<seconds>` 之一，在相同长度的第二个窗口之后为 `-secondary`。最后一次读取失败的快照会被省略，而不是用旧数字报告。
 

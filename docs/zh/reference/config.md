@@ -36,7 +36,7 @@ VS Code（配合 YAML 扩展）、Zed、Neovim 和 Helix 会自动读取此注�
 
 根路径（`.` 或 `/`）为只读。对象和数组的值使用 JSON；字符串类型字段接受字面文本。暂存命令会持久化在会话包中，因此可在重启和 HTTP 权限恢复后继续存在。
 
-捆绑的 `/configure-coddy` 技能向智能体教授此语法、先确认后提交的工作流，以及 MCP 服务器和技能的安全发现/安装工作流；它还包含面向智能体的配置区域目录，任何 schema 变更都必须与本参考一同更新。进程级监听器变更可能仍需要重启相关命令；热重载明确保证针对当前会话的智能体配置、技能、规则、内置工具和 MCP 信任策略。MCP 服务器不属于此文件（见 [`mcp`](#mcp)）。
+捆绑的 `/configure-coddy` 技能向智能体教授此语法、先确认后提交的工作流，以及 MCP 服务器和技能的安全发现/安装工作流；它还包含面向智能体的配置区域目录，任何 schema 变更都必须与本参考一同更新。进程级侦听器变更可能仍需要重启相关命令；热重载明确保证针对当前会话的智能体配置、技能、规则、内置工具和 MCP 信任策略。MCP 服务器不属于此文件（见 [`mcp`](#mcp)）。
 
 ## 字段参考
 
@@ -317,7 +317,7 @@ OpenAI 兼容 HTTP API 的默认值（仅由使用 -tags http 构建的二进制
 |-----|------|--------|------|
 | `httpserver.enable` | 布尔值 或 null | true | 在此进程中提供 HTTP API（以及嵌入式 SPA）。省略表示 true；在仅轮询 messenger 或为集群提供中继的节点上设置为 false。 |
 | `httpserver.host` | 字符串 | 127.0.0.1 | HTTP API 的绑定地址。为空表示 127.0.0.1；设置为 0.0.0.0 以接受来自其他机器的连接。 |
-| `httpserver.port` | 整数 | 0 | 当 coddy serve 未传递 -P/--port 时使用的默认监听端口。0 回退到 12345。 |
+| `httpserver.port` | 整数 | 0 | 当 coddy serve 未传递 -P/--port 时使用的默认侦听端口。0 回退到 12345。 |
 | `httpserver.max_body_bytes` | 整数 | 0 | POST /v1/chat/completions 和 POST /v1/responses 接受的最大请求体，以字节计。0 表示内置的 512 MiB。更大的请求体将以 413 和 request_too_large 错误拒绝。 |
 | `httpserver.max_client_tools` | 整数 | 0 | 客户端在 POST /v1/chat/completions 和 POST /v1/responses 上向直接模型提供的最多工具数。0 表示内置的 128，即 OpenAI 自身的限制。更多工具会以 400 和 too_many_tools 错误拒绝，该错误会指明数量和此设置。对于其 MCP 服务器提供更多工具的客户端，可提高此值；提供商自身的限制仍会生效。 |
 | `httpserver.max_client_tool_schema_bytes` | 整数 | 0 | 在 POST /v1/chat/completions 和 POST /v1/responses 上，单个客户端工具的参数 schema 最大大小，以字节计。0 表示内置的 256 KiB。更大的会以 400 和 tool_parameters_too_large 错误拒绝。 |
@@ -348,7 +348,7 @@ OpenAI 兼容 HTTP API 的默认值（仅由使用 -tags http 构建的二进制
 |-----|------|--------|------|
 | `swarm.enable` | 布尔值 | false | 在此进程中运行集群中继。与 swarm.join 无关，后者是智能体注册到父中继的方式。 |
 | `swarm.host` | 字符串 | "" | 当 CLI 未传递 --swarm-host 时中继的绑定地址。为空回退到 0.0.0.0。 |
-| `swarm.port` | 整数 | 0 | 中继的监听端口。0 回退到 12346。 |
+| `swarm.port` | 整数 | 0 | 中继的侦听端口。0 回退到 12346。 |
 | `swarm.name` | 字符串 | "" | 此中继在拓扑视图、/swarm/info 和子节点路径中的标签。为空：其运行所在的主机名。 |
 | `swarm.auth_token` | 字符串 | "" | 客户端向此中继出示的 bearer 凭据。中继使用每个节点自己的凭据访问该节点，因此绑定在非环回地址且未认证的中继是整个集群的敞开大门；除非设置了 allow_insecure，否则服务器拒绝启动。永不回显。 |
 | `swarm.pairing_tokens` | 字符串列表 | [] | 节点注册时必须出示的凭据。为空会关闭注册，除非设置了 insecure_open_registration。永不回显。 |
@@ -474,7 +474,7 @@ Prometheus 导出器：在独立端口上提供 GET /metrics，由 coddy serve �
 |-----|------|--------|------|
 | `metrics.enable` | 布尔值 | false | 在此进程中运行导出器。需要 metrics 构建标签。 |
 | `metrics.host` | 字符串 | "" | 导出器的绑定地址。留空则回退到 127.0.0.1，仅本机可访问。 |
-| `metrics.port` | 整数 | 0 | 导出器的监听端口。0 会回退到 12347。 |
+| `metrics.port` | 整数 | 0 | 导出器的侦听端口。0 会回退到 12347。 |
 | `metrics.token` | 字符串 | "" | 抓取时必须在 Authorization 请求头中提供的 Bearer 凭据。${ENV} 引用会在加载时展开。留空表示不进行身份验证，因此在绑定到非回环地址前应设置一个。绝不会回显。 |
 
 ### `supervisor`
@@ -501,7 +501,7 @@ Prometheus 导出器：在独立端口上提供 GET /metrics，由 coddy serve �
 |-----|------|--------|------|
 | `toolsets` | 对象列表 |  | 工具列表的具名预设。models[] 行通过 toolset 命名一个，会话可以使用 /toolset <name> 选择一个，既可单独使用，也可在同一行中跟在 /model 之后。预设只会收窄范围：模式、子智能体定义或开关已经隐藏的工具仍保持隐藏，对集合之外工具的调用会被拒绝且不会出现权限提示。它是上下文优化，不是安全边界。 |
 | `toolsets[].name` | 字符串 |  | 预设名称：字母、数字、'.'、'_' 和 '-'。default 是保留名称：会话选择它会获得该模式提供的每个工具。 |
-| `toolsets[].tools` | 字符串列表 |  | 允许列表：工具名称、裸 *，或 prefix*（context7__* 允许该 MCP 服务器的每个工具）。不存在或为空则允许该模式会允许的每个工具。coddy -t 会对不匹配任何工具的条目发出警告。 |
+| `toolsets[].tools` | 字符串列表 |  | 允许列表：工具名称、单独的 *，或 prefix*（context7__* 允许该 MCP 服务器的每个工具）。不存在或为空则允许该模式会允许的每个工具。coddy -t 会对不匹配任何工具的条目发出警告。 |
 | `toolsets[].disallowed_tools` | 字符串列表 |  | 在 tools 之后应用的拒绝列表，使用相同的名称和模式；同时出现在两个列表中的名称会被移除。coddy -t 会对不匹配任何工具的条目发出警告。 |
 <!-- docsgen:config:end -->
 
@@ -660,7 +660,7 @@ logger:
 coddy serve --log-level "info,gateway.telegram=debug"
 ```
 
-裸 `--log-level debug` 仅设置根级别，并保持已配置条目不变；命名组件的规范会替换它们，因此该标志是记录内容的完整陈述。
+单独的 `--log-level debug` 仅设置根级别，并保持已配置条目不变；命名组件的规范会替换它们，因此该标志是记录内容的完整陈述。
 
 ### `sessions`
 
@@ -672,7 +672,7 @@ coddy serve --log-level "info,gateway.telegram=debug"
 
 #### `compaction.result_eviction`
 
-在构建 LLM 请求时（`config.ResultEviction`），将未标记的 `read`/`grep` 工具结果折叠为短占位符，因此分页大文件或运行宽泛搜索不能在后续每个轮次中钉住死行。当模型标记它（`keep_result` 工具，或调用上的 `keep: true`）或它位于最近工作窗口内时，结果会保留；对文件的文件系统写入会使覆盖它的较早 read/grep 失效。持久化会话包完整保留每个结果。
+在构建 LLM 请求时（`config.ResultEviction`），将未标记的 `read`/`grep` 工具结果折叠为短占位符，因此分页大文件或运行宽泛搜索不能在后续每个轮次中钉住失效行。当模型标记它（`keep_result` 工具，或调用上的 `keep: true`）或它位于最近工作窗口内时，结果会保留；对文件的文件系统写入会使覆盖它的较早 read/grep 失效。持久化会话包完整保留每个结果。
 
 ### `memory`
 

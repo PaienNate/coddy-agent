@@ -51,7 +51,7 @@ agent:
   model: opencode/glm-5.3
 ```
 
-空的 `api_key` 会读取该行的 `NAME_API_KEY` 环境变量，然后在该变量未设置时使用存储的凭据。名为 `opencode` 的行会读取 `OPENCODE_API_KEY`。`${OPENCODE_API_KEY}` 形式会在文件加载时展开；裸空值会在调用时读取。
+空的 `api_key` 会读取该行的 `NAME_API_KEY` 环境变量，然后在该变量未设置时使用存储的凭据。名为 `opencode` 的行会读取 `OPENCODE_API_KEY`。`${OPENCODE_API_KEY}` 形式会在文件加载时展开；空值本身会在调用时读取。
 
 ### 存储服务账户密钥
 

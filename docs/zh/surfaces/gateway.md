@@ -423,7 +423,7 @@ coddy serve --gateway --http=false --config stand.yaml  # telegram: api base ove
 
 ![tgfake 的深色模式聊天页面：左侧是用户一侧的聊天，机器人的 /model 键盘显示为按钮，一条 /plan --once 消息得到回答，机器人发出的每个 Bot API 调用列在右侧](../../assets/tgfake-chat-dark-1280.png)
 
-*tgfake 的聊天页面：脚本化模型回答问候，`/model` 键盘应用了点击，在计划模式下发送了一条仅一轮的消息，一条裸 `/ask` 的通知，右侧是机器人发出的每个 Bot API 调用，`getUpdates` 轮询被隐藏。*
+*tgfake 的聊天页面：脚本化模型回答问候，`/model` 键盘应用了点击，在计划模式下发送了一条仅一轮的消息，一条单独的 `/ask` 的通知，右侧是机器人发出的每个 Bot API 调用，`getUpdates` 轮询被隐藏。*
 
 同一页面也是 HTTP API，脚本或编码智能体可以驱动它（完整参考是 tgfake 的[模拟 API](https://github.com/EvilFreelancer/tgfake/blob/main/docs/sim-api.md)）：
 
@@ -498,7 +498,7 @@ why?
 1. **@提及**机器人的消息（`@coddy_agent_bot hello`）
 2. 对先前机器人消息的**直接回复**
 
-命令遵循相同规则：在群组中，机器人命令或设置命令需要提及，Telegram 将其写作 `/clear@coddy_agent_bot`（群组的命令菜单会插入该形式），或回复机器人的消息。群组中的裸 `/clear` 留给其中的人。
+命令遵循相同规则：在群组中，机器人命令或设置命令需要提及，Telegram 将其写作 `/clear@coddy_agent_bot`（群组的命令菜单会插入该形式），或回复机器人的消息。群组中的单独的 `/clear` 留给其中的人。
 
 ### 非管理员可以做什么
 
@@ -545,7 +545,7 @@ why?
 
 ### 针对该轮次告知模型
 
-在聊天轮次运行之前，适配器会向会话传递一段**系统提示词**，描述如何向此聊天回答：Telegram 渲染的强调、它不渲染的标题、表格会变成一堵竖线墙、标识符应放在反引号中，因为裸 `_` 会开启斜体，以及聊天在手机上是窄列。它位于 `external/gateway/telegram/prompt.go`，`rich_messages: true` 会发送不同的内容 - 在那里聊天会完整渲染 GitHub 风格 Markdown，因此唯一值得说的是手机屏幕需要多少内容。
+在聊天轮次运行之前，适配器会向会话传递一段**系统提示词**，描述如何向此聊天回答：Telegram 渲染的强调、它不渲染的标题、表格会变成一堵竖线墙、标识符应放在反引号中，因为单独的 `_` 会开启斜体，以及聊天在手机上是窄列。它位于 `external/gateway/telegram/prompt.go`，`rich_messages: true` 会发送不同的内容 - 在那里聊天会完整渲染 GitHub 风格 Markdown，因此唯一值得说的是手机屏幕需要多少内容。
 
 该块属于**轮次**，不属于会话（`session.PromptRunOpts.SurfaceSystemPrompt`）。其中没有任何内容被持久化，因此对话记录保存的是对话，而不是运行它的界面，同一会话上的浏览器轮次构建时不包含它。这确实意味着不同界面的提示词前缀不同，因此从其他地方跟随而来的轮次不会重用其缓存前缀。这是让每个集成自己说话、而不是让核心了解即时通讯的刻意代价。
 

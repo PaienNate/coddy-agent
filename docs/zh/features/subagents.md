@@ -46,7 +46,7 @@
 | `model` | | 子级的 `models[].model` id。未知 id 会回退到父级的模型，并在智能体日志中记录警告，在任务的输出日志中记录一条说明。 |
 | `reasoning` | `effort` | 子级模型提供的推理级别，`off` 或 `default`。模型不提供的级别会回退到其默认值，并在智能体日志中记录警告。 |
 | `mode` | | `agent` 或 `plan`。空值继承父级的模式；只读父级（`plan`，以及 `ask`，如果生成曾经源自那里）始终强制使用自己的模式。父级模式是其轮次启动时的模式，而不是实时会话模式，因此轮次中途发生的模式切换不能拓宽子级。 |
-| `tools` | | 允许列表：YAML 列表或逗号分隔字符串（`tools: read, grep`）。条目是精确工具名、裸 `*`，或 `prefix*` 模式，因此 `context7__*` 允许某个 MCP 服务器的每个工具。空表示父级拥有的一切。 |
+| `tools` | | 允许列表：YAML 列表或逗号分隔字符串（`tools: read, grep`）。条目是精确工具名、单独的 `*`，或 `prefix*` 模式，因此 `context7__*` 允许某个 MCP 服务器的每个工具。空表示父级拥有的一切。 |
 | `disallowed_tools` | `disallowedTools` | 使用相同语法的拒绝列表；优先于 `tools`。 |
 | `permission_mode` | `permissionMode` | `ask`、`accept_edits` 或 `bypass`。接受 Claude Code 拼写（`default` 和 `prompt` 表示 `ask`，`acceptEdits` / `accept-edits`，`bypassPermissions` / `bypass-permissions` / `dontask`）。它只能**收窄**父级的有效模式。 |
 | `max_turns` | `maxTurns` | 子级 ReAct 轮数的上限。`0` 使用 `subagents.max_turns`，然后是 `agent.max_turns`。 |
@@ -246,7 +246,7 @@ You will be woken with the outcome when it finishes, so you can end your turn no
 
 子智能体无人值守地工作：运行时没有人阅读其对话记录，也没有人能在其中输入“继续”。其模型提供商通道的失败（远程主机关闭的连接、重置、代理的 5xx、流变得沉默）是通道的失败，不是任务的失败，因此子级会像交互轮次那样挺过去（[提供商在轮次中途失败](../getting-started/troubleshooting.md#提供商在轮次中途失败)），只是时间更长。它已经写下的文本会留在其对话记录中，暂停后该步骤会再次运行，并要求模型从停止处继续。交互轮次会连续挺过两次失败调用，并在第三次时结束，因为阅读它的人决定接下来发生什么。子智能体和计划运行会连续挺过五次，并在第六次时结束，在默认 `agent.llm_retry_base_ms` 下暂停 5 秒、20 秒、80 秒、2 分钟和 2 分钟：当运行有余地时大约六分钟。每次恢复会占用运行的一个轮次（`max_turns`），而运行的硬超时会缩短暂停并结束运行为 `timed_out`，因此超时短或轮次限制低的运行会更早放弃。成功的调用会重新开始计数。记忆子智能体保留交互预算，因为模型委派给它并作为工具结果等待其报告，因此它会像交互轮次一样挺过同样的两次失败；`agent.llm_retry_max: 0` 会在所有地方关闭恢复。
 
-Windows 使用 Winsock 自己的代码报告死连接，`WSAECONNRESET`（`wsarecv: An existing connection was forcibly closed by the remote host.`）和 `WSAECONNABORTED`（`An established connection was aborted by the software in your host machine.`）。两者都算作连接已死，就像 Linux 上的 `connection reset by peer`（[issue #389](https://github.com/coddy-project/coddy-agent/issues/389)）。
+Windows 使用 Winsock 自己的代码报告失效连接，`WSAECONNRESET`（`wsarecv: An existing connection was forcibly closed by the remote host.`）和 `WSAECONNABORTED`（`An established connection was aborted by the software in your host machine.`）。两者都算作连接已失效，就像 Linux 上的 `connection reset by peer`（[issue #389](https://github.com/coddy-project/coddy-agent/issues/389)）。
 
 每次重连都是任务进度日志的一行，位于子级已写文本之后，因此等待中断结束的运行不会读起来像挂起：
 
@@ -266,7 +266,7 @@ subagent general (task bg_5, session sess_e20a…) starting
 ```
 
 - 该运行像新生成一样，根据当前定义来决定：其信任回执、模式、权限模式、工具集、推理级别和超时。`agent` 必须指定该运行所属的子智能体。子级保留其标题，模型保留其较早运行工作过的模型，除非调用指定另一个；此后从配置中移除的模型会像未知模型一样被替换，任务日志会同时指明两者。较早运行被允许的任何内容都不会延续：其答案记录的授权会留在后面，恢复的运行会再次询问。
-- 对话记录按其离开时的状态继续，并做一处修复：它持有但没有结果的调用（运行在一批调用中途被停止或超时，或进程在其中一个调用期间死亡）会被回答为没有记录结果，它可能运行过，也可能没有，因此模型在再次进行调用之前会检查当前状态。提供商会拒绝携带没有结果的调用的请求，因此没有该答案，恢复的运行会在第一步失败。
+- 对话记录按其离开时的状态继续，并做一处修复：它持有但没有结果的调用（运行在一批调用中途被停止或超时，或进程在其中一个调用期间退出）会被回答为没有记录结果，它可能运行过，也可能没有，因此模型在再次进行调用之前会检查当前状态。提供商会拒绝携带没有结果的调用的请求，因此没有该答案，恢复的运行会在第一步失败。
 - 对话记录不在磁盘上的运行会在任何内容启动之前被拒绝：其子会话从未创建（运行在途中失败），或子级此后被删除。
 - 子级只在其工作过的工作区中继续。会话移动到另一个文件夹后，恢复会被拒绝，因为对话记录的路径和结果属于旧工作区；在那里为该任务启动新的子智能体。拥有自己 worktree 的子级会在其中继续，因此对于该子级，会话只需要在同一仓库中工作（[自己的 worktree](#自己的-worktree)）。
 - 只有此会话的已完成运行会被恢复。仍在途的运行会被拒绝（先用 `background_wait` 等待它或用 `background_stop` 停止它），任何不是此会话已完成子级的内容也会被拒绝。计划运行是其 job 会话的子级，绝不是聊天的子级。

@@ -70,7 +70,7 @@ Android 归档使用 **`GOOS=android`** 构建，并由 Android NDK 链接到 Bi
 - **临时文件。** **`TMPDIR`** 回退到 **`$PREFIX/tmp`**：Android 的默认值
   **`/data/local/tmp`** 对应用不可写。
 - **打开浏览器。** 诸如 **`coddy providers login`** 的登录流程会使用 **`termux-open-url`** 打开手机的浏览器，
-  浏览器会访问 Coddy 在设备回环地址上监听的 回调。
+  浏览器会访问 Coddy 在设备回环地址上侦听的 回调。
 - **更新。** **`coddy update`** 会下载新版本的 Android 归档并就地替换
   二进制文件；参见 [更新](update.md)。
 
@@ -78,7 +78,7 @@ Android 归档使用 **`GOOS=android`** 构建，并由 Android NDK 链接到 Bi
 
 **`coddy serve`** 与其他地方一样工作，Web 界面会在手机的浏览器中通过 **`http://127.0.0.1:12345/`** 打开。Android 没有 systemd，因此 **`coddy serve install`** 不可用：请在 Termux 会话中、在 **`tmux`**（**`pkg install tmux`**）中，或使用 **`coddy serve --daemon`** 在后台运行服务器（参见 [coddy serve](../operate/serve.md)）。
 
-Android 会停止它认为空闲的应用的进程。当服务器需要保持运行时，请获取 Termux 的唤醒锁（**`termux-wake-lock`**，或从 Termux 通知中获取），并在电池设置中允许 Termux 不受限制地运行。Android 12 及更高版本还会在超过限制时终止应用的 后台进程（"phantom process killer"，幻影进程杀手）；Termux 的文档介绍了如何解除该限制。
+Android 会停止它认为空闲的应用的进程。当服务器需要保持运行时，请获取 Termux 的唤醒锁（**`termux-wake-lock`**，或从 Termux 通知中获取），并在电池设置中允许 Termux 不受限制地运行。Android 12 及更高版本还会在超过限制时终止应用的 后台进程（`phantom process killer`，幻影进程清理）；Termux 的文档介绍了如何解除该限制。
 
 手机也可以作为集群的一个节点：它拨号连接笔记本电脑或服务器上的中继，中继的 Web 界面和控制台会像驱动其他机器一样驱动它，手机上无需开放端口。完整路径见 [将 Android 手机用作集群节点](../tutorials/swarm-android-nodes.md)。
 

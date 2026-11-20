@@ -110,7 +110,7 @@ curl -s -H "Authorization: Bearer <client token>" http://relay.lan:12346/swarm/n
 
 ## 4. 笔记本电脑
 
-笔记本电脑为 Web 界面运行自己的 `coddy serve`（[快速开始](../getting-started/quickstart.md)），默认监听 `http://localhost:12345`。中继作为远程项加入其 `~/.coddy/config.yaml`，客户端令牌不写入文件：
+笔记本电脑为 Web 界面运行自己的 `coddy serve`（[快速开始](../getting-started/quickstart.md)），默认侦听 `http://localhost:12345`。中继作为远程项加入其 `~/.coddy/config.yaml`，客户端令牌不写入文件：
 
 ```yaml
 httpserver:
@@ -156,11 +156,11 @@ coddy -p "What is in the workspace?" --remote http://relay.lan:12346/swarm/nodes
 
 - **中继的圆点是红色，并说响应被 CORS 拦截。** 中继未放行笔记本电脑页面所在的地址。中继下方的那一行会指出该确切来源，对于位于回环地址上的页面，还会给出那个开关：在中继上、在其文件中或在其自身的 Settings 中设置 `swarm.cors.allow_loopback: true`，即可放行任意端口上的所有回环来源；或者把确切来源加入 `swarm.cors.allowed_origins`，注意 `localhost` 和 `127.0.0.1` 是两个不同的来源。
 - **圆点是红色，并说中继拒绝该令牌。** 笔记本电脑所提供的令牌不是中继的 `swarm.auth_token`（或 `--swarm-auth-token`）。如果笔记本电脑的条目中有 `token`，就在那里修正；如果没有，中继下方的 **Enter token** 会打开已为其填好内容的表单。
-- **圆点是红色，并说中继无响应。** 从笔记本电脑看，该地址上没有监听：请从笔记本电脑检查 `curl http://relay.lan:12346/swarm/info`、中继的 `host`，以及两者之间的防火墙。
+- **圆点是红色，并说中继无响应。** 从笔记本电脑看，该地址上没有侦听：请从笔记本电脑检查 `curl http://relay.lan:12346/swarm/info`、中继的 `host`，以及两者之间的防火墙。
 - **中继是绿色，但没有列出任何工作节点。** 没有工作节点加入：工作节点的日志会说明其注册是否被拒绝。配对令牌是精确比较的。
 - **列出了工作节点，但在那里的轮次以 401 失败。** 工作节点 `swarm.join` 条目中的 `token` 不是它自己的 `httpserver.auth_token`；中继在代理时会出示该值。
 - **`coddy --remote office` 毫无进展。** `office` 是中继，它不提供任何会话服务。请把 `--remote` 指向某个工作节点的挂载点；试运行会列出它们。
 - **添加到笔记本电脑配置中的远程项没有出现在菜单里。** 该文件在菜单打开时才会被读取，所以请关闭菜单再重新打开；笔记本电脑的服务器必须已加载该文件，而它在编辑后几秒内会自行完成加载。
-- **保存中继设置后，工作节点会短暂消失。** 保存会重建中继，工作节点会在几秒内重新注册并重新打开其隧道；更换新的监听地址则需要重启中继。
+- **保存中继设置后，工作节点会短暂消失。** 保存会重建中继，工作节点会在几秒内重新注册并重新打开其隧道；更换新的侦听地址则需要重启中继。
 
 <!-- docsgen:source sha256=8d0c8f9eeb80dcbb -->

@@ -62,6 +62,6 @@ secrets/
 
 worktree 内的文件夹对应主检出的同一文件夹：`<worktree>/pkg` 到 `<main checkout>/pkg`。在 worktree 中，`coddy mcp list`、`coddy agents list` 和 `coddy hooks list` 会添加一行，命名批准所保留的主检出，而 `GET /coddy/mcp`、`GET /coddy/subagents` 和 `GET /coddy/hooks` 的 `workspace` 字段也会命名它。
 
-只有当 git 双向链接某个文件夹时，该文件夹才算作 worktree：其 `.git` 文件命名仓库的 worktree 存储，而该存储也会反向命名该文件夹。复制或写入另一个文件夹的 `.git` 文件，例如作为链接的 `.git`，不会为该文件夹提供任何内容。如果某个文件夹在主检出中的对应项是指向其他位置的链接，或位于那里嵌套的仓库中，则该文件夹会保留自己的批准；裸仓库的 worktree 文件夹也是如此。将其存储保留在主检出之外的仓库（`--separate-git-dir`）的 worktree 与主检出不共享任何内容：当该存储命名为 `.git` 时，它们共享持有该存储的文件夹的批准，否则各自保留自己的批准。在 Coddy 共享批准之前，worktree 在其自身路径下记录的批准不会被迁移，因此该 worktree 会再次请求只有它批准过的内容。
+只有当 git 双向链接某个文件夹时，该文件夹才算作 worktree：其 `.git` 文件命名仓库的 worktree 存储，而该存储也会反向命名该文件夹。复制或写入另一个文件夹的 `.git` 文件，例如作为链接的 `.git`，不会为该文件夹提供任何内容。如果某个文件夹在主检出中的对应项是指向其他位置的链接，或位于那里嵌套的仓库中，则该文件夹会保留自己的批准；纯仓库的 worktree 文件夹也是如此。将其存储保留在主检出之外的仓库（`--separate-git-dir`）的 worktree 与主检出不共享任何内容：当该存储命名为 `.git` 时，它们共享持有该存储的文件夹的批准，否则各自保留自己的批准。在 Coddy 共享批准之前，worktree 在其自身路径下记录的批准不会被迁移，因此该 worktree 会再次请求只有它批准过的内容。
 
 <!-- docsgen:source sha256=3d520c66b75e2c76 -->

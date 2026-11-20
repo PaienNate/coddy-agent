@@ -79,7 +79,7 @@ CI 步骤可以改为在每次运行时传入 `--permission-mode`：该标志仅
 
 - **提供商密钥。** `providers[].api_key` 是字面量、在文件加载时展开的 `${ENV}` 引用，或为空；为空时，在调用时读取 `NAME_API_KEY`（提供商名称转为大写，连字符变为下划线）。`api_key_command` 通过主机 shell 运行凭据助手，限制为 30 秒，并在 `api_key` 为空时使用其 stdout；顺序是字面量、然后是助手、然后是环境变量。`codex` 行完全不接受密钥：它使用 ChatGPT 登录，留在其上的 `api_key_command` 永远不会运行。保持 `config.yaml` 不含字面量密钥，并引用环境。
 - **`.env` 文件。** `$CODDY_HOME/.env` 在解析 `config.yaml` 之前读取，每行一个 `KEY=VALUE`（接受 `export`、引号和注释）；进程中已设置的环境变量永远不会被覆盖。值中的字面美元符号写作 `$$`。参见 [配置](../getting-started/configuration.md)。
-- **提供商登录。** `coddy providers login codex`、`coddy providers login neuraldeep`、`coddy providers login opencode` 和 `coddy providers login devin`（对于前三个，还有 Web 界面中的登录按钮）将颁发的凭据存储在 `$CODDY_HOME/providers/<name>/` 下 - `codex-auth.json`、`neuraldeep-auth.json`、`opencode-auth.json`、`devin-auth.json` - 在通过 `0700` 创建的目录中，文件权限为 `0600`。`coddy providers list` 显示每个请求实际使用哪个来源，`coddy providers logout <name>` 撤销并忘记登录（对于 Devin，它忘记本地令牌；Devin 会话在 Devin 一侧结束；对于 OpenCode，它忘记本地凭据，账户会话或服务账户密钥在 OpenCode 控制台中撤销）。当不存在 Coddy 登录时，`devin` 行还会读取 Devin CLI 自己的 `credentials.toml`，并且从不写入它；Devin 浏览器登录仅监听 `127.0.0.1`，并以恒定时间检查 `state`，与 NeuralDeep 的登录相同。
+- **提供商登录。** `coddy providers login codex`、`coddy providers login neuraldeep`、`coddy providers login opencode` 和 `coddy providers login devin`（对于前三个，还有 Web 界面中的登录按钮）将颁发的凭据存储在 `$CODDY_HOME/providers/<name>/` 下 - `codex-auth.json`、`neuraldeep-auth.json`、`opencode-auth.json`、`devin-auth.json` - 在通过 `0700` 创建的目录中，文件权限为 `0600`。`coddy providers list` 显示每个请求实际使用哪个来源，`coddy providers logout <name>` 撤销并忘记登录（对于 Devin，它忘记本地令牌；Devin 会话在 Devin 一侧结束；对于 OpenCode，它忘记本地凭据，账户会话或服务账户密钥在 OpenCode 控制台中撤销）。当不存在 Coddy 登录时，`devin` 行还会读取 Devin CLI 自己的 `credentials.toml`，并且从不写入它；Devin 浏览器登录仅侦听 `127.0.0.1`，并以恒定时间检查 `state`，与 NeuralDeep 的登录相同。
 - **脱敏。** `GET /coddy/config` 从不返回 `httpserver.auth_token`、登录密码哈希、集群令牌（`swarm.auth_token`、`swarm.pairing_tokens`、加入条目的 `pairing_token` 和 `token`）或 `metrics.token`：它会报告已设置（`auth_configured`、`login_configured`、`pairing_configured`、`token_configured`），而将字段留空的保存会保留已存储的值；来自设置界面的保存会将 `${VAR}` 引用写回为引用，而不是写回它解析出的机密；`coddy -t` 和 `--dry-run` 从不在机密形状的键（`api_key` 以及任何 `*_api_key`，例如 `tools.websearch.brave_api_key`、`auth_token`、`pairing_tokens`）下回显值，并在错误中掩盖 Telegram 令牌；配置提交提示会列出暂存的命令，并对机密脱敏；`GET /coddy/mcp` 会列出 MCP 声明的环境变量和标头，用 `<redacted>` 代替每个值，从探测错误中清除声明解析出的值，并且从其编辑器保存时，仅对它当时显示的声明保留隐藏值（命令、其参数和 URL 按原样列出，因此请将机密放在 `env`、`headers` 或环境中，作为 `${NAME}`，见 [MCP 服务器](../features/mcp.md#管理-api-与-ui)）；集群代理会替换调用方的 `Authorization` 标头，而不是转发它。
 - **传输中的令牌。** 控制台和 `coddy acp` 从 `--remote-token` 获取用于 `--remote` 的令牌，然后从匹配的 `httpserver.remotes` 条目的 `token` 获取，然后从 `CODDY_REMOTE_TOKEN` 获取；即将通过明文 `http://` 发往非回环主机的令牌会产生警告。远程的 `token` 是可选的，并且与 `auth_token` 不同，它会由 `GET /coddy/config` 发回，因为配置它的机器上的 Web 界面会呈现它：每个打开该界面的浏览器都会收到它，因此请将其写为 `${ENV}` 引用或省略它。没有它时，Web 界面仅在浏览器中保留远程令牌。参见 [令牌](remote.md#令牌)。
 - **磁盘上的对话记录。** `$CODDY_HOME/sessions/<id>/` 下的每个会话包都在 `messages.json` 中保存完整对话，包括工具输出，并在 `assets/` 下保存附加到它的文件（以只读方式写入，`0444`）。任何能读取主目录的人都能读取每个对话；`sessions.dir` 移动存储位置，`/export` 按请求将副本写入工作区。
@@ -95,7 +95,7 @@ CI 步骤可以改为在每次运行时传入 `--permission-mode`：该标志仅
 - 优先使用标头而不是 `?access_token=`，后者只有两条 SSE 路由接受，并且会进入代理访问日志；
 - 将 `httpserver.allow_insecure` 保持未设置：它表示没有凭据的服务器是有意开放的，因此它会静默关于此的两条启动警告 - 非回环绑定，以及允许未列出的页面的 CORS - 并带有与其对应的 `--dry-run` 发现，还会关闭对回环上外部 `Host` 的拒绝以及对跨源写入的拒绝。
 
-登录表单存储 argon2id 哈希，从不存储明文密码，而 `GET /coddy/config` 仅报告账户存在及其来源。错误密码会以恒定时间回答，并按源地址逐渐变慢，在判断之前计数，因此突发尝试也要付出等待代价；回环地址除外，以免机器锁死自己 - 而在反向代理之后，每个请求都来自回环，转发来的客户端地址才是节流计数的对象。会话 cookie 为 `HttpOnly` 和 `SameSite=Strict`，因此没有脚本能读取它，另一个站点引发的请求也不会携带它；除此之外，更改状态的 cookie 认证请求除非来自此源（`Sec-Fetch-Site` 或 `Origin`），否则会被拒绝，而 bearer 请求不受该检查约束。会话仅保存在内存中，因此重启进程会结束它们，轮换密码会结束它打开的每个会话。
+登录表单存储 argon2id 哈希，从不存储明文密码，而 `GET /coddy/config` 仅报告账户存在及其来源。错误密码会以恒定时间回答，并按源地址逐渐变慢，在判断之前计数，因此突发尝试也要付出等待代价；回环地址除外，以免机器锁在外面自己 - 而在反向代理之后，每个请求都来自回环，转发来的客户端地址才是节流计数的对象。会话 cookie 为 `HttpOnly` 和 `SameSite=Strict`，因此没有脚本能读取它，另一个站点引发的请求也不会携带它；除此之外，更改状态的 cookie 认证请求除非来自此源（`Sec-Fetch-Site` 或 `Origin`），否则会被拒绝，而 bearer 请求不受该检查约束。会话仅保存在内存中，因此重启进程会结束它们，轮换密码会结束它打开的每个会话。
 
 Docker 镜像在容器内绑定 `0.0.0.0`，因此映射的端口可从其发布到的任何地方访问。除非 `CODDY_HTTP_BIND` 另有说明，compose 文件将其发布到主机的回环地址上，而普通的 `docker run -p 12345:12345` 会将其发布到每个接口；像对待任何管理 API 一样对待它。没有凭据的服务器仍然会拒绝另一个站点试图更改某些内容的页面（[HTTP API](../reference/http-api.md#身份验证可选)），在回环上还会拒绝它不知道的主机名。参考：[HTTP API](../reference/http-api.md#身份验证可选)、[Web 界面登录](../reference/http-api.md#web-ui-登录可选)、[远程模式](remote.md)。
 
@@ -109,7 +109,7 @@ Docker 镜像在容器内绑定 `0.0.0.0`，因此映射的端口可从其发布
 
 ## 指标导出器
 
-Prometheus 导出器（[监控](monitoring.md)）是它自己的监听器，默认关闭，并且除非 `metrics.host` 另有说明，会绑定 `127.0.0.1:12347`。它提供 `GET /metrics`，并对其他所有路径回答 `404`。它报告的是计数、持续时间和状态：没有提示、标题、文件夹、会话 ID 或工具名称。设置 `metrics.token` 后，抓取必须将其作为 `Authorization: Bearer` 呈现，否则会回答 `401`；比较是恒定时间的，并且每个请求都会读取令牌，因此更改会立即生效。该令牌仅打开 `/metrics`，没有 API 令牌或登录会打开导出器。没有令牌时，端点对任何能到达该端口的人开放。在没有令牌的情况下绑定到回环之外时，`coddy serve` 会在启动时警告，`--dry-run` 会报告一条指向 `metrics.host` 行的警告。在容器中，绑定必须是 `0.0.0.0`，因此请在那里设置令牌。集群中继不会携带其节点的导出器，因此每个节点都在自己的端口上抓取。
+Prometheus 导出器（[监控](monitoring.md)）是它自己的侦听器，默认关闭，并且除非 `metrics.host` 另有说明，会绑定 `127.0.0.1:12347`。它提供 `GET /metrics`，并对其他所有路径回答 `404`。它报告的是计数、持续时间和状态：没有提示、标题、文件夹、会话 ID 或工具名称。设置 `metrics.token` 后，抓取必须将其作为 `Authorization: Bearer` 呈现，否则会回答 `401`；比较是恒定时间的，并且每个请求都会读取令牌，因此更改会立即生效。该令牌仅打开 `/metrics`，没有 API 令牌或登录会打开导出器。没有令牌时，端点对任何能到达该端口的人开放。在没有令牌的情况下绑定到回环之外时，`coddy serve` 会在启动时警告，`--dry-run` 会报告一条指向 `metrics.host` 行的警告。在容器中，绑定必须是 `0.0.0.0`，因此请在那里设置令牌。集群中继不会携带其节点的导出器，因此每个节点都在自己的端口上抓取。
 
 ## 作为策略层的钩子
 
@@ -124,7 +124,7 @@ Prometheus 导出器（[监控](monitoring.md)）是它自己的监听器，默�
 - 已设置 bearer 令牌，并且通过环境或标志到达进程，而不是作为文件中的字面量；
 - 浏览器界面有账户（`coddy serve set-password`，或 `CODDY_HTTP_USER` / `CODDY_HTTP_PASSWORD`），因此发现端口的页面会被询问它是谁；
 - TLS 在服务器前面终止，或者客户端通过隧道进入；
-- 指标导出器开启时，监听回环地址或已设置 `metrics.token`；
+- 指标导出器开启时，侦听回环地址或已设置 `metrics.token`；
 - `httpserver.cors` 仅允许需要它的源，并且 `allow_loopback` 或 `"*"` 仅在令牌或登录表单之后开启；
 - 对于你无法控制的检出，`mcp.project_trust`、`hooks.project_trust`、`subagents.project_trust` 和 `skills.project_trust` 为 `ask` 或 `deny`；
 - 除非主机可丢弃，会话和新会话启动的模式（`${CODDY_HOME}/permission-mode.json`）都不是 `bypass`，并且 `failClosed` `PreToolUse` 钩子覆盖提示无法覆盖的内容；

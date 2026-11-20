@@ -271,13 +271,13 @@ docker compose logs -f coddy
 - **`gateway`** - Telegram 和 Pachca 机器人(**[docs/surfaces/gateway.md](../surfaces/gateway.md)**)，各自位于其 **`enable`** 键下。
 - **`cli`** - 交互式控制台(**[docs/surfaces/console.md](../surfaces/console.md)**)，用于 **`docker run -it ... coddy`**。
 - **`swarm`** - 聚合节点的中继(**[docs/operate/swarm.md](../operate/swarm.md)**)，位于 **`swarm.enable`** 下。
-- **`metrics`** - Prometheus 导出器(**[docs/operate/monitoring.md](../operate/monitoring.md)**)，在设置 **`metrics.enable`** 之前关闭。它监听回环地址，这是已发布容器端口无法到达的：要从容器外部抓取它，请将 **`metrics.host`** 设置为 **`0.0.0.0`** 并同时设置 **`metrics.token`**，并发布 **`metrics.port`**(默认 12347)。
+- **`metrics`** - Prometheus 导出器(**[docs/operate/monitoring.md](../operate/monitoring.md)**)，在设置 **`metrics.enable`** 之前关闭。它侦听回环地址，这是已发布容器端口无法到达的：要从容器外部抓取它，请将 **`metrics.host`** 设置为 **`0.0.0.0`** 并同时设置 **`metrics.token`**，并发布 **`metrics.port`**(默认 12347)。
 - **`desktop`** - **`coddy desktop`**，即作为本机窗口的 Web 界面(**[docs/surfaces/desktop.md](../surfaces/desktop.md)**)。镜像中没有任何东西运行它：容器没有显示器，该命令也找不到可打开的浏览器。之所以内置它，是为了让二进制无论来自何处都相同。
 - **`browser`** - [Coddy for Browser](../features/browser.md) 扩展在 HTTP 服务器上的端点以及 `browser` 工具，在设置带 **`browser.token`** 的 **`browser.enable`** 之前关闭。扩展连接到已发布的 HTTP 端口，即 Web 界面的地址；位于容器所在机器之外的浏览器需要在其前面放置 HTTPS，因为扩展仅对同一机器上的服务器使用纯 HTTP。
 
 要构建**不含**记忆或嵌入式界面的镜像，可通过 **`docker compose` `args`** 或 **`docker build --build-arg`** 覆盖 **`BUILD_TAGS`**(例如 **`http,scheduler,ui`** 或 **`http,scheduler`**)。
 
-Compose 的卷和环境变量详细信息见 [Docker Compose](#docker-compose)。在没有 **`CODDY_CONFIG`** 的裸机安装中，加载器优先使用 **`$CODDY_HOME/config.yaml`**(参见 **`docs/getting-started/configuration.md`**)。
+Compose 的卷和环境变量详细信息见 [Docker Compose](#docker-compose)。在没有 **`CODDY_CONFIG`** 的物理机安装中，加载器优先使用 **`$CODDY_HOME/config.yaml`**(参见 **`docs/getting-started/configuration.md`**)。
 
 ## Dockerfile 各阶段如何工作
 
