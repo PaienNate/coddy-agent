@@ -531,3 +531,32 @@ func TestSessionChangesDiscardRefusesAnUnclearSelection(t *testing.T) {
 		t.Fatalf("a refused request touched a.txt: %q", got)
 	}
 }
+
+// A row carries a digest of what it stands for, so the Edits window can tell a
+// Viewed mark taken against one content from the same path rewritten.
+func TestSessionChangesCarryADigest(t *testing.T) {
+	e := newChangesEnv(t)
+	e.commitWorkspace(t, map[string]string{"a.txt": "old\n"})
+	writeInWorkspace(t, e.cwd, "a.txt", "new\n")
+
+	read := func() map[string]interface{} {
+		return changedFiles(t, e.do(t, http.MethodGet, "/coddy/sessions/"+e.id+"/changes"))["a.txt"]
+	}
+	first, _ := read()["digest"].(string)
+	if first == "" {
+		t.Fatalf("the row carries no digest: %v", read())
+	}
+	if again, _ := read()["digest"].(string); again != first {
+		t.Fatalf("the same content hashed differently: %q then %q", first, again)
+	}
+
+	// Same line counts, different content: the counts cannot be the fingerprint.
+	writeInWorkspace(t, e.cwd, "a.txt", "next\n")
+	row := read()
+	if row["additions"].(float64) != 1 || row["deletions"].(float64) != 1 {
+		t.Fatalf("this case needs equal counts: %v", row)
+	}
+	if moved, _ := row["digest"].(string); moved == first {
+		t.Fatalf("a rewrite kept the digest %q", first)
+	}
+}

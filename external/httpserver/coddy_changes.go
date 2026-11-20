@@ -3,6 +3,9 @@
 package httpserver
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -24,6 +27,7 @@ import (
 type changedFileDTO struct {
 	Path      string  `json:"path"`
 	Status    string  `json:"status"`
+	Digest    string  `json:"digest"`
 	Additions int     `json:"additions"`
 	Deletions int     `json:"deletions"`
 	Binary    bool    `json:"binary"`
@@ -64,7 +68,12 @@ func buildChangedFile(change gitws.WorkChange, withPatch, withContent bool) chan
 	after, afterBinary := decodeSide(change.After)
 	binary := beforeBinary || afterBinary
 
-	dto := changedFileDTO{Path: change.Path, Status: change.Status, Binary: binary}
+	dto := changedFileDTO{
+		Path:   change.Path,
+		Status: change.Status,
+		Digest: changeDigest(change),
+		Binary: binary,
+	}
 	if !binary {
 		dto.Additions, dto.Deletions = linediff.Stat(before, after)
 	}
@@ -82,6 +91,22 @@ func buildChangedFile(change gitws.WorkChange, withPatch, withContent bool) chan
 		dto.After = &after
 	}
 	return dto
+}
+
+// changeDigest fingerprints what the row stands for: the status and both raw
+// sides, so identical content hashes the same on every read and a rewrite that
+// keeps the line counts still moves it. The sides are length-prefixed so no
+// pair of contents can collide across the before/after boundary.
+func changeDigest(change gitws.WorkChange) string {
+	h := sha256.New()
+	_, _ = h.Write([]byte(change.Status))
+	var lenBuf [8]byte
+	for _, side := range [][]byte{change.Before, change.After} {
+		binary.BigEndian.PutUint64(lenBuf[:], uint64(len(side)))
+		_, _ = h.Write(lenBuf[:])
+		_, _ = h.Write(side)
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // sessionWorkspace resolves the folder a session works in, writing the HTTP
