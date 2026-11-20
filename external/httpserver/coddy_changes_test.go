@@ -306,6 +306,56 @@ func TestSessionChangesDiscardOneFile(t *testing.T) {
 	}
 }
 
+// Delete removes a file of the change set without restoring HEAD: a tracked
+// file becomes the deletion the next read reports, and a file git does not
+// hold goes away for good.
+func TestSessionChangesDeleteOneFile(t *testing.T) {
+	e := newChangesEnv(t)
+	e.commitWorkspace(t, map[string]string{"a.txt": "old\n"})
+	writeInWorkspace(t, e.cwd, "a.txt", "new\n")
+	writeInWorkspace(t, e.cwd, "loose.txt", "x\n")
+
+	rec := e.doBody(t, http.MethodPost, "/coddy/sessions/"+e.id+"/changes/delete", `{"paths":["a.txt"]}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if body := decodeJSON(t, rec); body["object"] != "coddy.session_changes_deleted" || body["sessionId"] != e.id {
+		t.Fatalf("answer %v", body)
+	}
+	if _, err := os.Stat(filepath.Join(e.cwd, "a.txt")); !os.IsNotExist(err) {
+		t.Fatalf("a.txt must be gone from the working copy: %v", err)
+	}
+	// The next read reports the tracked file as a deletion, not as gone.
+	row := changedFiles(t, e.do(t, http.MethodGet, "/coddy/sessions/"+e.id+"/changes"))["a.txt"]
+	if row["status"] != "deleted" {
+		t.Fatalf("a tracked file must read as deleted: %v", row)
+	}
+	if got := readInWorkspace(t, e.cwd, "loose.txt"); got != "x\n" {
+		t.Fatalf("loose.txt was not named and must stay: %q", got)
+	}
+}
+
+// Delete refuses a path the change set does not hold before touching anything,
+// and an empty or malformed body is refused outright.
+func TestSessionChangesDeleteRefusesAnUnknownPath(t *testing.T) {
+	e := newChangesEnv(t)
+	e.commitWorkspace(t, map[string]string{"a.txt": "old\n"})
+	writeInWorkspace(t, e.cwd, "a.txt", "new\n")
+
+	rec := e.doBody(t, http.MethodPost, "/coddy/sessions/"+e.id+"/changes/delete", `{"paths":["missing.txt"]}`)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("an unknown path must be 409, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if got := readInWorkspace(t, e.cwd, "a.txt"); got != "new\n" {
+		t.Fatalf("a refused delete must not touch the folder: %q", got)
+	}
+	for _, body := range []string{`{}`, `{"paths":[]}`, `{"paths":null}`, `{"all":true}`, `{"paths":["a.txt"]} trailing`} {
+		if rec := e.doBody(t, http.MethodPost, "/coddy/sessions/"+e.id+"/changes/delete", body); rec.Code != http.StatusBadRequest {
+			t.Fatalf("body %q must be 400, got %d", body, rec.Code)
+		}
+	}
+}
+
 func TestSessionChangesDiscardEverything(t *testing.T) {
 	e := newChangesEnv(t)
 	e.commitWorkspace(t, map[string]string{"a.txt": "old\n"})

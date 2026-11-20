@@ -531,7 +531,7 @@ test("a file's head ends with its counts, after copy and discard, with one chevr
   expect(actions).toEqual([
     "dv-viewed-src/a.ts",
     "dv-copy-src/a.ts",
-    "dv-discard-src/a.ts",
+    "dv-file-actions-src/a.ts",
   ]);
   expect(head.querySelectorAll(".coddy-chevron")).toHaveLength(1);
   // No status dot before the name: the tree says the status, the name is enough.
@@ -631,6 +631,7 @@ test("a folder in no repository explains itself instead of showing an empty diff
 test("discarding a file asks first, then puts it back through the server", async () => {
   open();
   await screen.findByTestId("dv-file-src/a.ts");
+  fireEvent.click(screen.getByTestId("dv-file-actions-src/a.ts"));
   fireEvent.click(screen.getByTestId("dv-discard-src/a.ts"));
   const dialog = await confirmDialog();
   expect(dialog.textContent || "").toContain("a.ts");
@@ -640,6 +641,27 @@ test("discarding a file asks first, then puts it back through the server", async
   await waitFor(() => {
     const post = fetchMock.mock.calls.find((c) =>
       String(c[0]).endsWith("/changes/revert"),
+    );
+    expect(post).toBeTruthy();
+    expect(JSON.parse(String((post![1] as RequestInit).body))).toEqual({
+      paths: ["src/a.ts"],
+    });
+  });
+});
+
+test("deleting a file asks first, then removes it through the server", async () => {
+  open();
+  await screen.findByTestId("dv-file-src/a.ts");
+  fireEvent.click(screen.getByTestId("dv-file-actions-src/a.ts"));
+  fireEvent.click(screen.getByTestId("dv-delete-src/a.ts"));
+  const dialog = await confirmDialog();
+  expect(dialog.textContent || "").toContain("a.ts");
+  fireEvent.click(
+    within(dialog).getByRole("button", { name: t("changes.deleteYes") }),
+  );
+  await waitFor(() => {
+    const post = fetchMock.mock.calls.find((c) =>
+      String(c[0]).endsWith("/changes/delete"),
     );
     expect(post).toBeTruthy();
     expect(JSON.parse(String((post![1] as RequestInit).body))).toEqual({

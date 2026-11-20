@@ -2552,6 +2552,63 @@ func openAPISpec() map[string]interface{} {
 					},
 				},
 			},
+			"/coddy/sessions/{id}/changes/delete": map[string]interface{}{
+				"post": map[string]interface{}{
+					"summary": "Delete files of the session's change set",
+					"description": "Removes the named files of the change set from the session's folder without restoring **`HEAD`**: a file git does not hold goes away, and a tracked file becomes the deletion the next read of the change set reports. " +
+						"The body is **`{\"paths\":[...]}`** with at least one path as **GET .../changes** lists them; there is no **`all`** - deleting everything the change set holds is a discard plus the tracked files, and nobody asks for that by accident the way an empty **`paths`** might slip through. An empty, malformed or ambiguous body (an empty or null list, an unknown key, anything after the object) is **400** and nothing is deleted. " +
+						"A path git does not report any more (committed, or put back meanwhile) is **409** and nothing of the request is applied. A folder in no repository is **400**. " +
+						"While a turn runs in this session, or in any other session of this process whose folder is this one or lies inside or around it, the request yields **409**; the delete holds the session turn lock. " +
+						"A **`session_changes`** event is published on **`GET /coddy/events`** so every watcher of the session reads its working copy again.",
+					"operationId": "coddySessionChangesDelete",
+					"parameters": []interface{}{
+						map[string]interface{}{
+							"name": "id", "in": "path", "required": true,
+							"schema":      map[string]string{"type": "string"},
+							"description": "Session id.",
+						},
+					},
+					"requestBody": map[string]interface{}{
+						"required": true,
+						"content": map[string]interface{}{
+							"application/json": map[string]interface{}{
+								"schema": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"paths": map[string]interface{}{
+											"type":        "array",
+											"items":       map[string]string{"type": "string"},
+											"minItems":    1,
+											"description": "Files to delete, relative to the session's folder.",
+										},
+									},
+								},
+							},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Files deleted",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"object":    map[string]string{"type": "string"},
+											"sessionId": map[string]string{"type": "string"},
+											"at":        map[string]string{"type": "string"},
+										},
+									},
+								},
+							},
+						},
+						"400": errorResponseRef(),
+						"404": errorResponseRef(),
+						"409": errorResponseRef(),
+						"500": errorResponseRef(),
+					},
+				},
+			},
 			"/coddy/sessions/{id}/rewind/undo": map[string]interface{}{
 				"post": map[string]interface{}{
 					"summary":     "Undo the last rewind of the session",

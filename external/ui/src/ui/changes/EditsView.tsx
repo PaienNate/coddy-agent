@@ -611,6 +611,7 @@ export function EditsView(props: {
                     onDiscard={() =>
                       void discard.discardFile(file.path, file.status)
                     }
+                    onDelete={() => void discard.deleteFile(file.path)}
                   />
                 );
               })

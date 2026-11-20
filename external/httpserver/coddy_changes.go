@@ -53,6 +53,7 @@ func (s *Server) registerChangesRoutes() {
 	s.mux.HandleFunc("GET /coddy/sessions/{id}/changes", s.coddySessionChangesList)
 	s.mux.HandleFunc("GET /coddy/sessions/{id}/changes/file", s.coddySessionChangeFile)
 	s.mux.HandleFunc("POST /coddy/sessions/{id}/changes/revert", s.coddySessionChangesRevert)
+	s.mux.HandleFunc("POST /coddy/sessions/{id}/changes/delete", s.coddySessionChangesDelete)
 }
 
 // decodeSide turns file bytes into LF text. textenc owns the encoding decision
@@ -409,6 +410,95 @@ func (s *Server) coddySessionChangesRevert(w http.ResponseWriter, r *http.Reques
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"object":    "coddy.session_changes_reverted",
+		"sessionId": id,
+		"at":        time.Now().UTC().Format(time.RFC3339Nano),
+	})
+}
+
+// deleteRequest is the body of a delete: the files of the change set to
+// remove from the working copy. There is no "all" - deleting everything the
+// change set holds is a discard plus the tracked files, and nobody asks for
+// that by accident the way an empty "paths" might slip through.
+type deleteRequest struct {
+	// Raw, so a "paths" that is there but null or empty is told apart from
+	// one that is not there at all.
+	Paths json.RawMessage `json:"paths"`
+}
+
+// coddySessionChangesDelete handles POST /coddy/sessions/{id}/changes/delete.
+//
+// It removes the named files of the change set from the session's folder
+// without restoring HEAD: a file git does not hold goes away, and a tracked
+// file becomes the deletion the next read of the change set reports.
+func (s *Server) coddySessionChangesDelete(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimSpace(r.PathValue("id"))
+	// Exactly one JSON object: whatever follows it would make a destructive
+	// request mean something other than what its first half says.
+	var req deleteRequest
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&req); err != nil || dec.Decode(&struct{}{}) != io.EOF {
+		writeSubagentsError(w, http.StatusBadRequest, `body must be {"paths":[...]}`)
+		return
+	}
+	var paths []string
+	if len(req.Paths) > 0 {
+		if err := json.Unmarshal(req.Paths, &paths); err != nil || len(paths) == 0 {
+			writeSubagentsError(w, http.StatusBadRequest, `"paths" must name at least one file`)
+			return
+		}
+	} else {
+		writeSubagentsError(w, http.StatusBadRequest, `"paths" must name at least one file`)
+		return
+	}
+	st, cwd := s.sessionWorkspace(w, r, id)
+	if cwd == "" {
+		return
+	}
+	// Removing files under an agent that is mid-edit would leave the folder in
+	// a state neither side expects - this chat's agent, or that of any other
+	// chat working in the same folder, or in one inside or around it.
+	if s.sessionTurnActive(id) {
+		writeSubagentsError(w, http.StatusConflict, "session "+id+" has a turn in flight")
+		return
+	}
+	if busy := s.turnInFolder(id, cwd); busy != "" {
+		writeSubagentsError(w, http.StatusConflict, "session "+busy+" has a turn in flight in this folder")
+		return
+	}
+	unlock, err := s.mgr.AcquireComposerTurnLock(id, st)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, session.ErrSessionTurnBusy) {
+			status = http.StatusConflict
+		}
+		writeSubagentsError(w, status, err.Error())
+		return
+	}
+	defer unlock()
+
+	if err := gitws.Delete(cwd, paths); err != nil {
+		switch {
+		case errors.Is(err, gitws.ErrNotRepository):
+			writeSubagentsError(w, http.StatusBadRequest, "the session's folder is not a git repository")
+		case errors.Is(err, gitws.ErrNotChanged):
+			// The client asked for a file its list showed and git no longer
+			// reports: committed, or put back, since it last read.
+			writeSubagentsError(w, http.StatusConflict, err.Error())
+		default:
+			s.log.Error("delete working copy changes", "session", id, "error", err)
+			// A failure halfway may have removed some files already, so
+			// every window reads the folder again.
+			s.publishSessionChanges(id)
+			writeSubagentsError(w, http.StatusInternalServerError, "delete failed")
+		}
+		return
+	}
+	// Another window showing this session reads the new state as well.
+	s.publishSessionChanges(id)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"object":    "coddy.session_changes_deleted",
 		"sessionId": id,
 		"at":        time.Now().UTC().Format(time.RFC3339Nano),
 	})

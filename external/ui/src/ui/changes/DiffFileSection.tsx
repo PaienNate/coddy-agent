@@ -25,6 +25,7 @@ import { highlightLine } from "./highlightLine";
 import type { HighlightSpan } from "./highlightLine";
 import { baseName, dirName, statusKey } from "./sessionChangesText";
 import type { ChangedFile } from "./types";
+import { FileActionsMenu } from "./FileActionsMenu";
 import {
   formatDiffBytes,
   formatExactDiffBytes,
@@ -390,6 +391,8 @@ export function DiffFileSection(props: {
   registerRef: (path: string, el: HTMLDivElement | null) => void;
   /** Puts this file back at HEAD, after asking. */
   onDiscard?: (() => void) | undefined;
+  /** Removes this file from the working copy, after asking. */
+  onDelete?: (() => void) | undefined;
   discardBusy?: boolean;
   /** Whether the reader has marked this file read; bound to its digest. */
   viewed?: boolean;
@@ -610,33 +613,12 @@ export function DiffFileSection(props: {
           >
             {copied ? "✓" : "⧉"}
           </button>
-          {props.onDiscard ? (
-            <button
-              type="button"
-              className="dv-icon-btn dv-icon-btn--danger"
-              title={t("changes.discardFileTitle", { name: file.path })}
-              aria-label={t("changes.discardFileTitle", { name: file.path })}
-              disabled={props.discardBusy === true}
-              data-testid={`dv-discard-${file.path}`}
-              onClick={props.onDiscard}
-            >
-              <svg
-                viewBox="0 0 16 16"
-                width="13"
-                height="13"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                aria-hidden="true"
-              >
-                <path
-                  d="M3.5 6.5h6a3.5 3.5 0 0 1 0 7H7M3.5 6.5 6 4M3.5 6.5 6 9"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          ) : null}
+          <FileActionsMenu
+            path={file.path}
+            busy={props.discardBusy === true}
+            onDiscard={props.onDiscard}
+            onDelete={props.onDelete}
+          />
         </span>
 
         {/* Git's counts close the row, at its right end. */}
