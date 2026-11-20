@@ -173,13 +173,13 @@ export const messagesZh: Record<string, string> = {
     "{count} 项已设置且不会显示。在此输入的值将全部替换它们。",
   "settings.schema.swarm.label": "集群中继",
   "settings.schema.swarm.desc":
-    "此中继的部署：名称和地址、客户端与节点的令牌、供其他来源页面使用的 CORS、它主动连接的节点以及它加入的中继。保存会重建中继；修改监听地址需要重启。",
+    "此中继的部署：名称和地址、客户端与节点的令牌、供其他来源页面使用的 CORS、它主动连接的节点以及它加入的中继。保存会重建中继；修改绑定地址需要重启。",
   "settings.schema.swarm.name.label": "名称",
   "settings.schema.swarm.name.desc": "中继在地图和 /swarm/info 中显示的名称。",
-  "settings.schema.swarm.host.label": "监听主机",
+  "settings.schema.swarm.host.label": "绑定主机",
   "settings.schema.swarm.host.desc":
-    "要绑定的地址。0.0.0.0 监听所有网络接口。重启后生效。",
-  "settings.schema.swarm.port.label": "监听端口",
+    "要绑定的地址。0.0.0.0 表示所有网络接口。重启后生效。",
+  "settings.schema.swarm.port.label": "绑定端口",
   "settings.schema.swarm.port.desc": "要绑定的端口。重启后生效。",
   "settings.schema.swarm.auth_token.label": "客户端令牌",
   "settings.schema.swarm.auth_token.desc":
@@ -894,10 +894,10 @@ export const messagesZh: Record<string, string> = {
     "独立端口上的 Prometheus 导出器。仅在使用 metrics 构建标签编译的二进制中生效。",
   "settings.schema.metrics.enable.label": "启用",
   "settings.schema.metrics.enable.desc": "从此进程提供 /metrics。",
-  "settings.schema.metrics.host.label": "监听主机",
+  "settings.schema.metrics.host.label": "绑定主机",
   "settings.schema.metrics.host.desc":
     "要绑定的地址。留空则回退到 127.0.0.1，仅本机可以访问。",
-  "settings.schema.metrics.port.label": "监听端口",
+  "settings.schema.metrics.port.label": "绑定端口",
   "settings.schema.metrics.port.desc": "要绑定的端口。0 回退到 12347。",
   "settings.schema.metrics.token.label": "令牌",
   "settings.schema.metrics.token.desc":
