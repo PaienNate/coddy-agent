@@ -24,7 +24,8 @@ import {
 } from "../files/windowIcons";
 import { DiffFileSection } from "./DiffFileSection";
 import { EditsTree } from "./EditsTree";
-import { isFileViewed, setFileViewed } from "./viewedFiles";
+import { readViewedDigests, setFileViewed, viewedIn } from "./viewedFiles";
+import { viewedRevision } from "./viewedRevision";
 import { ViewedProgress } from "./ViewedProgress";
 import { readDiffViewCookie, writeDiffViewCookie } from "./diffViewPrefs";
 import type { DiffView } from "./diffViewPrefs";
@@ -168,7 +169,7 @@ export function EditsView(props: {
   const [jump, setJump] = useState<{ path: string; seq: number } | null>(null);
   // Bumped by a Viewed toggle: the marks live in the browser's store, so the
   // window needs a reason to read them again.
-  const [, bumpViewed] = useState(0);
+  const [viewedVersion, bumpViewed] = useState(0);
 
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -224,27 +225,23 @@ export function EditsView(props: {
     });
   }, [changes.files]);
 
-  // A mark is bound to the content it was taken against, so the same path
-  // rewritten is not read as already reviewed.
-  const changeRevision = useCallback(
-    (file: ChangedFile, patch: string | undefined) =>
-      file.digest ??
-      patch ??
-      `${file.status}:${file.additions}:${file.deletions}`,
-    [],
+  // The marks are read once per render and once more after a toggle: reading
+  // them per file parsed the whole store on every render, of which a large
+  // change set has one per patch that lands.
+  const viewedDigests = useMemo(
+    () => readViewedDigests(workspacePath),
+    [workspacePath, viewedVersion],
   );
-  const isViewed = (file: ChangedFile, patch: string | undefined) =>
-    isFileViewed(workspacePath, file.path, changeRevision(file, patch));
-  const viewedCount = files.filter((file) =>
-    isViewed(file, patches.get(file.path)?.patch),
-  ).length;
+  const isViewed = (file: ChangedFile) =>
+    viewedIn(viewedDigests, file.path, viewedRevision(file));
+  const viewedCount = files.filter(isViewed).length;
   const toggleViewed = (file: ChangedFile) => {
-    const revision = changeRevision(file, patches.get(file.path)?.patch);
+    const revision = viewedRevision(file);
     setFileViewed(
       workspacePath,
       file.path,
       revision,
-      !isFileViewed(workspacePath, file.path, revision),
+      !viewedIn(viewedDigests, file.path, revision),
     );
     bumpViewed((n) => n + 1);
   };
@@ -586,7 +583,7 @@ export function EditsView(props: {
                     view={effectiveView}
                     onToggle={() => toggleOne(file.path)}
                     registerRef={registerRef}
-                    viewed={isViewed(file, state?.patch)}
+                    viewed={isViewed(file)}
                     onToggleViewed={() => toggleViewed(file)}
                     discardBusy={discard.busy}
                     onDiscard={() =>

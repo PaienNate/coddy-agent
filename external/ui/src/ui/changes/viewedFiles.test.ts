@@ -55,3 +55,16 @@ describe("viewed files", () => {
     expect(isFileViewed("/repo", "src/a.ts", "digest-1")).toBe(true);
   });
 });
+
+describe("the viewed snapshot", () => {
+  test("reads one workspace once, and compares a path at its digest", async () => {
+    const { readViewedDigests, viewedIn } = await import("./viewedFiles");
+    setFileViewed("/repo", "src/a.ts", "digest-1", true);
+
+    const snapshot = readViewedDigests("/repo");
+    expect(snapshot["src/a.ts"]).toBe("digest-1");
+    expect(viewedIn(snapshot, "src/a.ts", "digest-1")).toBe(true);
+    expect(viewedIn(snapshot, "src/a.ts", "digest-2")).toBe(false);
+    expect(readViewedDigests("")).toEqual({});
+  });
+});

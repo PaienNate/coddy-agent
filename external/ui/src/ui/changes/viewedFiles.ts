@@ -53,3 +53,23 @@ export function setFileViewed(
     // A disabled or full store only loses this presentation preference.
   }
 }
+
+/** Every mark of one workspace, read once: path -> digest. */
+export function readViewedDigests(workspace: string): Record<string, string> {
+  if (!workspace) {
+    return {};
+  }
+  return { ...(readViewedFiles()[workspace] ?? {}) };
+}
+
+/** Whether a snapshot read by `readViewedDigests` covers a path at a digest. */
+export function viewedIn(
+  snapshot: Record<string, string>,
+  path: string,
+  digest: string,
+): boolean {
+  if (!path || !digest) {
+    return false;
+  }
+  return snapshot[path] === digest;
+}

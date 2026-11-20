@@ -568,6 +568,21 @@ test("a file is marked viewed, and the progress follows the change set", async (
   );
 });
 
+test("the window reads the viewed store a bounded number of times", async () => {
+  window.localStorage.clear();
+  const getItem = vi.spyOn(Storage.prototype, "getItem");
+  open();
+  await screen.findByTestId("dv-file-src/a.ts");
+  await screen.findByTestId("edits-viewed-summary");
+  const reads = getItem.mock.calls.filter(
+    ([key]) => key === "coddy.changes.viewed",
+  ).length;
+  getItem.mockRestore();
+  // One read per render that can see a mark, not one per file per render: the
+  // window re-renders once for every patch that lands.
+  expect(reads).toBeLessThanOrEqual(4);
+});
+
 test("the header copies the path without a clipboard API and says so only when that worked", async () => {
   const page = pageWithoutClipboardApi(false);
   open();
