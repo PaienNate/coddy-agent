@@ -2106,6 +2106,7 @@ export const messagesZh: Record<string, string> = {
   "changes.viewer.after": "改动后",
   "changes.viewer.imageLoading": "正在加载图片...",
   "changes.viewer.imageUnavailable": "无法加载该图片",
+  "changes.viewer.imageDimensions": "宽 {width} · 高 {height}",
   "changes.viewer.showFiles": "显示已更改的文件",
   "changes.viewer.hideFiles": "隐藏已更改的文件",
   "changes.viewer.files": "已更改文件",

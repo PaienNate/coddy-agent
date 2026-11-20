@@ -2296,6 +2296,7 @@ export const messagesEn: Record<string, string> = {
   "changes.viewer.after": "After",
   "changes.viewer.imageLoading": "Loading the image...",
   "changes.viewer.imageUnavailable": "The image could not be loaded",
+  "changes.viewer.imageDimensions": "W {width} · H {height}",
   "changes.viewer.showFiles": "Show the changed files",
   "changes.viewer.hideFiles": "Hide the changed files",
   "changes.viewer.files": "Changed files",

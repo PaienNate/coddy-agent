@@ -805,3 +805,51 @@ test("new files git could not list can still be discarded", async () => {
   await screen.findByTestId("dv-skipped");
   expect(within(openMenu()).getByTestId("edits-discard-all")).toBeTruthy();
 });
+
+// An image row is binary, so no patch is ever fetched for it. It must not sit
+// behind a loading state nothing will clear: its rendered view is served raw by
+// the detail route, and that is what the window has to show.
+test("an image change shows its rendered view instead of a waiting diff", async () => {
+  fetchMock.mockImplementation(async (input: unknown) => {
+    const url = String(input);
+    if (url.includes("/changes/file")) {
+      return jsonResponse({ patch: "" });
+    }
+    return jsonResponse({
+      sessionId: "s1",
+      vcs: "git",
+      files: [
+        {
+          path: "docs/logo.png",
+          status: "modified",
+          additions: 0,
+          deletions: 0,
+          binary: true,
+          truncated: false,
+          image: true,
+          beforeImage: true,
+          afterImage: true,
+          beforeSize: 2048,
+          afterSize: 4096,
+        },
+      ],
+      totals: { files: 1, additions: 0, deletions: 0 },
+    });
+  });
+  open();
+  const section = await screen.findByTestId("dv-file-docs/logo.png");
+  expect(
+    within(section).queryByText(t("changes.viewer.loadingFile")),
+  ).toBeNull();
+  await waitFor(() =>
+    expect(section.querySelector(".dv-rich--image")).not.toBeNull(),
+  );
+  // Both sides are images, so both versions are offered.
+  const images = section.querySelectorAll(".dv-rich--image img");
+  expect(images).toHaveLength(2);
+  expect(images[0]!.getAttribute("src")).toContain("side=before&raw=1");
+  expect(images[1]!.getAttribute("src")).toContain("side=after&raw=1");
+  // The head reports each side's size rather than a line count.
+  expect(within(section).getByText("2.05 KB")).toBeTruthy();
+  expect(within(section).getByText("4.1 KB")).toBeTruthy();
+});

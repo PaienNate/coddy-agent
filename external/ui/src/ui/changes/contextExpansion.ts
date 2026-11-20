@@ -98,7 +98,12 @@ export function expandDiffContext(
   after: string,
   state: DiffContextState,
 ): ExpandedDiff {
-  const original = parseDiffPatch(patch).hunks;
+  // A hunk with no body draws no row, so it is not a gap's neighbour either:
+  // keeping it would shift every gap index past it and put a control that
+  // opens the lines above one change under the lines of another.
+  const original = parseDiffPatch(patch).hunks.filter(
+    (hunk) => hunk.lines.length > 0,
+  );
   const hunks = original.map((hunk) => ({ ...hunk, lines: [...hunk.lines] }));
   const oldLines = fileLines(before);
   const newLines = fileLines(after);

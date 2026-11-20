@@ -304,7 +304,10 @@ function DiffImage({
       </span>
       {dimensions ? (
         <span className="dv-image-dimensions">
-          W {dimensions.w} · H {dimensions.h}
+          {t("changes.viewer.imageDimensions", {
+            width: dimensions.w,
+            height: dimensions.h,
+          })}
         </span>
       ) : null}
     </>

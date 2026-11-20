@@ -2373,6 +2373,7 @@ export const messagesRu: Record<string, string> = {
   "changes.viewer.after": "После",
   "changes.viewer.imageLoading": "Изображение загружается...",
   "changes.viewer.imageUnavailable": "Не удалось загрузить изображение",
+  "changes.viewer.imageDimensions": "Ш {width} · В {height}",
   "changes.viewer.showFiles": "Показать изменённые файлы",
   "changes.viewer.hideFiles": "Скрыть изменённые файлы",
   "changes.viewer.files": "Изменённые файлы",

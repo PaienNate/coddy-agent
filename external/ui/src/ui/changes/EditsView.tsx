@@ -596,7 +596,10 @@ export function EditsView(props: {
                     }}
                     sessionId={sessionId}
                     patch={state?.patch ?? ""}
-                    loading={!state}
+                    /* Only a text file waits for a patch: an image row is served
+                       raw by the detail route and has no diff to fetch, so its
+                       rendered side must not wait behind a request never made. */
+                    loading={!state && !file.image}
                     error={state?.error ?? ""}
                     collapsed={collapsed.has(file.path)}
                     view={effectiveView}
