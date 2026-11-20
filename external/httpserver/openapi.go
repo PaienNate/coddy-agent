@@ -2318,7 +2318,7 @@ func openAPISpec() map[string]interface{} {
 					"summary": "List what git reports for the session's folder",
 					"description": "The working copy changes of the session's folder, as git reports them: every tracked file that differs from **`HEAD`** (staged or not) and every new file git does not ignore, whoever made the change - the agent, a shell command or an editor next to it. Nothing is recorded per turn. " +
 						"When the session runs in a subfolder of a repository only that folder is reported, by paths relative to it. Without the git binary on PATH the server answers through its built-in implementation, which does not detect renames (a staged rename reads as a deletion plus an addition). " +
-						"**`status`** is **`added`**, **`modified`**, or **`deleted`**; a **`binary`** file carries no line counts and no patch. " +
+						"**`status`** is **`added`**, **`modified`**, or **`deleted`**; a **`binary`** file carries no line counts and no patch. Every row carries **`digest`**, a fingerprint of its status and both raw sides that the SPA's Viewed marks are bound to. " +
 						"By default only stats are returned - **`include=patch`** adds the unified diff and **`include=content`** the decoded before/after sides (both may be combined, comma separated). " +
 						"A patch cut short at 256 KB sets **`truncated`**; **`additions`** and **`deletions`** still describe the whole file. " +
 						"New files are read up to 500 of them and 2 MB each, regular files only; **`skipped`** counts the ones left out (a symbolic link and a nested repository included). In a repository with no commit yet, every file of the index is an addition. **`vcs`** is **`git`**, or empty when the folder is in no repository, and the list is then empty. " +
@@ -5356,6 +5356,10 @@ func sessionChangeFileSchema() map[string]interface{} {
 				"type":        "string",
 				"enum":        []string{"added", "modified", "deleted"},
 				"description": "How the working copy differs from HEAD: added (HEAD does not hold it), modified, or deleted.",
+			},
+			"digest": map[string]string{
+				"type":        "string",
+				"description": "SHA-256 of the status and both raw sides: a rewrite that keeps the line counts still moves it, and the same content answers the same value on every read. It fingerprints content only, so two paths with identical sides share it - the SPA's Viewed marks compare it per path.",
 			},
 			"additions": map[string]string{"type": "integer"},
 			"deletions": map[string]string{"type": "integer"},
