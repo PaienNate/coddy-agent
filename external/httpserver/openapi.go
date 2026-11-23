@@ -4889,8 +4889,13 @@ func openAPISpec() map[string]interface{} {
 						},
 						"metadata": map[string]interface{}{
 							"type":                 "object",
-							"description":          "Optional. For agent/plan/ask only, `model` key selects `models[].model`; `runPlanSlug` runs the named design plan (switches the session to agent) and is answered with **409** when `model` is `ask`. `surface: \"webui\"` (what the bundled web UI sends with every turn) adds a system prompt block for that turn telling the model the web UI draws `mermaid` and `svg` fences as pictures and typesets LaTeX; any other value, or none, adds nothing. `lang` (the web UI sends its locale, e.g. `\"ru\"`) is the language of the turn: Coddy's documentation that the turn's `@coddy:` mentions attach and the agent's documentation tools read is in it. For direct completion `model` values, `model` and `reasoning` keys are rejected; use the top-level `reasoning_effort` for reasoning.",
+							"description":          "Optional. For agent/plan/ask only, `model` key selects `models[].model`; `runPlanSlug` runs the named design plan (switches the session to agent) and is answered with **409** when `model` is `ask`. `surface: \"webui\"` (what the bundled web UI sends with every turn) adds a system prompt block for that turn telling the model the web UI draws `mermaid` and `svg` fences as pictures and typesets LaTeX; any other value, or none, adds nothing. `lang` (the web UI sends its locale, e.g. `\"ru\"`) is the language of the turn: Coddy's documentation that the turn's `@coddy:` mentions attach and the agent's documentation tools read is in it. For direct completion `model` values, `model`, `reasoning` and `service_tier` keys are rejected; use the top-level `reasoning_effort` and `service_tier` for those.",
 							"additionalProperties": true,
+						},
+						"service_tier": map[string]interface{}{
+							"type":        "string",
+							"nullable":    true,
+							"description": "OpenAI's `service_tier` for this one request on a direct `models[].model` id: passed through unchanged when that model's provider takes one (`codex`, or the official OpenAI endpoint), else **400** with `error.param` naming `service_tier`. It changes no session setting, and the tier the provider reports it ran on comes back as `service_tier`. The agent/plan/ask profiles reject this field and take the session's own selection from `metadata.service_tier` instead.",
 						},
 					},
 					"required": []string{"model", "messages"},
@@ -4918,8 +4923,12 @@ func openAPISpec() map[string]interface{} {
 						},
 						"metadata": map[string]interface{}{
 							"type":                 "object",
-							"description":          "Effective YAML model selector under `model`, optional `api_model`, and for a direct completion that reasoned, the level the provider was asked for under `reasoning_effort`.",
+							"description":          "Effective YAML model selector under `model`, optional `api_model`, the level a direct completion reasoned at under `reasoning_effort`, and the tier the provider reported under `service_tier`.",
 							"additionalProperties": map[string]string{"type": "string"},
+						},
+						"service_tier": map[string]interface{}{
+							"type":        "string",
+							"description": "The tier the provider reported it ran this request on, which can differ from the one the request named; absent when the provider reported none.",
 						},
 						"choices": map[string]interface{}{
 							"type": "array",
