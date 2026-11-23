@@ -493,6 +493,14 @@ Checks a session goal (/goal) after every turn with a second model, continues un
 | `supervisor.token_budget` | integer or null | 0 | Uncached input plus output tokens one goal's turns may spend; 0 means no cap. |
 | `supervisor.max_chain_sessions` | integer or null | 10 | Sessions one goal chain (/goal --then-file) may open one after another; when the goal of the last one is met, the chain stops. 0 turns goal chains off. |
 
+### `terminal`
+
+The terminal of a chat: one host shell per chat, opened from the web UI in a window of its own and served by GET, POST and DELETE /coddy/sessions/{id}/terminal. Off by default, because a shell running the host's commands from a browser is a capability to grant on purpose. Enabling it opens nothing beyond this process's own origin, and a session a subagent run owns stays closed; no model, tool or suggestion can write to it. The shell is a pipe, not a terminal device, so a program that draws a screen has nothing to draw on and escape sequences are stripped.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `terminal.enable` | boolean | false | Run a shell for a chat, on the request of the person watching it. Needs httpserver.enable. |
+
 ### `toolsets`
 
 Named presets of tool lists. A models[] row names one with toolset, and a session can pick one with /toolset <name>, on its own or after /model on the same line. A preset only narrows: a tool the mode, a subagent definition or a switch already hides stays hidden, and a call to a tool outside the set is refused without a permission prompt. It is a context optimization, not a security boundary.

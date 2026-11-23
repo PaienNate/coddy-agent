@@ -16,6 +16,12 @@ browser.serve_remote:
 browser.remotes:
   en: 'Coddy servers whose browsers the chats of this process may use, besides its own: a name of httpserver.remotes, or a server address such as a node mount of a swarm relay (https://relay:8443/swarm/nodes/home), whose token is found like --remote''s. That server needs browser.serve_remote.'
   zh: 此进程的聊天除自身之外还可以使用其浏览器的 Coddy 服务器：httpserver.remotes 中的名称，或服务器地址，例如集群中继的节点挂载（https://relay:8443/swarm/nodes/home），其令牌的查找方式与 --remote 相同。该服务器需要 browser.serve_remote。
+terminal:
+  en: 'The terminal of a chat: one host shell per chat, opened from the web UI in a window of its own and served by GET, POST and DELETE /coddy/sessions/{id}/terminal. Off by default, because a shell running the host''s commands from a browser is a capability to grant on purpose. Enabling it opens nothing beyond this process''s own origin, and a session a subagent run owns stays closed; no model, tool or suggestion can write to it. The shell is a pipe, not a terminal device, so a program that draws a screen has nothing to draw on and escape sequences are stripped.'
+  zh: '聊天终端：每个聊天一个宿主 shell，从 Web 界面在独立窗口中打开，由 GET、POST 与 DELETE /coddy/sessions/{id}/terminal 提供服务。默认关闭，因为从浏览器运行主机命令的 shell 是一种应当主动授予的能力。开启它不会超出此进程自身的源，被 suibagent 运行拥有的会话保持关闭；模型、工具与建议都无法写入它。Shell 是管道而非终端设备，因此绘制整屏的程序没有可绘制的对象，转义序列会被去除。'
+terminal.enable:
+  en: 'Run a shell for a chat, on the request of the person watching it. Needs httpserver.enable.'
+  zh: '在查看该聊天的人请求时为聊天运行 shell。需要 httpserver.enable。'
 providers:
   en: API credentials and transport selection for upstream LLM vendors. When api_key is empty, the runtime reads the NAME_API_KEY environment variable (NAME is the provider name in uppercase with hyphens mapped to underscores); a row of type "codex" signs in with ChatGPT and reads no key, and a Kimi subscription reads no API key.
   zh: 上游 LLM 供应商的 API 凭据和传输选择。当 api_key 为空时，运行时读取 NAME_API_KEY 环境变量（NAME 是提供商名称的大写形式，连字符映射为下划线）；type 为 "codex" 的行使用 ChatGPT 登录并且不读取密钥，Kimi 订阅也不读取 API 密钥。

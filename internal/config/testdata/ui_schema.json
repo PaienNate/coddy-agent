@@ -1570,6 +1570,22 @@
         "loop_repeat"
       ]
     },
+    "terminal": {
+      "additionalProperties": false,
+      "description": "The terminal of a chat: one host shell per chat, opened from the web UI in a window of its own. Off by default, because a shell running the host's commands from a browser is a capability to grant on purpose. It is served to this server's own origin only, a subagent session has none, and no model or tool can write to it.",
+      "properties": {
+        "enable": {
+          "description": "Run a shell for a chat, on the request of the person watching it. Needs the HTTP server on.",
+          "title": "Enabled",
+          "type": "boolean"
+        }
+      },
+      "title": "Terminal",
+      "type": "object",
+      "x-coddy-property-order": [
+        "enable"
+      ]
+    },
     "tools": {
       "additionalProperties": false,
       "description": "Filesystem and shell policy for built-in tools.",
@@ -1962,6 +1978,7 @@
     "logger",
     "metrics",
     "browser",
+    "terminal",
     "sessions",
     "prompts",
     "instructions"

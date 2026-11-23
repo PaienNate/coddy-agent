@@ -493,6 +493,14 @@ Prometheus 导出器：在独立端口上提供 GET /metrics，由 coddy serve �
 | `supervisor.token_budget` | 整数 或 null | 0 | 一个目标的各轮次可以消耗的未缓存输入 token 与输出 token 的总数；0 表示不设上限。 |
 | `supervisor.max_chain_sessions` | 整数 或 null | 10 | 一个目标链（/goal --then-file）可以依次打开的会话数；当最后一个会话的目标得到满足时，该链停止。0 会关闭目标链。 |
 
+### `terminal`
+
+聊天终端：每个聊天一个宿主 shell，从 Web 界面在独立窗口中打开，由 GET、POST 与 DELETE /coddy/sessions/{id}/terminal 提供服务。默认关闭，因为从浏览器运行主机命令的 shell 是一种应当主动授予的能力。开启它不会超出此进程自身的源，被 suibagent 运行拥有的会话保持关闭；模型、工具与建议都无法写入它。Shell 是管道而非终端设备，因此绘制整屏的程序没有可绘制的对象，转义序列会被去除。
+
+| 键 | 类型 | 默认值 | 说明 |
+|-----|------|--------|------|
+| `terminal.enable` | 布尔值 | false | 在查看该聊天的人请求时为聊天运行 shell。需要 httpserver.enable。 |
+
 ### `toolsets`
 
 工具列表的具名预设。models[] 行通过 toolset 命名一个，会话可以使用 /toolset <name> 选择一个，既可单独使用，也可在同一行中跟在 /model 之后。预设只会收窄范围：模式、子智能体定义或开关已经隐藏的工具仍保持隐藏，对集合之外工具的调用会被拒绝且不会出现权限提示。它是上下文优化，不是安全边界。

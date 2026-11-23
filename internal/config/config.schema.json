@@ -1732,6 +1732,19 @@
         }
       }
     },
+    "terminal": {
+      "type": "object",
+      "title": "Terminal",
+      "description": "The terminal of a chat: one host shell per chat, opened from the web UI in a window of its own and served by GET, POST and DELETE /coddy/sessions/{id}/terminal. Off by default, because a shell running the host's commands from a browser is a capability to grant on purpose. Enabling it opens nothing beyond this process's own origin, and a session a subagent run owns stays closed; no model, tool or suggestion can write to it. The shell is a pipe, not a terminal device, so a program that draws a screen has nothing to draw on and escape sequences are stripped.",
+      "additionalProperties": false,
+      "properties": {
+        "enable": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run a shell for a chat, on the request of the person watching it. Needs httpserver.enable."
+        }
+      }
+    },
     "metrics": {
       "type": "object",
       "title": "Metrics",

@@ -2378,6 +2378,69 @@ func openAPISpec() map[string]interface{} {
 					},
 				},
 			},
+			"/coddy/sessions/{id}/terminal": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Read the chat's terminal, starting one when there is none",
+					"description": "One host shell belongs to each chat, started in the session's folder. **`output`** is the retained tail of what it has printed (the last 512 KiB, decoded and stripped of escape sequences), and **`running`** says whether it can still take a command. A read leaves a shell that has ended alone, so its last words and the reason it stopped stay on screen. " +
+						"The route exists only with **`terminal.enable`**, and it is served to this server's own origin only: a request another origin made, a relayed mount and a subagent session's id are all refused.",
+					"operationId": "coddyTerminalGet",
+					"parameters": sessionIDPathParameter(),
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "The chat's shell and its output",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{"schema": terminalSchema()},
+							},
+						},
+						"403": errorResponseRef(),
+						"404": errorResponseRef(),
+						"409": errorResponseRef(),
+					},
+				},
+				"post": map[string]interface{}{
+					"summary": "Run one command in the chat's terminal",
+					"description": "Writes **`input`** to the shell and answers the same snapshot a read gives. A command is one line: a newline inside **`input`** is **409**, because its tail would run as a command the person never saw echoed. A command typed into a shell that has ended starts a fresh one rather than being refused. The echo of cmd.exe and PowerShell is turned off or not doubled, as their kind requires.",
+					"operationId": "coddyTerminalPost",
+					"parameters": sessionIDPathParameter(),
+					"requestBody": map[string]interface{}{
+						"required": true,
+						"content": map[string]interface{}{
+							"application/json": map[string]interface{}{
+								"schema": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"input": map[string]string{"type": "string", "description": "One line to write to the shell."},
+									},
+									"required": []string{"input"},
+								},
+							},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "The chat's shell and its output",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{"schema": terminalSchema()},
+							},
+						},
+						"400": errorResponseRef(),
+						"403": errorResponseRef(),
+						"404": errorResponseRef(),
+						"409": errorResponseRef(),
+					},
+				},
+				"delete": map[string]interface{}{
+					"summary": "Stop the chat's terminal",
+					"description": "Stops the shell this chat held, and a later read or command starts a clean one. **204** with no body.",
+					"operationId": "coddyTerminalDelete",
+					"parameters": sessionIDPathParameter(),
+					"responses": map[string]interface{}{
+						"204": map[string]interface{}{"description": "The shell is stopped"},
+						"403": errorResponseRef(),
+						"404": errorResponseRef(),
+					},
+				},
+			},
 			"/coddy/sessions/{id}/worktree": map[string]interface{}{
 				"get": map[string]interface{}{
 					"summary": "What leaving the session's worktree would touch",
@@ -5475,6 +5538,34 @@ func sessionChangeFileSchema() map[string]interface{} {
 			"after": map[string]string{
 				"type":        "string",
 				"description": "Decoded content in the working copy. Present with include=content.",
+			},
+		},
+	}
+}
+
+// sessionIDPathParameter is the session id of every /coddy/sessions/{id} route.
+func sessionIDPathParameter() []interface{} {
+	return []interface{}{
+		map[string]interface{}{
+			"name": "id", "in": "path", "required": true,
+			"schema":      map[string]string{"type": "string"},
+			"description": "Session id.",
+		},
+	}
+}
+
+// terminalSchema describes the snapshot the terminal routes answer with.
+func terminalSchema() map[string]interface{} {
+	return map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"object":  map[string]string{"type": "string"},
+			"shell":   map[string]string{"type": "string", "description": "The executable of the host shell this chat runs."},
+			"output":  map[string]string{"type": "string", "description": "The retained tail of what the shell printed: decoded, escape sequences stripped, at most 512 KiB."},
+			"running": map[string]string{"type": "boolean", "description": "Whether the shell can still take a command."},
+			"exit_error": map[string]string{
+				"type":        "string",
+				"description": "How the shell ended, when it ended with an error.",
 			},
 		},
 	}

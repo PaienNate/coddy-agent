@@ -30,6 +30,7 @@ type ConfigJSON struct {
 	Swarm        SwarmJSON        `json:"swarm,omitempty"`
 	Metrics      MetricsJSON      `json:"metrics,omitempty"`
 	Browser      BrowserJSON      `json:"browser,omitempty"`
+	Terminal     TerminalJSON     `json:"terminal,omitempty"`
 	UI           UIJSON           `json:"ui,omitempty"`
 	Scheduler    SchedulerJSON    `json:"scheduler,omitempty"`
 	Gateways     GatewaysJSON     `json:"gateways,omitempty"`
@@ -456,6 +457,11 @@ type BrowserJSON struct {
 	Remotes         []string `json:"remotes,omitempty"`
 }
 
+// TerminalJSON mirrors TerminalConfig: the one switch of the chat terminal.
+type TerminalJSON struct {
+	Enable bool `json:"enable,omitempty"`
+}
+
 // SwarmTLSJSON mirrors SwarmTLSConfig.
 type SwarmTLSJSON struct {
 	CertFile string `json:"cert_file,omitempty"`
@@ -730,6 +736,7 @@ func ConfigToJSONDTO(c *Config) *ConfigJSON {
 		Enable: c.Browser.Enable, TokenConfigured: c.Browser.Token != "",
 		ServeRemote: c.Browser.ServeRemote, Remotes: append([]string(nil), c.Browser.Remotes...),
 	}
+	out.Terminal = TerminalJSON{Enable: c.Terminal.Enable}
 	out.Scheduler = SchedulerJSON{
 		Enabled: c.Scheduler.Enabled, MaxQueue: c.Scheduler.MaxQueue,
 		Timeout: c.Scheduler.Timeout, RetainSessions: c.Scheduler.RetainSessions,
@@ -987,6 +994,7 @@ func JSONDTOToConfig(j *ConfigJSON, paths Paths) *Config {
 		Enable: j.Browser.Enable, Token: j.Browser.Token,
 		ServeRemote: j.Browser.ServeRemote, Remotes: append([]string(nil), j.Browser.Remotes...),
 	}
+	cfg.Terminal = TerminalConfig{Enable: j.Terminal.Enable}
 	cfg.Scheduler = SchedulerConfig{
 		Enabled: j.Scheduler.Enabled, MaxQueue: j.Scheduler.MaxQueue,
 		Timeout: j.Scheduler.Timeout, RetainSessions: j.Scheduler.RetainSessions,

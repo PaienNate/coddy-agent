@@ -927,6 +927,10 @@ func UISchemaMap() map[string]interface{} {
 					"items":       map[string]interface{}{"type": "string"},
 				},
 			}, []string{"enable", "token", "serve_remote", "remotes"}, nil),
+		"terminal": objectSchema("Terminal", "The terminal of a chat: one host shell per chat, opened from the web UI in a window of its own. Off by default, because a shell running the host's commands from a browser is a capability to grant on purpose. It is served to this server's own origin only, a subagent session has none, and no model or tool can write to it.",
+			map[string]interface{}{
+				"enable": boolProp("Enabled", "Run a shell for a chat, on the request of the person watching it. Needs the HTTP server on."),
+			}, []string{"enable"}, nil),
 		"metrics": objectSchema("Metrics", "Prometheus exporter on a port of its own. It takes effect only in a binary built with the metrics tag.",
 			map[string]interface{}{
 				"enable": boolProp("Enabled", "Serve /metrics from this process."),
@@ -998,7 +1002,7 @@ func UISchemaMap() map[string]interface{} {
 		"agent", "supervisor", "compaction", "memory", "decisions",
 		"tools", "skills", "subagents", "hooks",
 		"scheduler", "gateways",
-		"logger", "metrics", "browser", "sessions", "prompts", "instructions",
+		"logger", "metrics", "browser", "terminal", "sessions", "prompts", "instructions",
 	}
 
 	doc := map[string]interface{}{
