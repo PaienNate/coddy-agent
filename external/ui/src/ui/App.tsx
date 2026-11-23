@@ -1,3 +1,9 @@
+import {
+  pickServiceTier,
+  readServiceTierCookie,
+  writeServiceTierCookie,
+  type ServiceTierControl,
+} from "./chat/serviceTier";
 import { browserPanelLaunch } from "./browserPanel/launch";
 import { panelTabForTurn } from "./browserPanel/bridge";
 import {
@@ -453,6 +459,8 @@ type ModelInfo = {
   multimodal?: boolean;
   reasoningLevels?: string[];
   reasoningDefault?: string;
+  /** The service tiers this model's provider takes (GET /v1/models). */
+  serviceTierChoices?: string[];
   /** The toolsets[] preset the model names (models[].toolset). */
   toolset?: string;
 };
@@ -1959,6 +1967,16 @@ export function App() {
     turnEpoch: providerUsageTurnEpoch,
   });
   const [llmReasoning, setLlmReasoning] = useState("");
+  /** The browser's remembered tier for a new chat; an opened session's own
+   *  tier replaces it while that session is on screen. */
+  const [serviceTier, setServiceTier] = useState(readServiceTierCookie);
+  /** The tiers the viewed session's model offers, from its settings snapshot
+   *  or, without one, from the model row of `/v1/models`. */
+  const [sessionTierChoices, setSessionTierChoices] = useState<{
+    sid: string;
+    model: string;
+    choices: string[];
+  }>({ sid: "", model: "", choices: [] });
   /**
    * The opened session's own model and reasoning, as its settings snapshot
    * names them, with the levels the snapshot says it may hold. Held until the
@@ -1970,6 +1988,8 @@ export function App() {
     sid: string;
     model: string;
     reasoning: string;
+    serviceTier: string;
+    tierChoices: string[];
     choices: string[];
   } | null>(null);
   /** The selection object already applied to the composer; see the effect below. */
@@ -1977,6 +1997,8 @@ export function App() {
     sid: string;
     model: string;
     reasoning: string;
+    serviceTier: string;
+    tierChoices: string[];
     choices: string[];
   } | null>(null);
   /**
@@ -3449,6 +3471,7 @@ export function App() {
           multimodal?: boolean;
           reasoning_levels?: string[];
           reasoning_default?: string;
+          service_tier_choices?: string[];
           toolset?: string;
         }>;
       }>("/v1/models");
@@ -3468,6 +3491,11 @@ export function App() {
             ? d.reasoning_levels.map((s) => `${s}`.trim()).filter(Boolean)
             : [],
           reasoningDefault: (d.reasoning_default || "").trim(),
+          serviceTierChoices: Array.isArray(d.service_tier_choices)
+            ? d.service_tier_choices.filter(
+                (v): v is string => typeof v === "string",
+              )
+            : [],
           toolset: (d.toolset || "").trim(),
         }))
         .filter((d) => d.id);
@@ -3479,6 +3507,7 @@ export function App() {
           multimodal: d.multimodal,
           reasoningLevels: d.reasoningLevels,
           reasoningDefault: d.reasoningDefault,
+          serviceTierChoices: d.serviceTierChoices,
         };
         if (d.maxContextTokens !== undefined) {
           m.maxContextTokens = d.maxContextTokens;
@@ -3540,6 +3569,17 @@ export function App() {
     // same chooser as every other path, with the session's value as the
     // preference rather than as the answer, and without the cookie.
     const openRow = modelInfos.find((m) => m.id === nextModel);
+    setServiceTier(
+      pickServiceTier(
+        openSessionSelection.serviceTier,
+        openSessionSelection.tierChoices,
+      ),
+    );
+    setSessionTierChoices({
+      sid: openSessionSelection.sid,
+      model: nextModel,
+      choices: openSessionSelection.tierChoices,
+    });
     const choices =
       nextModel === openSessionSelection.model
         ? openSessionSelection.choices
@@ -4163,6 +4203,8 @@ export function App() {
         reasoning: snap
           ? snap.reasoning
           : (data.selectedReasoning || "").trim(),
+        serviceTier: snap?.serviceTier ?? "",
+        tierChoices: snap?.serviceTierChoices ?? [],
         choices: snap?.reasoningChoices ?? [],
       });
     }
@@ -4764,6 +4806,8 @@ export function App() {
     // Drop any stashed session selection so its restore effect cannot reapply
     // the old session's model over the new chat default.
     setOpenSessionSelection(null);
+    setServiceTier(readServiceTierCookie());
+    setSessionTierChoices({ sid: "", model: "", choices: [] });
     setSessionReasoningChoices({ sid: "", model: "", choices: [] });
     // A new chat sends its level with the first message: that is its own.
     reasoningImpliedRef.current = false;
@@ -6244,6 +6288,7 @@ export function App() {
       meta.lang = locale;
       if (yamlSel) meta.model = yamlSel;
       if (sendReasoning) meta.reasoning = reasoningSel;
+      meta.service_tier = pickServiceTier(serviceTier, serviceTierChoices);
       if (runSlug) meta.runPlanSlug = runSlug;
       if (heldVersion > 0) meta.settingsVersion = String(heldVersion);
       // A toolset picked on the start screen goes with the messages of the
@@ -6933,6 +6978,12 @@ export function App() {
       return;
     }
     settingsVersionRef.current = { sid: snap.sessionId, version: snap.version };
+    setServiceTier(snap.serviceTier);
+    setSessionTierChoices({
+      sid: snap.sessionId,
+      model: snap.model,
+      choices: snap.serviceTierChoices,
+    });
     setPermissionMode(snap.permissionMode);
     setConfiguredPermissionMode(snap.configuredPermissionMode);
     setSettingsOverrides(snap.overrides);
@@ -7134,6 +7185,35 @@ export function App() {
     pendingToolset,
     onToolsetChange,
   ]);
+
+  /**
+   * The composer's service tier chip: what the session keeps, else the
+   * browser's remembered pick for a new chat, narrowed to the tiers the
+   * model's provider takes. No tier, no chip.
+   */
+  const serviceTierChoices =
+    sessionTierChoices.sid === sessionId.trim() &&
+    sessionTierChoices.model === llmModel
+      ? sessionTierChoices.choices
+      : (modelInfos.find((m) => m.id === llmModel)?.serviceTierChoices ?? []);
+  const serviceTierMenuChoices = serviceTierChoices.filter(
+    (choice) => choice !== "",
+  );
+  const serviceTierControl: ServiceTierControl | undefined =
+    serviceTierMenuChoices.length
+      ? {
+          value: pickServiceTier(serviceTier, serviceTierChoices) || "default",
+          choices: serviceTierMenuChoices,
+          onChange: (value) => {
+            setServiceTier(value);
+            writeServiceTierCookie(value);
+            if (sessionId.trim())
+              void patchSessionSettings(sessionId.trim(), {
+                selectedServiceTier: value,
+              });
+          },
+        }
+      : undefined;
 
   const onLlmReasoningChange = useCallback(
     (level: string) => {
@@ -9145,6 +9225,9 @@ export function App() {
               subagentTranscript ? undefined : onPermissionModeChange
             }
             toolsetControl={subagentTranscript ? undefined : toolsetControl}
+            serviceTierControl={
+              subagentTranscript ? undefined : serviceTierControl
+            }
             settingsOverrides={settingsOverrides}
             {...(subagentTranscript
               ? {}
