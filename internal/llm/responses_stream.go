@@ -143,6 +143,7 @@ func consumeResponsesStream(stream *ssestream.Stream[responses.ResponseStreamEve
 	var reasoningItems []json.RawMessage
 	var inputTokens, outputTokens, cachedInputTokens, reasoningTokens int
 	stopReason := ""
+	serviceTier := ""
 	// terminal is the event that ended the response: response.completed or
 	// response.incomplete. A stream that closes without one was cut, however
 	// clean the close looked on the wire.
@@ -227,12 +228,14 @@ func consumeResponsesStream(stream *ssestream.Stream[responses.ResponseStreamEve
 			}
 		case "response.completed":
 			terminal = ev.Type
+			serviceTier = string(ev.Response.ServiceTier)
 			usage(ev.Response.Usage)
 		case "response.incomplete":
 			// The backend ended the response on purpose, short of a whole
 			// answer. What it wrote is real and stays; the reason is reported
 			// instead of passing the answer off as an end_turn.
 			terminal = ev.Type
+			serviceTier = string(ev.Response.ServiceTier)
 			usage(ev.Response.Usage)
 			switch reason := ev.Response.IncompleteDetails.Reason; reason {
 			case "max_output_tokens":
@@ -270,6 +273,7 @@ func consumeResponsesStream(stream *ssestream.Stream[responses.ResponseStreamEve
 			Content:            fullContent,
 			Reasoning:          reasoning,
 			ReasoningSignature: encodeReasoning(reasoningItems),
+			ServiceTier:        serviceTier,
 			InputTokens:        inputTokens,
 			OutputTokens:       outputTokens,
 			CachedInputTokens:  cachedInputTokens,
@@ -286,6 +290,7 @@ func consumeResponsesStream(stream *ssestream.Stream[responses.ResponseStreamEve
 				ReasoningSignature: encodeReasoning(reasoningItems),
 				ToolCalls:          toolCalls,
 				StopReason:         codexStopReason(toolCalls),
+				ServiceTier:        serviceTier,
 				InputTokens:        inputTokens,
 				OutputTokens:       outputTokens,
 				CachedInputTokens:  cachedInputTokens,
@@ -338,6 +343,7 @@ func consumeResponsesStream(stream *ssestream.Stream[responses.ResponseStreamEve
 		ReasoningSignature: encodeReasoning(reasoningItems),
 		ToolCalls:          toolCalls,
 		StopReason:         stopReason,
+		ServiceTier:        serviceTier,
 		InputTokens:        inputTokens,
 		OutputTokens:       outputTokens,
 		CachedInputTokens:  cachedInputTokens,
