@@ -219,6 +219,10 @@ export function ChatScreen(props: {
   onOpenFiles?: () => void;
   /** The Files window is open. */
   filesOpen?: boolean;
+  /** Opens the terminal under the chat. */
+  onOpenTerminal?: () => void;
+  /** The terminal window is open. */
+  terminalOpen?: boolean;
   /** Re-read the task rows: a background subagent's prompt was answered here. */
   onBackgroundTasksChanged?: () => void;
   /** Roots this session works in - its own directory, then its worktrees -
@@ -1151,6 +1155,10 @@ export function ChatScreen(props: {
                           ? {
                               onOpenFiles: openFiles,
                               filesOpen: props.filesOpen === true,
+                              ...(props.onOpenTerminal
+                                ? { onOpenTerminal: props.onOpenTerminal }
+                                : {}),
+                              terminalOpen: props.terminalOpen === true,
                             }
                           : {}),
                       }

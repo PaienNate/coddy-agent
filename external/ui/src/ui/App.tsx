@@ -313,6 +313,7 @@ import {
 } from "./scheduler/hashRoute";
 import { DocsView } from "./docs/DocsView";
 import { FilesView, type CanvasFocus } from "./files/FilesView";
+import { TerminalPanel } from "./terminal/TerminalPanel";
 import type { CanvasPrompt } from "./canvas/CanvasBoard";
 import { onOpenCanvas } from "./canvas/canvasBus";
 import { useFilesWindowKey } from "./files/filesWindowKey";
@@ -1612,6 +1613,10 @@ export function App() {
   const [filesOpen, setFilesOpen] = useState(
     initialRoute.branch === "session" && initialRoute.filesOpen === true,
   );
+  // The terminal is a window of the chat's own, not a face of the dock: opening
+  // the files or the tasks does not put it away, and nothing dims the chat under
+  // it. It is a page state, not part of the address.
+  const [terminalOpen, setTerminalOpen] = useState(false);
   // Bumps on every request to show a file, so the same path asked for again
   // (its tab closed meanwhile) opens again.
   const [fileOpenSeq, setFileOpenSeq] = useState(0);
@@ -8923,6 +8928,17 @@ export function App() {
             onClose={closeEditsWindow}
           />
         ) : null}
+        {/* The terminal is a window of the chat's own, not a face of the dock:
+            it stands over whatever else is open, and nothing but its own control
+            puts it away. */}
+        {terminalOpen && sessionId.trim() ? (
+          <TerminalPanel
+            key={`terminal:${sessionId}`}
+            sessionId={sessionId}
+            workspacePath={workspaceCtx?.path || ""}
+            onClose={() => setTerminalOpen(false)}
+          />
+        ) : null}
         {filesOpen && sessionId.trim() ? (
           <FilesView
             key={filesWindowKey}
@@ -9019,6 +9035,8 @@ export function App() {
               filesOpen ? closeFilesWindow() : openFilesWindow()
             }
             filesOpen={filesOpen}
+            onOpenTerminal={() => setTerminalOpen((open) => !open)}
+            terminalOpen={terminalOpen}
             backgroundTasks={backgroundTasks}
             subagentTasks={subagentTasks}
             onOpenBackgroundTasks={openTasksFromNav}
