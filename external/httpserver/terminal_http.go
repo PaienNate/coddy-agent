@@ -61,13 +61,11 @@ type terminalSnapshot struct {
 	ExitErr string `json:"exit_error,omitempty"`
 }
 
-// registerTerminalRoutes adds the chat terminal behind terminal.enable. The
-// route is registered only while the switch is on, so a build without it
-// answers 404 like a server that never had it.
+// registerTerminalRoutes adds the chat terminal. The switch is checked per
+// request rather than here, so a configuration reload that turns terminal.enable
+// on takes effect without a restart, and one that turns it off answers 404 again
+// at once. A server that never had the switch answers 404 the same way.
 func (s *Server) registerTerminalRoutes() {
-	if !s.activeCfg().Terminal.Serves() {
-		return
-	}
 	s.mux.HandleFunc("GET /coddy/sessions/{id}/terminal", s.coddyTerminalGet)
 	s.mux.HandleFunc("POST /coddy/sessions/{id}/terminal", s.coddyTerminalPost)
 	s.mux.HandleFunc("DELETE /coddy/sessions/{id}/terminal", s.coddyTerminalDelete)
@@ -85,6 +83,10 @@ func (s *Server) registerTerminalRoutes() {
 // bearer through it. A child session is a transcript of work a parent chat
 // delegated, not a place a person types, and it is read-only everywhere else.
 func (s *Server) terminalTarget(w http.ResponseWriter, r *http.Request) (string, string, bool) {
+	if !s.activeCfg().Terminal.Serves() {
+		http.NotFound(w, r)
+		return "", "", false
+	}
 	sid := strings.TrimSpace(r.PathValue("id"))
 	if !isSameOriginRequest(r) {
 		http.Error(w, errorJSON("the terminal is served to this server's own origin only"), http.StatusForbidden)
