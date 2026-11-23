@@ -18,7 +18,7 @@ browser.remotes:
   zh: 此进程的聊天除自身之外还可以使用其浏览器的 Coddy 服务器：httpserver.remotes 中的名称，或服务器地址，例如集群中继的节点挂载（https://relay:8443/swarm/nodes/home），其令牌的查找方式与 --remote 相同。该服务器需要 browser.serve_remote。
 terminal:
   en: 'The terminal of a chat: one host shell per chat, opened from the web UI in a window of its own and served by GET, POST and DELETE /coddy/sessions/{id}/terminal. Off by default, because a shell running the host''s commands from a browser is a capability to grant on purpose. Enabling it opens nothing beyond this process''s own origin, and a session a subagent run owns stays closed; no model, tool or suggestion can write to it. The shell is a pipe, not a terminal device, so a program that draws a screen has nothing to draw on and escape sequences are stripped.'
-  zh: '聊天终端：每个聊天一个宿主 shell，从 Web 界面在独立窗口中打开，由 GET、POST 与 DELETE /coddy/sessions/{id}/terminal 提供服务。默认关闭，因为从浏览器运行主机命令的 shell 是一种应当主动授予的能力。开启它不会超出此进程自身的源，被 suibagent 运行拥有的会话保持关闭；模型、工具与建议都无法写入它。Shell 是管道而非终端设备，因此绘制整屏的程序没有可绘制的对象，转义序列会被去除。'
+  zh: '聊天终端：每个聊天一个宿主 shell，从 Web 界面在独立窗口中打开，由 GET、POST 与 DELETE /coddy/sessions/{id}/terminal 提供服务。默认关闭，因为从浏览器运行主机命令的 shell 是一种应当主动授予的能力。开启它不会超出此进程自身的源，属于子代理运行的会话保持关闭；模型、工具与建议都无法写入它。Shell 是管道而非终端设备，因此绘制整屏的程序没有可绘制的对象，转义序列会被去除。'
 terminal.enable:
   en: 'Run a shell for a chat, on the request of the person watching it. Needs httpserver.enable.'
   zh: '在查看该聊天的人请求时为聊天运行 shell。需要 httpserver.enable。'
@@ -199,6 +199,9 @@ agent.loop_stream_repeat_cycles:
 agent.loop_nudge_max:
   en: How many times one turn may be nudged back on track before the loop guard stops it with a notice.
   zh: 在一个轮次被循环防护以通知停止之前，可以多少次将其推回正轨。
+agent.prompt_suggestions:
+  en: 'Suggest the next prompt in the empty console or web composer after a turn. An extra model call forks the turn''s provider context; tools are never executed and nothing enters the transcript. Tab or Right accepts the suggestion. Defaults to true; false disables generation.'
+  zh: '一轮结束后，在空的输入框里提示下一句可能输入的内容。由一次额外的模型调用 fork 当前这轮的提供商上下文产生；不会执行工具，也不会写入对话记录。按 Tab 或右方向键采纳建议。默认开启，设为 false 则停止生成。'
 agent.wait_for_limit_reset:
   en: Wait for a hit usage limit to lift and re-issue the call, instead of ending the turn with the provider's error. Applies to a top-level turn whose provider names a pause beyond the retry budget, in a Retry-After header or in the text of the 429 itself; the turn lock and the client stream stay open while it waits, so it is off by default.
   zh: 等待已触发的用量限制解除并重新发出调用，而不是以提供商的错误结束轮次。适用于顶层轮次，其提供商在 Retry-After 响应头或 429 本身的文本中指定了超出重试预算的暂停；等待期间轮次锁和客户端流保持打开，因此默认关闭。
