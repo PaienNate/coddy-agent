@@ -488,15 +488,20 @@ func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 	// 404 the HEAD the fallback's Allow header advertises; the body net/http
 	// discards for HEAD is the same work a GET costs.
 	type modelObj struct {
-		ID               string   `json:"id"`
-		Object           string   `json:"object"`
-		Created          int64    `json:"created"`
-		OwnedBy          string   `json:"owned_by"`
-		MaxContextTokens int      `json:"max_context_tokens,omitempty"`
-		ContextLength    int      `json:"context_length,omitempty"`
-		Multimodal       bool     `json:"multimodal,omitempty"`
+		ID               string `json:"id"`
+		Object           string `json:"object"`
+		Created          int64  `json:"created"`
+		OwnedBy          string `json:"owned_by"`
+		MaxContextTokens int    `json:"max_context_tokens,omitempty"`
+		ContextLength    int    `json:"context_length,omitempty"`
+		Multimodal       bool   `json:"multimodal,omitempty"`
+		// ReasoningLevels are the levels the provider offers for this model,
+		// ReasoningDefault the one a request without a level runs on.
 		ReasoningLevels  []string `json:"reasoning_levels,omitempty"`
 		ReasoningDefault string   `json:"reasoning_default,omitempty"`
+		// ServiceTierChoices are the tiers a request on this row may name;
+		// empty for a provider that does not take one.
+		ServiceTierChoices []string `json:"service_tier_choices,omitempty"`
 		// Default marks the row a session that selected no model runs on,
 		// so a client (the remote console) shows the model that will run.
 		Default bool `json:"default,omitempty"`
@@ -579,8 +584,10 @@ func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 				Multimodal:       ent.Multimodal,
 				ReasoningLevels:  cfg.ReasoningChoicesFor(ent),
 				ReasoningDefault: cfg.DefaultReasoningLevelFor(ent),
-				Default:          defaultModel != "" && mid == defaultModel,
-				Toolset:          ent.Toolset,
+
+				ServiceTierChoices: llm.ModelServiceTierChoices(cfg, mid),
+				Default:            defaultModel != "" && mid == defaultModel,
+				Toolset:            ent.Toolset,
 				// ProviderDisplayName: label only; OwnedBy stays the id.
 				ProviderDisplayName: providerDisplayName,
 				Limits:              limits,
@@ -605,8 +612,12 @@ type chatCompletionRequest struct {
 	// ReasoningEffort is OpenAI's reasoning_effort: a level the direct model
 	// offers, in place of its reasoning_default. A profile turn reads the level
 	// from metadata.reasoning instead.
-	ReasoningEffort *string         `json:"reasoning_effort,omitempty"`
-	Metadata        json.RawMessage `json:"metadata,omitempty"`
+	ReasoningEffort *string `json:"reasoning_effort,omitempty"`
+	// ServiceTier is OpenAI's service_tier for this one request. A direct
+	// model passes it through; a profile turn rejects it and reads the tier
+	// from metadata.service_tier, which is a session setting.
+	ServiceTier *string         `json:"service_tier,omitempty"`
+	Metadata    json.RawMessage `json:"metadata,omitempty"`
 	// StreamOptions is OpenAI's stream_options; include_usage asks for the
 	// usage chunk after the choice finishes.
 	StreamOptions *chatStreamOptions `json:"stream_options,omitempty"`
@@ -989,6 +1000,11 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 		// so a caller comparing model and level pairs can tell which ran.
 		meta["reasoning_effort"] = genOpts.ReasoningEffort
 	}
+	if directRes.ServiceTier != "" {
+		// The tier the provider reports it ran on, which can differ from the
+		// one the request named.
+		meta["service_tier"] = directRes.ServiceTier
+	}
 	if stop := directStopReason(directRes); stop != "" {
 		// The strict stream finishes its choice with this: tool_use becomes
 		// finish_reason tool_calls, max_tokens becomes length.
@@ -1021,6 +1037,9 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 		"model":    model,
 		"metadata": meta,
 		"choices":  []map[string]interface{}{{"index": 0, "message": message, "finish_reason": finish}},
+	}
+	if directRes.ServiceTier != "" {
+		resp["service_tier"] = directRes.ServiceTier
 	}
 	if usage := completionUsageFromResponse(directRes).openAI(); usage != nil {
 		resp["usage"] = usage
@@ -1382,6 +1401,12 @@ func (s *Server) handleResponsesCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	if !httpModelIsCoddyProfile(strings.TrimSpace(selector.Model)) {
 		s.handleDirectResponses(w, r, raw)
+		return
+	}
+	var fields map[string]json.RawMessage
+	_ = json.Unmarshal(raw, &fields)
+	if _, present := fields["service_tier"]; present {
+		writeOpenAIValidationError(w, "service_tier is only supported for direct models; use metadata.service_tier for profiles", "service_tier")
 		return
 	}
 	var body struct {

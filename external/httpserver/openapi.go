@@ -2384,7 +2384,7 @@ func openAPISpec() map[string]interface{} {
 					"description": "One host shell belongs to each chat, started in the session's folder. **`output`** is the retained tail of what it has printed (the last 512 KiB, decoded and stripped of escape sequences), and **`running`** says whether it can still take a command. A read leaves a shell that has ended alone, so its last words and the reason it stopped stay on screen. " +
 						"The route exists only with **`terminal.enable`**, and it is served to this server's own origin only: a request another origin made, a relayed mount and a subagent session's id are all refused.",
 					"operationId": "coddyTerminalGet",
-					"parameters": sessionIDPathParameter(),
+					"parameters":  sessionIDPathParameter(),
 					"responses": map[string]interface{}{
 						"200": map[string]interface{}{
 							"description": "The chat's shell and its output",
@@ -2398,10 +2398,10 @@ func openAPISpec() map[string]interface{} {
 					},
 				},
 				"post": map[string]interface{}{
-					"summary": "Run one command in the chat's terminal",
+					"summary":     "Run one command in the chat's terminal",
 					"description": "Writes **`input`** to the shell and answers the same snapshot a read gives. A command is one line: a newline inside **`input`** is **409**, because its tail would run as a command the person never saw echoed. A command typed into a shell that has ended starts a fresh one rather than being refused. The echo of cmd.exe and PowerShell is turned off or not doubled, as their kind requires.",
 					"operationId": "coddyTerminalPost",
-					"parameters": sessionIDPathParameter(),
+					"parameters":  sessionIDPathParameter(),
 					"requestBody": map[string]interface{}{
 						"required": true,
 						"content": map[string]interface{}{
@@ -2430,10 +2430,10 @@ func openAPISpec() map[string]interface{} {
 					},
 				},
 				"delete": map[string]interface{}{
-					"summary": "Stop the chat's terminal",
+					"summary":     "Stop the chat's terminal",
 					"description": "Stops the shell this chat held, and a later read or command starts a clean one. **204** with no body.",
 					"operationId": "coddyTerminalDelete",
-					"parameters": sessionIDPathParameter(),
+					"parameters":  sessionIDPathParameter(),
 					"responses": map[string]interface{}{
 						"204": map[string]interface{}{"description": "The shell is stopped"},
 						"403": errorResponseRef(),
@@ -2774,7 +2774,7 @@ func openAPISpec() map[string]interface{} {
 			"/coddy/sessions/{id}/messages": map[string]interface{}{
 				"get": map[string]interface{}{
 					"summary": "Read conversation transcript",
-					"description": "Top-level **model** is the effective YAML backend for this session (**`selectedModelId`** when set, else configured **`agent.model`**). **selectedModelId** echoes the stored session override (may be empty). **mode** reports the session profile (`agent`, `plan`, or `ask`) so remote clients restore it on load. **settings** is the whole settings snapshot of the session (**model**, **reasoning**, **reasoningChoices**, **toolset** and **toolsetChoices** (only while the configuration has **`toolsets`**), **mode**, **permissionMode**, **configuredPermissionMode**, **overrides**, **version**), the same one **event: session_settings** carries: a composer mirrors it and names its **version** as **`metadata.settingsVersion`** when it sends. **uiLog** holds a **notice** row for a settings change the agent made itself (the model's **switch_model**, a skill's frontmatter); a change the user made - a command, **PATCH**, the permission dialog - leaves none, and the rows a session saved by an earlier version holds for such changes are not returned. Assistant rows in **messages** may include **`model`** (YAML selector used for that reply). User rows with uploaded files include **`files`** metadata, and a tool row carries in **`files`** the pictures its call showed the model (**`read`** on an image file); persisted images carry a session-scoped **`preview_url`** (the bounded thumbnail) and, while the asset is still in the bundle, **`url`** for the original bytes a preview card opens enlarged. " +
+					"description": "Top-level **model** is the effective YAML backend for this session (**`selectedModelId`** when set, else configured **`agent.model`**). **selectedModelId** echoes the stored session override (may be empty). **mode** reports the session profile (`agent`, `plan`, or `ask`) so remote clients restore it on load. **settings** is the whole settings snapshot of the session (**model**, **reasoning**, **reasoningChoices**, **serviceTier**, **serviceTierChoices**, **toolset** and **toolsetChoices** (only while the configuration has **`toolsets`**), **mode**, **permissionMode**, **configuredPermissionMode**, **overrides**, **version**), the same one **event: session_settings** carries: a composer mirrors it and names its **version** as **`metadata.settingsVersion`** when it sends. **uiLog** holds a **notice** row for a settings change the agent made itself (the model's **switch_model**, a skill's frontmatter); a change the user made - a command, **PATCH**, the permission dialog - leaves none, and the rows a session saved by an earlier version holds for such changes are not returned. Assistant rows in **messages** may include **`model`** (YAML selector used for that reply). User rows with uploaded files include **`files`** metadata, and a tool row carries in **`files`** the pictures its call showed the model (**`read`** on an image file); persisted images carry a session-scoped **`preview_url`** (the bounded thumbnail) and, while the asset is still in the bundle, **`url`** for the original bytes a preview card opens enlarged. " +
 						"**user** and **assistant** rows may include **created_at** (RFC3339 UTC) when the server appended that message to history. " +
 						"A **user** row that opened a turn nobody typed - finished background tasks the model started woke the agent (**notify_on_finish**, on by default) - carries **`background_wake`** **`{tasks: [{id, kind, label, agent, status, exit_code, duration_ms, error}]}`**; its **content** is the instruction the model read, and a UI does not render the row as a message from the user (the bundled UI shows nothing for it: the turn reads as the agent carrying on). A **user** row the session supervisor opened a goal turn with carries **`goal_turn`** **`{kind, index, limit, objective, reason, remaining}`**; a UI shows it as a one-line goal row, not as a message from the user. The answer also carries **goal**, the session goal in the shape of **GET /coddy/sessions/{id}/goal**, and, while the session keeps a todo checklist, **todoPlan** **`[{content, status, priority}]`**, the list **GET /coddy/sessions/{id}/plan** returns, in its order (the bundled UI shows it under the newest message; a session without a list carries no key). " +
 						"An **assistant** row a model of type acp wrote carries **`agent_tools`** **`[{id, title, kind, status, input, output, output_lines}]`**, the tool calls the agent behind it ran on its own side: a UI draws them as tool rows (the bundled UI puts them before the row's text), and the whole output of each is **GET /coddy/sessions/{id}/tool-calls/{toolCallId}**. " +
