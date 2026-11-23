@@ -623,6 +623,9 @@ export const messagesZh: Record<string, string> = {
   "settings.schema.agent.loop_stream_repeat_cycles.label": "循环流重复周期数",
   "settings.schema.agent.loop_stream_repeat_cycles.desc":
     "单个流式响应中连续出现多少个相同的输出周期后会被切断（0 表示禁用该检查）。",
+  "settings.schema.agent.prompt_suggestions.label": "后续提示建议",
+  "settings.schema.agent.prompt_suggestions.desc":
+    "一轮结束后，在空输入框里提示下一句可能输入的内容。这会额外调用一次模型；按 Tab 或右方向键采纳建议。关闭后不再生成建议。",
   "settings.schema.agent.loop_nudge_max.label": "循环提醒上限",
   "settings.schema.agent.loop_nudge_max.desc":
     "一个轮次可以被提醒回到正轨多少次，之后循环保护会停止它。",
