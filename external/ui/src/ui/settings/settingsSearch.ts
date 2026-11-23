@@ -313,6 +313,9 @@ function landmark(
 }
 
 export const SETTINGS_LANDMARKS: readonly SettingsLandmark[] = [
+  landmark("statistics", "enable", "statisticsEnable", "before"),
+  landmark("statistics", "timezone", "statisticsCounters", "before"),
+  landmark("statistics", "prices", "statisticsPrices", "before"),
   landmark("appearance", "theme", "appearanceTheme", "before"),
   landmark("appearance", "simple", "appearanceSimple", "before"),
   landmark("appearance", "wallpaper", "appearanceWallpaper", "before"),

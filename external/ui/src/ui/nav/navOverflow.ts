@@ -6,6 +6,7 @@
  * NAV_MENU_ORDER, sign-out last.
  */
 export type NavItemId =
+  | "statistics"
   | "history"
   | "projects"
   | "scheduler"
@@ -25,11 +26,13 @@ export const NAV_RETURN_ORDER: readonly NavItemId[] = [
   "settings",
   "scheduler",
   "docs",
+  "statistics",
   "signOut",
 ];
 export const NAV_MENU_ORDER: readonly NavItemId[] = [
   "projects",
   "docs",
+  "statistics",
   "scheduler",
   "settings",
   "signOut",

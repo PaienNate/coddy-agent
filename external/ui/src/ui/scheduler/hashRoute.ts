@@ -34,6 +34,7 @@ export type ParsedAppHash =
   | { branch: "draft"; draftId: string; historyOpen: boolean }
   | { branch: "history" }
   | { branch: "projects"; historyOpen: boolean }
+  | { branch: "statistics" }
   | {
       branch: "scheduler";
       jobId: string | null;
@@ -142,6 +143,7 @@ export function parseAppHash(): ParsedAppHash {
   if (h === "projects") {
     return { branch: "projects", historyOpen };
   }
+  if (h === "statistics") return { branch: "statistics" };
   if (h === "settings") {
     return {
       branch: "settings",
@@ -617,6 +619,10 @@ export function appNavHrefSwarm(): string {
 
 export function appNavHrefSettings(): string {
   return "#/settings";
+}
+
+export function appNavHrefStatistics(): string {
+  return "#/statistics";
 }
 
 /** The reader, one page of it, or one section of a page. */

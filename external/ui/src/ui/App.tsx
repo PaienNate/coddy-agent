@@ -75,6 +75,7 @@ import {
   isNewerSettings,
   parseSessionSettings,
   permissionModeOfInfo,
+  statisticsOfInfo,
   toolsetsOfInfo,
   type SessionSettings,
   type SessionSettingsEvent,
@@ -156,6 +157,7 @@ import type {
 } from "./chat/workspaceContext";
 import { setHostShell } from "./chat/hostShell";
 import { NavRail } from "./nav/NavRail";
+const StatisticsView = lazy(() => import("./statistics/StatisticsView"));
 import {
   phoneMaxWidthMediaQuery,
   serverSnapshotShellStack,
@@ -1591,6 +1593,10 @@ export function App() {
   const [settingsRoute, setSettingsRoute] = useState(
     () => initialRoute.branch === "settings",
   );
+  const [statisticsRoute, setStatisticsRoute] = useState(
+    initialRoute.branch === "statistics",
+  );
+  const statisticsReturnHashRef = useRef("");
   const [swarmRoute, setSwarmRoute] = useState(
     () => initialRoute.branch === "swarm",
   );
@@ -1979,6 +1985,7 @@ export function App() {
       .then((info: unknown) => {
         if (read === serverPermissionReadRef.current && isAppEnvironment()) {
           setServerToolsets(toolsetsOfInfo(info));
+          setServerCollectsStatistics(statisticsOfInfo(info));
         }
         return permissionModeOfInfo(info);
       })
@@ -2010,6 +2017,10 @@ export function App() {
   // mode picked there, else the configured one.
   const startPermissionMode =
     pendingPermissionMode || shownConfiguredPermissionMode;
+  // Whether this server records usage: with the collection off there is no
+  // page to offer, so the rail does not hold it (GET /coddy/info).
+  const [serverCollectsStatistics, setServerCollectsStatistics] =
+    useState(true);
   const [llmModelIds, setLlmModelIds] = useState<string[]>([]);
   const [llmModel, setLlmModel] = useState("");
   const applyContextUsage = useStableHandler(
@@ -2974,6 +2985,7 @@ export function App() {
         setHistoryDockOpen(true);
       }
     };
+    setStatisticsRoute(p.branch === "statistics");
     // The Files and the edits windows have addresses of their own; any other
     // one puts them away.
     if (!(p.branch === "session" && p.filesOpen)) setFilesOpen(false);
@@ -2990,6 +3002,16 @@ export function App() {
       return;
     }
     setProjectsRoute(false);
+    if (p.branch === "statistics") {
+      setDocsRoute(null);
+      setSwarmRoute(false);
+      setSettingsRoute(false);
+      setSchedulerOpen(false);
+      setSchedulerEditor(null);
+      setSessionsOpen(false);
+      if (isStackedShell()) setTasksOpen(false);
+      return;
+    }
     if (p.branch === "docs") {
       setDocsRoute({ slug: p.slug, anchor: p.anchor });
       if (p.slug) {
@@ -8095,6 +8117,7 @@ export function App() {
     projectsRoute ||
     (schedulerOpen && schedulerHttpLinked === true) ||
     settingsRoute ||
+    statisticsRoute ||
     swarmRoute ||
     docsRoute !== null;
 
@@ -8276,9 +8299,22 @@ export function App() {
 
   // Every screen of the rail, whether it is on screen and what Escape does to
   // it: the step its close control takes (nav/railEscape.ts).
+  const openStatistics = () => {
+    if (parseAppHash().branch !== "statistics")
+      statisticsReturnHashRef.current = window.location.hash;
+    window.location.hash = "#/statistics";
+  };
+  const closeStatistics = () => {
+    setStatisticsRoute(false);
+    window.location.hash =
+      statisticsReturnHashRef.current ||
+      (sessionId.trim() ? `#/s/${encodeURIComponent(sessionId.trim())}` : "#/");
+    statisticsReturnHashRef.current = "";
+  };
   const historyScreenOpen =
     sessionsOpen || (historyDockVisible && parseAppHash().branch === "history");
   useRailScreenEscape({
+    statistics: { open: statisticsRoute, close: closeStatistics },
     history: {
       open: historyScreenOpen,
       close: sessionsOpen ? sessionPanelShared.onClose : closeHistoryDock,
@@ -8757,6 +8793,10 @@ export function App() {
       <EnvHealthBanner />
       <NavRail
         localHost={localHost}
+        {...(serverCollectsStatistics
+          ? { onOpenStatistics: openStatistics }
+          : {})}
+        statisticsOpen={statisticsRoute}
         // A relay has no chat to start: its home is the map, and the brand
         // leads there as it leads an agent's page to a new chat.
         onNewChat={atSwarmRoot ? openSwarmFromNav : newChatFromNav}
@@ -8781,7 +8821,10 @@ export function App() {
         onOpenSwarm={openSwarmFromNav}
         // On a relay the map is the home screen, so its entry stays lit while
         // the map is what is on screen, whichever address shows it.
-        swarmOpen={swarmRoute || (atSwarmRoot && !settingsRoute && !docsRoute)}
+        swarmOpen={
+          swarmRoute ||
+          (atSwarmRoot && !settingsRoute && !docsRoute && !statisticsRoute)
+        }
         {...(localDocs ? { onOpenDocs: openDocsFromNav } : {})}
         docsOpen={docsRoute !== null}
         settingsOpen={settingsRoute}
@@ -8842,6 +8885,9 @@ export function App() {
               // button does.
               const guard = settingsRoute ? railCloseGuard("settings") : null;
               if (guard) guard();
+              // Statistics goes back where it was opened from, as its own
+              // close control and Escape do.
+              else if (statisticsRoute) closeStatistics();
               else closeAllShellDrawers();
             }
           }}
@@ -8950,7 +8996,8 @@ export function App() {
           </div>
         ) : null}
 
-        {swarmRoute || (atSwarmRoot && !settingsRoute && !docsRoute) ? (
+        {swarmRoute ||
+        (atSwarmRoot && !settingsRoute && !docsRoute && !statisticsRoute) ? (
           <div className="swarm-dock-cluster">
             <SwarmView
               onOpenNode={(nodePath: string[]) =>
@@ -8971,6 +9018,19 @@ export function App() {
               {...(atSwarmRoot ? {} : { onClose: onCloseSwarm })}
             />
           </div>
+        ) : null}
+        {statisticsRoute ? (
+          <Suspense fallback={null}>
+            <StatisticsView
+              onClose={closeStatistics}
+              onSettings={() => {
+                window.location.hash = "#/settings/statistics";
+              }}
+              swarm={false}
+              relayHome={false}
+              cwd={chatWorkspace}
+            />
+          </Suspense>
         ) : null}
         {docsRoute ? (
           <div className="docs-dock-cluster">

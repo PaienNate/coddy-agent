@@ -401,6 +401,7 @@ const RAIL_SCREEN_PAGES: Record<
   RailScreenId,
   { href: string; testId: string }
 > = {
+  statistics: { href: "#/statistics", testId: "statistics-view" },
   history: { href: appNavHrefHistory(), testId: "sessions" },
   projects: { href: appNavHrefProjects(), testId: "projects-view" },
   scheduler: { href: appNavHrefScheduler(), testId: "scheduler-drawer" },
