@@ -443,6 +443,8 @@ func settingsNotice(values map[string]string, names []string, scope string) stri
 			label = "Model"
 		case SettingReasoning:
 			label = "Reasoning"
+		case SettingServiceTier:
+			label = "Service tier"
 		case SettingToolset:
 			label = "Toolset"
 		case SettingMode:
