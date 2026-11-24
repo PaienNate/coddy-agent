@@ -13,6 +13,7 @@ import type {
   QuestionResolvedState,
 } from "./questionTypes";
 import { letterForOptionIndex, offersOwnAnswer } from "./questionTypes";
+import { composerAutoFocusAllowed } from "./composerFocus";
 import { useT } from "../i18n/I18nProvider";
 import { t as translate } from "../i18n/i18n";
 
@@ -20,8 +21,18 @@ const HDR = "X-Coddy-Session-ID";
 
 const OTHER_SENTINEL = "__coddy_other__";
 
-/** Move focus back to the composer after answering a gate question. */
+/**
+ * Move focus back to the composer after answering a gate question.
+ *
+ * The composer is never scrolled into view here. It is fixed to the viewport's
+ * foot on the stacked shell and the last block of the chat column on a desktop,
+ * so it is in view already; `scrollIntoView` on it scrolled the page itself
+ * while the answer was landing, which lifted the whole chat column off the
+ * window's bottom edge and left the empty canvas under the composer
+ * (`#messages` and the surrounding column carried the scroll up with it).
+ */
 export function questionPromptFocusComposer(): void {
+  if (!composerAutoFocusAllowed()) return;
   window.requestAnimationFrame(() => {
     const el =
       document.querySelector<HTMLElement>('[data-slot="composer"] textarea') ??
@@ -35,11 +46,6 @@ export function questionPromptFocusComposer(): void {
       } catch {
         // ignore DOM focus failures
       }
-    }
-    try {
-      el?.scrollIntoView({ block: "nearest", inline: "nearest" });
-    } catch {
-      // ignore scroll failures
     }
   });
 }

@@ -161,6 +161,38 @@ test("Return submits a picked option", async () => {
   });
 });
 
+// Answering sends the caret back to the composer and does nothing else. The
+// composer is fixed to the foot of the stacked shell and the last block of the
+// chat column on a desktop, so it is in view already: scrolling it into view
+// scrolled the page itself while the answer landed, which lifted the whole chat
+// column (History drawer included) off the window's bottom edge and left the
+// empty canvas under the composer.
+test("answering moves the caret to the composer without scrolling the page", async () => {
+  const resolved = vi.fn();
+  renderPrompt(resolved);
+
+  const slot = document.createElement("div");
+  slot.setAttribute("data-slot", "composer");
+  const field = document.createElement("textarea");
+  slot.appendChild(field);
+  document.body.appendChild(slot);
+
+  const original = Element.prototype.scrollIntoView;
+  const scrollSpy = vi.fn();
+  Element.prototype.scrollIntoView = scrollSpy;
+  try {
+    fireEvent.click(screen.getByText("Todo plan"));
+    fireEvent.keyDown(document.body, { key: "Enter" });
+
+    await waitFor(() => expect(resolved).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(document.activeElement).toBe(field));
+    expect(scrollSpy).not.toHaveBeenCalled();
+  } finally {
+    Element.prototype.scrollIntoView = original;
+    slot.remove();
+  }
+});
+
 // Nothing picked yet: Return must not send an empty answer.
 test("Return does nothing while the answer is incomplete", async () => {
   const resolved = vi.fn();
