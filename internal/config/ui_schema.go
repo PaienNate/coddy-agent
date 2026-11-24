@@ -548,6 +548,8 @@ func UISchemaMap() map[string]interface{} {
 					"Identical back-to-back output cycles inside one streamed response before it is cut (0 disables the check)."),
 				"loop_nudge_max": intProp("Loop nudge max",
 					"How many times one turn may be nudged back on track before the loop guard stops it."),
+				"prompt_suggestions": boolPropDefault("Prompt suggestions",
+					"Suggest the next prompt in the empty composer after a turn. Uses an extra model call; Tab or Right accepts the suggestion. Turn off to stop generating suggestions.", true),
 				"wait_for_limit_reset": boolProp("Wait for limit reset",
 					"Wait for a hit usage limit to lift and re-issue the call instead of ending the turn with the provider's error; the turn and the client stream stay open meanwhile."),
 				"wait_for_limit_reset_max_ms": intProp("Wait for limit reset max ms",
@@ -556,7 +558,7 @@ func UISchemaMap() map[string]interface{} {
 			[]string{
 				"model", "queue_mode", "max_turns", "llm_retry_max", "llm_retry_base_ms", "llm_min_interval_ms",
 				"llm_first_token_timeout_ms", "llm_stream_idle_timeout_ms", "loop_guard", "loop_tool_repeat_limit", "loop_stream_repeat_cycles", "loop_nudge_max",
-				"wait_for_limit_reset", "wait_for_limit_reset_max_ms",
+				"prompt_suggestions", "wait_for_limit_reset", "wait_for_limit_reset_max_ms",
 			},
 			nil),
 		"tools": objectSchema("Tools and permissions", "Filesystem and shell policy for built-in tools.",
@@ -927,6 +929,10 @@ func UISchemaMap() map[string]interface{} {
 					"items":       map[string]interface{}{"type": "string"},
 				},
 			}, []string{"enable", "token", "serve_remote", "remotes"}, nil),
+		"terminal": objectSchema("Terminal", "The terminal of a chat: one host shell per chat, opened from the web UI in a window of its own. Off by default, because a shell running the host's commands from a browser is a capability to grant on purpose. It is served to this server's own origin only, a subagent session has none, and no model or tool can write to it.",
+			map[string]interface{}{
+				"enable": boolProp("Enabled", "Run a shell for a chat, on the request of the person watching it. Needs the HTTP server on."),
+			}, []string{"enable"}, nil),
 		"metrics": objectSchema("Metrics", "Prometheus exporter on a port of its own. It takes effect only in a binary built with the metrics tag.",
 			map[string]interface{}{
 				"enable": boolProp("Enabled", "Serve /metrics from this process."),
@@ -998,7 +1004,7 @@ func UISchemaMap() map[string]interface{} {
 		"agent", "supervisor", "compaction", "memory", "decisions",
 		"tools", "skills", "subagents", "hooks",
 		"scheduler", "gateways",
-		"logger", "metrics", "browser", "sessions", "prompts", "instructions",
+		"logger", "metrics", "browser", "terminal", "sessions", "prompts", "instructions",
 	}
 
 	doc := map[string]interface{}{

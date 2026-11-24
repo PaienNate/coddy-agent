@@ -27,6 +27,7 @@ type openAIProvider struct {
 	tempSet         bool
 	topP            *float64
 	reasoningEffort string
+	serviceTier     *string
 	// deepseek marks the official DeepSeek wire shape: thinking.type plus
 	// reasoning_effort, max_tokens rather than max_completion_tokens, and its
 	// top-level prompt-cache counters.
@@ -268,6 +269,14 @@ func (p *openAIProvider) buildParams(messages []Message, tools []ToolDefinition,
 // finishParams adds what every request carries whatever its reasoning: the
 // tools and, on a stream, the usage request.
 func (p *openAIProvider) finishParams(params openai.ChatCompletionNewParams, tools []ToolDefinition, streaming bool) openai.ChatCompletionNewParams {
+	if p.serviceTier != nil {
+		extra := params.ExtraFields()
+		if extra == nil {
+			extra = make(map[string]any)
+		}
+		extra["service_tier"] = *p.serviceTier
+		params.SetExtraFields(extra)
+	}
 	if len(tools) > 0 {
 		oaiTools := make([]openai.ChatCompletionToolParam, len(tools))
 		for i, t := range tools {
@@ -450,6 +459,7 @@ func (p *openAIProvider) parseCompletion(resp *openai.ChatCompletion) (*Response
 	msg := choice.Message
 
 	r := &Response{
+		ServiceTier:       string(resp.ServiceTier),
 		UsageKnown:        openAIUsageKnown(resp.RawJSON()),
 		UsageIncomplete:   !openAIUsageKnown(resp.RawJSON()),
 		Content:           msg.Content,

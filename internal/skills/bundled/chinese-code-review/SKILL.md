@@ -55,7 +55,7 @@ metadata:
 
 第 42 行：用户输入直接拼接到 SQL 语句中。
 
-原因：攻击者可以通过 name 参数注入 `'; DROP TABLE users; --`。
+原因：`name` 参数被直接拼进 SQL 语句，外部输入可以改变查询的结构。
 
 建议：使用参数化查询：
   db.query('SELECT * FROM users WHERE name = $1', [name])

@@ -144,6 +144,7 @@ test("is framed and headed like the Files window", async () => {
   );
   expect(order.filter((id) => id !== "edits-totals")).toEqual([
     "edits-toggle-tree",
+    "edits-viewed-summary",
     "edits-more",
     "edits-expand",
     "edits-close",
@@ -527,7 +528,11 @@ test("a file's head ends with its counts, after copy and discard, with one chevr
   const actions = [...head.querySelectorAll(".dv-file-actions button")].map(
     (b) => b.getAttribute("data-testid"),
   );
-  expect(actions).toEqual(["dv-copy-src/a.ts", "dv-discard-src/a.ts"]);
+  expect(actions).toEqual([
+    "dv-viewed-src/a.ts",
+    "dv-copy-src/a.ts",
+    "dv-file-actions-src/a.ts",
+  ]);
   expect(head.querySelectorAll(".coddy-chevron")).toHaveLength(1);
   // No status dot before the name: the tree says the status, the name is enough.
   expect(head.querySelector(".dv-file-badge")).toBeNull();
@@ -539,6 +544,43 @@ test("the header copies the file path", async () => {
   await screen.findByTestId("dv-file-src/a.ts");
   fireEvent.click(screen.getByTestId("dv-copy-src/a.ts"));
   expect(navigator.clipboard.writeText).toHaveBeenCalledWith("src/a.ts");
+});
+
+test("a file is marked viewed, and the progress follows the change set", async () => {
+  window.localStorage.clear();
+  open();
+  const toggle = await screen.findByTestId("dv-viewed-src/a.ts");
+  expect(toggle).toHaveAttribute("aria-pressed", "false");
+  expect(screen.getByTestId("edits-viewed-summary").textContent).toMatch(
+    /\b0 \/ /,
+  );
+
+  fireEvent.click(toggle);
+  expect(toggle).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByTestId("edits-viewed-summary").textContent).toMatch(
+    /\b1 \/ /,
+  );
+
+  fireEvent.click(toggle);
+  expect(toggle).toHaveAttribute("aria-pressed", "false");
+  expect(screen.getByTestId("edits-viewed-summary").textContent).toMatch(
+    /\b0 \/ /,
+  );
+});
+
+test("the window reads the viewed store a bounded number of times", async () => {
+  window.localStorage.clear();
+  const getItem = vi.spyOn(Storage.prototype, "getItem");
+  open();
+  await screen.findByTestId("dv-file-src/a.ts");
+  await screen.findByTestId("edits-viewed-summary");
+  const reads = getItem.mock.calls.filter(
+    ([key]) => key === "coddy.changes.viewed",
+  ).length;
+  getItem.mockRestore();
+  // One read per render that can see a mark, not one per file per render: the
+  // window re-renders once for every patch that lands.
+  expect(reads).toBeLessThanOrEqual(4);
 });
 
 test("the header copies the path without a clipboard API and says so only when that worked", async () => {
@@ -589,6 +631,7 @@ test("a folder in no repository explains itself instead of showing an empty diff
 test("discarding a file asks first, then puts it back through the server", async () => {
   open();
   await screen.findByTestId("dv-file-src/a.ts");
+  fireEvent.click(screen.getByTestId("dv-file-actions-src/a.ts"));
   fireEvent.click(screen.getByTestId("dv-discard-src/a.ts"));
   const dialog = await confirmDialog();
   expect(dialog.textContent || "").toContain("a.ts");
@@ -598,6 +641,27 @@ test("discarding a file asks first, then puts it back through the server", async
   await waitFor(() => {
     const post = fetchMock.mock.calls.find((c) =>
       String(c[0]).endsWith("/changes/revert"),
+    );
+    expect(post).toBeTruthy();
+    expect(JSON.parse(String((post![1] as RequestInit).body))).toEqual({
+      paths: ["src/a.ts"],
+    });
+  });
+});
+
+test("deleting a file asks first, then removes it through the server", async () => {
+  open();
+  await screen.findByTestId("dv-file-src/a.ts");
+  fireEvent.click(screen.getByTestId("dv-file-actions-src/a.ts"));
+  fireEvent.click(screen.getByTestId("dv-delete-src/a.ts"));
+  const dialog = await confirmDialog();
+  expect(dialog.textContent || "").toContain("a.ts");
+  fireEvent.click(
+    within(dialog).getByRole("button", { name: t("changes.deleteYes") }),
+  );
+  await waitFor(() => {
+    const post = fetchMock.mock.calls.find((c) =>
+      String(c[0]).endsWith("/changes/delete"),
     );
     expect(post).toBeTruthy();
     expect(JSON.parse(String((post![1] as RequestInit).body))).toEqual({
@@ -762,4 +826,52 @@ test("new files git could not list can still be discarded", async () => {
   open();
   await screen.findByTestId("dv-skipped");
   expect(within(openMenu()).getByTestId("edits-discard-all")).toBeTruthy();
+});
+
+// An image row is binary, so no patch is ever fetched for it. It must not sit
+// behind a loading state nothing will clear: its rendered view is served raw by
+// the detail route, and that is what the window has to show.
+test("an image change shows its rendered view instead of a waiting diff", async () => {
+  fetchMock.mockImplementation(async (input: unknown) => {
+    const url = String(input);
+    if (url.includes("/changes/file")) {
+      return jsonResponse({ patch: "" });
+    }
+    return jsonResponse({
+      sessionId: "s1",
+      vcs: "git",
+      files: [
+        {
+          path: "docs/logo.png",
+          status: "modified",
+          additions: 0,
+          deletions: 0,
+          binary: true,
+          truncated: false,
+          image: true,
+          beforeImage: true,
+          afterImage: true,
+          beforeSize: 2048,
+          afterSize: 4096,
+        },
+      ],
+      totals: { files: 1, additions: 0, deletions: 0 },
+    });
+  });
+  open();
+  const section = await screen.findByTestId("dv-file-docs/logo.png");
+  expect(
+    within(section).queryByText(t("changes.viewer.loadingFile")),
+  ).toBeNull();
+  await waitFor(() =>
+    expect(section.querySelector(".dv-rich--image")).not.toBeNull(),
+  );
+  // Both sides are images, so both versions are offered.
+  const images = section.querySelectorAll(".dv-rich--image img");
+  expect(images).toHaveLength(2);
+  expect(images[0]!.getAttribute("src")).toContain("side=before&raw=1");
+  expect(images[1]!.getAttribute("src")).toContain("side=after&raw=1");
+  // The head reports each side's size rather than a line count.
+  expect(within(section).getByText("2.05 KB")).toBeTruthy();
+  expect(within(section).getByText("4.1 KB")).toBeTruthy();
 });

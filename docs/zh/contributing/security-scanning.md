@@ -18,7 +18,7 @@ make sec-report        # every scanner, gate off — findings never fail, errors
 
 - **trivy**——对检出目录进行文件系统扫描：依赖漏洞（`go.mod`、`package-lock.json` 等）、密钥以及 IaC 错误配置（Dockerfile）。错误配置的发现会被收集，但位于**门禁之外**——它们属于策略问题，而非漏洞。
 - **semgrep**——使用 `SEMGREP_CONFIGS` 中的 registry 规则包进行 SAST（默认 `p/golang p/typescript`）。目前仅报告：积压量足够大，第一天就设门禁会阻塞每一个拉取请求。
-- **govulncheck**——将 Go 漏洞数据库与代码对照，使用所有已发布的构建标签，但排除 `ui`（`GOVULNCHECK_TAGS`，来自 `make print-lint-tags-no-ui`：`ui` 嵌入的 SPA 资源不存在于全新检出中，而该标签不会增加任何漏洞可以藏身的 Go 代码）。它读取调用图，因此能区分代码调用的易受攻击函数与仅存在于所需模块中的函数，而 trivy 做不到；它还会评判构建所用工具链的标准库，而 trivy 完全看不到这一点。正是它捕捉到了从 `ssh` 工具触达的 `x/crypto/ssh` 拒绝服务，以及一个使用缺少一年标准库修复的 Go 构建的发布（参见 [The Go toolchain](#go-工具链)）。
+- **govulncheck**——将 Go 漏洞数据库与代码对照，使用所有已发布的构建标签，但排除 `ui`（`GOVULNCHECK_TAGS`，来自 `make print-lint-tags-no-ui`：`ui` 嵌入的 SPA 资源不存在于全新检出中，而该标签不会增加任何漏洞可以藏身的 Go 代码）。它读取调用图，因此能区分代码调用的脆弱函数与仅存在于所需模块中的函数，而 trivy 做不到；它还会评判构建所用工具链的标准库，而 trivy 完全看不到这一点。正是它捕捉到了从 `ssh` 工具触达的 `x/crypto/ssh` 拒绝服务，以及一个使用缺少一年标准库修复的 Go 构建的发布（参见 [The Go toolchain](#go-工具链)）。
 
 ## 运行器与版本
 
@@ -44,7 +44,7 @@ make sec-report        # every scanner, gate off — findings never fail, errors
 |---|---|---|---|
 | `SEC_FAIL_TRIVY` | `UNKNOWN\|LOW\|MEDIUM\|HIGH\|CRITICAL\|off` | `CRITICAL` | 在达到或高于该级别的漏洞/密钥发现上失败 |
 | `SEC_FAIL_SEMGREP` | `ERROR\|WARNING\|INFO\|off` | `off` | 同上，使用 semgrep 自己的严重级别词汇 |
-| `SEC_FAIL_GOVULNCHECK` | `symbol\|package\|module\|off` | `symbol` | 在代码调用的易受攻击函数（`symbol`）上失败，也在仅导入的易受攻击包（`package`）上失败，或在它所需的任何易受攻击模块（`module`）上失败 |
+| `SEC_FAIL_GOVULNCHECK` | `symbol\|package\|module\|off` | `symbol` | 在代码调用的脆弱函数（`symbol`）上失败，也在仅导入的脆弱包（`package`）上失败，或在它所需的任何脆弱模块（`module`）上失败 |
 | `GOVULNCHECK_TAGS` | 逗号分隔的构建标签 | 除 `ui` 外的所有已发布标签 | govulncheck 编译代码树所使用的标签 |
 | `SEC_SCANNERS` | `trivy`、`semgrep`、`govulncheck` 的任意逗号列表 | 全部三个 | 运行哪些扫描器 |
 | `SEMGREP_CONFIGS` | 空格分隔的 `--config` 值 | `p/golang p/typescript` | Registry 规则包（浮动别名——发现可能随规则更新而变化） |
@@ -55,7 +55,7 @@ make sec-report        # every scanner, gate off — findings never fail, errors
 
 漏洞数据库本身并未固定：本地与 CI 只有在解析到相同 DB 状态时才完全一致，因此在将 CI 失败归咎于环境之前，请先在本地重新运行。
 
-govulncheck 没有严重级别，因此其门禁改为按深度计数。默认仅在代码调用的易受攻击函数上失败；位于无人导入的模块中的公告（例如无修复的已停止维护的 `golang.org/x/crypto/openpgp`）以 `module` 级别报告并保持信息性。
+govulncheck 没有严重级别，因此其门禁改为按深度计数。默认仅在代码调用的脆弱函数上失败；位于无人导入的模块中的公告（例如无修复的已停止维护的 `golang.org/x/crypto/openpgp`）以 `module` 级别报告并保持信息性。
 
 ## Go 工具链
 

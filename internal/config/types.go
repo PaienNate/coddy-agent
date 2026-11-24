@@ -30,6 +30,7 @@ type Config struct {
 	Swarm      SwarmConfig      `yaml:"swarm"`
 	Metrics    MetricsConfig    `yaml:"metrics"`
 	Browser    BrowserConfig    `yaml:"browser"`
+	Terminal   TerminalConfig   `yaml:"terminal"`
 	UI         UIConfig         `yaml:"ui"`
 	Scheduler  SchedulerConfig  `yaml:"scheduler"`
 	Gateways   GatewayConfig    `yaml:"gateways"`

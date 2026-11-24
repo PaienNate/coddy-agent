@@ -29,6 +29,7 @@ import (
 	"github.com/EvilFreelancer/coddy-agent/internal/platform"
 	"github.com/EvilFreelancer/coddy-agent/internal/session"
 	"github.com/EvilFreelancer/coddy-agent/internal/skills"
+	"github.com/EvilFreelancer/coddy-agent/internal/statistics"
 	"github.com/EvilFreelancer/coddy-agent/internal/tooling"
 	"github.com/EvilFreelancer/coddy-agent/internal/tools"
 	fstools "github.com/EvilFreelancer/coddy-agent/internal/tools/fs"
@@ -118,7 +119,8 @@ type Agent struct {
 	// subagent is set when this session is itself a child run (see subagent.go).
 	subagent *session.SubagentMeta
 	// progress is the running turn's clock and token count (turn_progress.go).
-	progress *turnProgress
+	progress           *turnProgress
+	statisticsRecorder *statistics.Recorder
 	// limitWaitHeartbeat overrides how often a waiting turn re-sends its
 	// countdown (tests); zero means limitWaitHeartbeat.
 	limitWaitHeartbeat time.Duration
@@ -252,7 +254,9 @@ func (a *Agent) wireWorkspaceTool(env *tools.Env) {
 }
 
 // Run executes the ReAct loop and returns the stop reason.
-func (a *Agent) Run(ctx context.Context, prompt []acp.ContentBlock) (string, error) {
+func (a *Agent) Run(ctx context.Context, prompt []acp.ContentBlock) (turnStop string, turnErr error) {
+	ctx, finishStatistics := a.beginStatistics(ctx)
+	defer finishStatistics()
 	mode := a.state.EffectiveMode()
 	// A new user turn starts its account of time spent on usage limits
 	// (limit_wait.go); the built-ins below never touch it.
@@ -269,6 +273,7 @@ func (a *Agent) Run(ctx context.Context, prompt []acp.ContentBlock) (string, err
 		if !session.BeginQueuedPromptRead(ctx, a.state.GetID()) {
 			return string(acp.StopReasonCancelled), nil
 		}
+		a.statisticsRecorder.ResetRequests()
 		a.appendQueuedMessages(nil, queued)
 	} else {
 		// The built-in /compact, /plugin, /export and /worktree commands are operator input:
@@ -306,6 +311,7 @@ func (a *Agent) Run(ctx context.Context, prompt []acp.ContentBlock) (string, err
 		// mentioned paths activate, ride in this message (mentions.go), never in
 		// the system prompt and never added per request.
 		for _, inv := range invokedSkills(typedText(prompt), a.state.GetSkills()) {
+			statistics.RecordSkill(ctx, inv.name)
 			a.applySkillSettings(ctx, inv.name, inv.skill)
 		}
 		if extra := invokedSkillBlocks(typedText(prompt), a.state.GetSkills(), a.managedSkillsDir()); len(extra) > 0 {
@@ -337,12 +343,16 @@ func (a *Agent) Run(ctx context.Context, prompt []acp.ContentBlock) (string, err
 		// as something the operator typed, after a reload either.
 		wake := a.takeTurnWake()
 		if wake != nil {
+			statistics.Background(ctx)
 			a.markWokeTasks(wake)
 			_ = a.server.SendSessionUpdate(a.state.GetID(), session.BackgroundWakeUpdate(wake))
 		}
 		// A goal turn the supervisor started opens with its marker the same way:
 		// the clients show a one-line row, never the instruction text.
 		goalTurn := a.takeTurnGoal()
+		if goalTurn != nil && goalTurn.Kind != acp.GoalTurnKickoff {
+			statistics.Background(ctx)
+		}
 		if goalTurn != nil {
 			_ = a.server.SendSessionUpdate(a.state.GetID(), session.GoalTurnUpdate(goalTurn))
 		}
@@ -843,6 +853,30 @@ func (a *Agent) runReActLoop(
 	activeSkills []*skills.Skill,
 	maxTurns int,
 ) (string, error) {
+	// What the last provider answer of this turn reported about its own cost,
+	// which is what says whether a side call over the same context would be
+	// read back from the provider's cache (session.PromptSuggestionUsage).
+	var lastUsage session.PromptSuggestionUsage
+	defer func() {
+		st, ok := a.state.(interface {
+			SetPromptSuggestionFork(session.PromptSuggestionFork)
+		})
+		if !ok || !a.cfg.Agent.EffectivePromptSuggestions() {
+			return
+		}
+		// The turn's own messages, tools and provider input: the side call
+		// repeats this request with one message appended, so it reads the
+		// prompt cache the turn wrote instead of paying for the history
+		// again. The turn-context block is left out - it is request-only
+		// and sits past the cache mark, so it costs its tokens on every
+		// side call and tells a prediction nothing.
+		st.SetPromptSuggestionFork(session.PromptSuggestionFork{
+			Messages: withToolImages(withToolRules(a.prunedForLLM(messages)), a.modelReadsImages(), a.loadToolImage),
+			Tools:    toolDefs,
+			Input:    transport.in,
+			Usage:    lastUsage,
+		})
+	}()
 	var totalInputTokens, totalOutputTokens int
 	allUsageKnown := true
 	statsWritable := true
@@ -1233,6 +1267,7 @@ func (a *Agent) runReActLoop(
 		}
 		callIDs := newToolCallIDs(messages, callSessionDir)
 		streamCtx = latency.begin(streamCtx, transport.agent)
+		streamCtx = statistics.WithReasoning(streamCtx, a.state.EffectiveReasoning(a.cfg))
 		response, streamErr = transport.provider.Stream(streamCtx, sendMessages, toolDefs, func(chunk llm.StreamChunk) {
 			if streamCtx.Err() != nil {
 				return
@@ -1655,6 +1690,12 @@ func (a *Agent) runReActLoop(
 			"cached_input_tokens", response.CachedInputTokens,
 			"output_tokens", response.OutputTokens)
 		usageKnown := response.UsageKnown || (!response.UsageIncomplete && (response.InputTokens > 0 || response.OutputTokens > 0))
+		lastUsage = session.PromptSuggestionUsage{
+			InputTokens:       response.InputTokens,
+			CachedInputTokens: response.CachedInputTokens,
+			OutputTokens:      response.OutputTokens,
+			Known:             usageKnown,
+		}
 		if !transport.agent && usageKnown {
 			// An agent's input count measures its own context (its system
 			// prompt, its tools, their results), not this transcript.
@@ -2504,6 +2545,7 @@ func (a *Agent) executeToolCall(ctx context.Context, tc llm.ToolCall, env *tools
 		}
 		answered := waitingFor(&pendingPermissions)
 		defer answered()
+		resumeStatistics := statistics.Pause(ctx)
 		permResult, err := a.server.RequestPermission(ctx, acp.PermissionRequestParams{
 			SessionID: sessionID,
 			ToolCall: acp.PermissionToolCall{
@@ -2524,6 +2566,7 @@ func (a *Agent) executeToolCall(ctx context.Context, tc llm.ToolCall, env *tools
 			Forced:                forced,
 		})
 		answered()
+		resumeStatistics()
 
 		if err == nil && safetyRefusal != "" && (permResult == nil || permResult.Outcome == permission.OutcomeCancelled) {
 			// Nobody answered the check's prompt: its verdict is the call's
@@ -3139,6 +3182,11 @@ type llmTransport struct {
 	// first-token timer, whose budget the agent's start, handshake and the
 	// replay of a history into a new session would spend.
 	agent bool
+	// in is the input this transport's provider was built from, reasoning
+	// level included. A side call over the same context (the prompt
+	// suggestion) reuses it, so its request differs from the turn's in
+	// nothing the provider's prompt cache keys on.
+	in llm.ProviderInput
 }
 
 // getProvider creates the LLM provider for the given mode.
@@ -3166,13 +3214,18 @@ func (a *Agent) getProvider(mode string) (llmTransport, error) {
 		return llmTransport{}, err
 	}
 	provider = a.withChildFallbacks(provider, modelID, mk)
+	tier := ""
+	if in.ServiceTier != nil {
+		tier = *in.ServiceTier
+	}
 	return llmTransport{
 		provider:  provider,
 		streaming: rm.Stream,
 		model:     modelID,
-		key:       modelID + "|" + reasoning,
+		key:       modelID + "|" + reasoning + "|" + tier,
 		rev:       rev,
 		agent:     rm.ProviderType == "acp",
+		in:        in,
 	}, nil
 }
 
@@ -3257,7 +3310,14 @@ func (a *Agent) switchPermissionModeFromDialog(ctx context.Context, env *tools.E
 // transportKey names what a model request is built for: the model and the
 // reasoning level. The transport is rebuilt only when it changes.
 func (a *Agent) transportKey() string {
-	return a.state.EffectiveModelID(a.cfg) + "|" + a.state.EffectiveReasoning(a.cfg)
+	return a.state.EffectiveModelID(a.cfg) + "|" + a.state.EffectiveReasoning(a.cfg) + "|" + a.serviceTier()
+}
+
+func (a *Agent) serviceTier() string {
+	if st := sessionStatePtr(a.state); st != nil {
+		return st.EffectiveServiceTier(a.cfg)
+	}
+	return ""
 }
 
 // childProviderInput applies what a system child's spec says about its
@@ -3362,6 +3422,9 @@ func (a *Agent) llmProviderInput(rm *config.ResolvedLLM) llm.ProviderInput {
 		// cache by a stable per-conversation id; every other provider ignores
 		// it. The session id is that stable value.
 		SessionID: a.state.GetID(),
+	}
+	if st := sessionStatePtr(a.state); st != nil {
+		in.ServiceTier = st.ServiceTierForProvider(a.cfg, rm)
 	}
 	// What the provider's model listing says the model takes, read on the
 	// manager's cache: an OpenRouter-style aggregator gets the reasoning level

@@ -40,7 +40,7 @@ coddy --dry-run --remote http://127.0.0.1:12346/swarm/nodes/node-a --remote-toke
 coddy acp --remote http://127.0.0.1:12346/swarm/nodes/node-a --remote-token "$T"
 ```
 
-将编辑器配置为运行该命令行，而不是裸的 `coddy acp`（[编辑器](../surfaces/editors.md)）。
+将编辑器配置为运行该命令行，而不是直接给出的 `coddy acp`（[编辑器](../surfaces/editors.md)）。
 
 ## 4. 浏览器
 
@@ -71,7 +71,7 @@ coddy --remote http://127.0.0.1:12346/swarm/nodes/node-a --remote-token "$T"
 
 ## 容易出错的地方
 
-- **`--remote` 在连接前被拒绝。** 目标必须是裸源加路径前缀：没有查询字符串、没有片段、URL 中没有凭据。令牌放入 `--remote-token`、远程条目的 `token` 或 `CODDY_REMOTE_TOKEN`。
+- **`--remote` 在连接前被拒绝。** 目标必须是纯净源加路径前缀：没有查询字符串、没有片段、URL 中没有凭据。令牌放入 `--remote-token`、远程条目的 `token` 或 `CODDY_REMOTE_TOKEN`。
 - **每个请求都出现 `401`。** 在应当使用中继客户端令牌的地方使用了节点自己的令牌。通过挂载时，你出示中继的令牌；中继出示节点的令牌。
 - **浏览器中的状态点显示为红色，但令牌正确。** Web 界面是从另一个 `coddy serve` 打开的，而该中继不接纳页面的来源。改为打开中继自己的地址，当页面位于回环地址时设置 `swarm.cors.allow_loopback: true`，或在 `swarm.cors.allowed_origins` 中列出确切的来源。
 - **从笔记本电脑开启的绕过会保持开启。** `/permissions bypass` 会更改该节点的会话，对它的所有客户端都如此，并且会随该会话保留，即使节点重启也如此。无人值守运行结束后，用 `/permissions ask` 将其切回；每个会话的默认值应放在节点的 `config.yaml` 中。

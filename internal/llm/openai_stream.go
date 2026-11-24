@@ -476,6 +476,7 @@ func (p *openAIProvider) Stream(ctx context.Context, messages []Message, tools [
 	var stopReason string
 	var inputTokens, outputTokens, cachedInputTokens, reasoningTokens int
 	var usageKnown bool
+	var serviceTier string
 
 	// Accumulate tool call deltas by index.
 	type tcBuilder struct {
@@ -575,6 +576,11 @@ func (p *openAIProvider) Stream(ctx context.Context, messages []Message, tools [
 			break
 		}
 
+		// The mode a provider reports can ride any frame, with or without a
+		// choice in it, so it is read before the choice check.
+		if chunk.ServiceTier != "" {
+			serviceTier = string(chunk.ServiceTier)
+		}
 		if len(chunk.Choices) == 0 {
 			if openAIUsageKnown(string(payload)) {
 				usageKnown = true
@@ -670,6 +676,7 @@ func (p *openAIProvider) Stream(ctx context.Context, messages []Message, tools [
 			// contract.
 			if strings.TrimSpace(fullContent) != "" || strings.TrimSpace(reasoningBuf.String()) != "" {
 				return &Response{
+					ServiceTier:       serviceTier,
 					Content:           fullContent,
 					Reasoning:         reasoningBuf.String(),
 					UsageKnown:        usageKnown,
@@ -694,6 +701,7 @@ func (p *openAIProvider) Stream(ctx context.Context, messages []Message, tools [
 					}
 				}
 				return &Response{
+					ServiceTier:       serviceTier,
 					Content:           fullContent,
 					ToolCalls:         toolCalls,
 					StopReason:        sr,
@@ -724,6 +732,7 @@ func (p *openAIProvider) Stream(ctx context.Context, messages []Message, tools [
 	}
 
 	return &Response{
+		ServiceTier:       serviceTier,
 		Content:           fullContent,
 		ToolCalls:         toolCalls,
 		StopReason:        stopReason,

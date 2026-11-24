@@ -176,8 +176,11 @@ func TestUncommittedChangesOutsideARepo(t *testing.T) {
 // A repository storing LF blobs next to a CRLF working copy (git's autocrlf, the
 // normal setup on Windows) must not read as "every line changed": git applies
 // its line-ending filter when it diffs, and reading the blob straight past that
-// filter would report a whole-file rewrite for a one-line edit.
-func TestUncommittedChangesIgnoresLineEndingOnlyDifferences(t *testing.T) {
+// filter would report a whole-file rewrite for a one-line edit. The change is
+// reported with the bytes as they are, though: a side's line endings are levelled
+// only when a textual diff or a comparison reads them, so the raw content a
+// caller hashes or serves is untouched.
+func TestUncommittedChangesKeepsRawBytesOverLineEndings(t *testing.T) {
 	eachBackend(t, func(t *testing.T) {
 		dir := commitRepo(t, map[string]string{"crlf.txt": "alpha\nbeta\ngamma\n"})
 		// Same text, Windows endings, with exactly one real edit.
@@ -190,15 +193,11 @@ func TestUncommittedChangesIgnoresLineEndingOnlyDifferences(t *testing.T) {
 		if len(changes) != 1 {
 			t.Fatalf("want 1 change, got %+v", changes)
 		}
-		before, after := string(changes[0].Before), string(changes[0].After)
-		if strings.Contains(before, "\r") || strings.Contains(after, "\r") {
-			t.Fatalf("sides must be normalised: before=%q after=%q", before, after)
+		if before := string(changes[0].Before); before != "alpha\nbeta\ngamma\n" {
+			t.Fatalf("before must be the blob bytes: %q", before)
 		}
-		if before != "alpha\nbeta\ngamma\n" {
-			t.Fatalf("before wrong: %q", before)
-		}
-		if after != "alpha\nBETA\ngamma\n" {
-			t.Fatalf("after wrong: %q", after)
+		if after := string(changes[0].After); after != "alpha\r\nBETA\r\ngamma\r\n" {
+			t.Fatalf("after must keep its CRLF endings: %q", after)
 		}
 	})
 }

@@ -82,7 +82,7 @@ coddy --dry-run   # the same, then the world it points at
 
 ## 4. 控制台
 
-在一个项目目录中，运行裸命令：
+在一个项目目录中，运行不带子命令的命令：
 
 ```bash
 cd ~/src/my-project

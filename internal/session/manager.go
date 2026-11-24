@@ -23,6 +23,7 @@ import (
 	"github.com/EvilFreelancer/coddy-agent/internal/logger"
 	"github.com/EvilFreelancer/coddy-agent/internal/mcp"
 	"github.com/EvilFreelancer/coddy-agent/internal/skills"
+	"github.com/EvilFreelancer/coddy-agent/internal/statistics"
 	"github.com/EvilFreelancer/coddy-agent/internal/version"
 )
 
@@ -119,6 +120,10 @@ type Manager struct {
 	turnObserverMu  sync.Mutex
 	turnObservers   map[int]func(TurnEvent)
 	turnObserverSeq int
+	// promptSuggestionSide tracks the follow-up prompt suggestion calls in
+	// flight and their last answers (prompt_suggestion.go): one call per
+	// session at a time, one cached answer per conversation revision.
+	promptSuggestionSide promptSuggestionSide
 	// queueObservers fan every message queue change out to the surfaces that
 	// have clients of their own (manager_queue.go).
 	queueObserverMu  sync.Mutex
@@ -583,6 +588,7 @@ func (m *Manager) storeConfig(next *config.Config) (*config.Config, string) {
 	previousTrust, _ := m.mcpTrust.Swap(next.MCP.ResolvedProjectTrust()).(string)
 	m.skillsLoad = skills.NewLoader(next.Skills.SearchDirs())
 	m.cfgAt.Store(next)
+	m.resetPromptSuggestions()
 	// The global servers the pool keeps follow the configuration: a server
 	// added or switched on starts, one removed, switched off or redeclared
 	// is let go once no session holds it. A changed mcp.idle_timeout_seconds
@@ -1065,7 +1071,8 @@ func (m *Manager) loadSessionFromDisk(ctx context.Context, params acp.SessionLoa
 	if !IsValidMode(string(mode)) {
 		mode = ModeAgent
 	}
-	st.RestoreMetaWithoutPersist(mode, snap.Meta.SelectedModelID, snap.Meta.SelectedReasoning, snap.Meta.AgentMemory)
+	st.RestoreMetaWithoutPersist(mode, snap.Meta.SelectedModelID, snap.Meta.SelectedReasoning, snap.Meta.SelectedServiceTier, snap.Meta.AgentMemory)
+	st.restoreTurnServiceTier(snap.Meta.TurnServiceTier)
 	st.RestoreToolsetWithoutPersist(snap.Meta.SelectedToolset)
 	if snap.Meta.Goal != nil {
 		st.RestoreGoalWithoutPersist(*snap.Meta.Goal)
@@ -1456,6 +1463,8 @@ func (r *TurnRestriction) Allows(name string) bool {
 // turn lock themselves - streaming ones before committing SSE headers, non-streaming ones
 // before opening a relay for watchers.
 type PromptRunOpts struct {
+	// StatisticsSource identifies the surface running this turn, never its content.
+	StatisticsSource string
 	// SkipTurnLock when true means the caller already holds the composer turn lock (e.g. coddy serve SSE).
 	SkipTurnLock bool
 	// DetachFromRequest when true runs the turn on a context.WithoutCancel copy of ctx, so a
@@ -1902,6 +1911,14 @@ func (m *Manager) HandleSessionPromptWithSender(ctx context.Context, params acp.
 
 	// What the surface wants the model to know lasts exactly this turn: set
 	// under the turn lock, cleared before it is released, never persisted.
+	if opts != nil {
+		if opts.StatisticsSource != "" {
+			turnCtx = statistics.WithSource(turnCtx, opts.StatisticsSource)
+		}
+		if opts.BackgroundWake != nil {
+			turnCtx = statistics.WithSource(turnCtx, "background")
+		}
+	}
 	if opts != nil && strings.TrimSpace(opts.SurfaceSystemPrompt) != "" {
 		state.SetSurfaceSystemPrompt(opts.SurfaceSystemPrompt)
 		defer state.SetSurfaceSystemPrompt("")
@@ -2161,6 +2178,8 @@ func (m *Manager) SetConfigOptionFrom(ctx context.Context, params acp.SessionSet
 		ch.Mode = &value
 	case "model":
 		ch.Model = &value
+	case "service_tier":
+		ch.ServiceTier = &value
 	case "reasoning":
 		ch.Reasoning = &value
 	case "toolset":

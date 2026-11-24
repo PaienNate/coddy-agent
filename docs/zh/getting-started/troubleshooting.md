@@ -43,7 +43,7 @@ coddy --dry-run                 # the problems and one status line
 coddy --dry-run --test-config   # the config report and every probe
 ```
 
-`--dry-run` 会探测文件中所命名的内容：目录、每个提供商的模型列表、stdio MCP 服务器的可执行文件、Telegram token，以及对于 `coddy serve` 的监听地址。报告格式与规则：[配置](configuration.md#从命令行检查文件)。
+`--dry-run` 会探测文件中所命名的内容：目录、每个提供商的模型列表、stdio MCP 服务器的可执行文件、Telegram token，以及对于 `coddy serve` 的侦听地址。报告格式与规则：[配置](configuration.md#从命令行检查文件)。
 
 ## 提供商拒绝密钥或模型 ID
 
@@ -74,7 +74,7 @@ coddy serve --dry-run         # binds each listen address once and releases it
 coddy serve -P 12346          # or httpserver.port in the file
 ```
 
-要从其他机器访问，请绑定更宽的地址并要求 token：`coddy serve -H 0.0.0.0 --auth-token <secret>`（也可以是 `CODDY_HTTP_TOKEN` 或 `httpserver.auth_token`）；没有 token 时，进程会警告它可在未经认证的情况下访问。监听地址是运行中的进程唯一无法采用的设置：在 `--daemon` 下，工作进程会自行在新地址上重启（退出状态 75 会请求调度器提供替代进程），`coddy serve install` 的 systemd 用户服务也是如此；在前台运行时，请自行重启。在 `--daemon` 下，被占用的端口会在键入命令的终端中报告，并重试直到释放。参见 [coddy serve 与守护进程](../operate/serve.md) 和 [HTTP API](../reference/http-api.md#cli-标志)。
+要从其他机器访问，请绑定更宽的地址并要求 token：`coddy serve -H 0.0.0.0 --auth-token <secret>`（也可以是 `CODDY_HTTP_TOKEN` 或 `httpserver.auth_token`）；没有 token 时，进程会警告它可在未经认证的情况下访问。侦听地址是运行中的进程唯一无法采用的设置：在 `--daemon` 下，工作进程会自行在新地址上重启（退出状态 75 会请求调度器提供替代进程），`coddy serve install` 的 systemd 用户服务也是如此；在前台运行时，请自行重启。在 `--daemon` 下，被占用的端口会在键入命令的终端中报告，并重试直到释放。参见 [coddy serve 与守护进程](../operate/serve.md) 和 [HTTP API](../reference/http-api.md#cli-标志)。
 
 ## 构建中缺少某个界面
 
@@ -226,7 +226,7 @@ providers:
 
 - 首 token 守卫，`agent.llm_first_token_timeout_ms`（90 秒），会切断没有产生任何内容的流式调用，并重新发出一次；该地址通常代表一组部署，下一次尝试会落到另一个成员上；
 - 流空闲守卫，`agent.llm_stream_idle_timeout_ms`（5 分钟），会切断服务器在首批字节之后长时间没有发送任何内容的流式回答，并保留已到达的内容。该步骤随后会在暂停后再次运行，就像提供商在轮次中途的任何失败一样（[下文](#提供商在轮次中途失败)），并且只有当这也没有帮助时，轮次才会以指出停滞的错误结束；
-- HTTP/2 活性 ping 会关闭对端在大约 45 秒内停止响应的连接，并重复请求；这正是区分死隧道和慢模型的方式。
+- HTTP/2 活性 ping 会关闭对端在大约 45 秒内停止响应的连接，并重复请求；这正是区分失效隧道和慢模型的方式。
 
 两个守卫都不适用于配置了 `stream: false` 的模型：它的回答一次性到达，因此该调用唯一的限制是 `providers[].timeout_ms`，而从外部终止的运行会报告模型已沉默多长时间。
 
@@ -362,7 +362,7 @@ brew upgrade --cask coddy                               # the cask; a formula in
 
 ## Termux 说 `has unexpected e_type: 2` 或 `Bad system call`
 
-**症状。** 在 Android 上的 Termux 中，`coddy` 会立即因 `error: ".../coddy" has unexpected e_type: 2` 停止。或者它启动了，但提供商请求因 `x509: certificate signed by unknown authority` 或 `lookup ... on [::1]:53: ... connection refused` 失败，或者进程因 `Bad system call` 死亡。
+**症状。** 在 Android 上的 Termux 中，`coddy` 会立即因 `error: ".../coddy" has unexpected e_type: 2` 停止。或者它启动了，但提供商请求因 `x509: certificate signed by unknown authority` 或 `lookup ... on [::1]:53: ... connection refused` 失败，或者进程因 `Bad system call` 退出。
 
 **原因。** 那是 Linux 构建。面向 Android 10 或更高版本的 Termux 会通过 Android 的链接器启动每个程序，而该链接器只加载位置无关的可执行文件，Linux 构建是静态的。在 Termux 直接启动它的情况下，它会在 Android 没有的 Linux 路径中查找证书和 `/etc/resolv.conf`，并且某些 Android 版本会禁止它发起的某个系统调用。
 
@@ -423,7 +423,7 @@ coddy agents list                 # subagent definitions and their trust state
 coddy serve status                # the daemon: pid, config, log and worker
 ```
 
-日志在每个长时间运行的命令上都遵循相同的开关：`--log-level` 接受裸级别（`debug`、`info`、`warn`、`error`）或提高某个组件的规范，例如 `info,gateway.telegram=debug`；`coddy acp` 和 `coddy serve` 还接受 `--log-output stdout|stderr|file|both`、`--log-file` 和 `--log-format text|json`。控制台从不记录到终端：其记录写入 `<home>/logs/cli.log`（`--log-file` 会移动它们）。守护进程会追加写入 `~/.coddy/logs/serve.log`。要通过协议进行复现：
+日志在每个长时间运行的命令上都遵循相同的开关：`--log-level` 接受单个级别（`debug`、`info`、`warn`、`error`）或提高某个组件的规范，例如 `info,gateway.telegram=debug`；`coddy acp` 和 `coddy serve` 还接受 `--log-output stdout|stderr|file|both`、`--log-file` 和 `--log-format text|json`。控制台从不记录到终端：其记录写入 `<home>/logs/cli.log`（`--log-file` 会移动它们）。守护进程会追加写入 `~/.coddy/logs/serve.log`。要通过协议进行复现：
 
 ```bash
 coddy acp --log-level debug

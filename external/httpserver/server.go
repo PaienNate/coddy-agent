@@ -166,6 +166,16 @@ type Server struct {
 	devinAuthLogins      map[string]*codexAuthLoginAttempt
 
 	permissionResumeWG sync.WaitGroup
+	// terminals are the interactive shells opened under chats in the web UI.
+	// They belong to this HTTP server (not to the model's background task pool)
+	// and are stopped when the surface drains.
+	terminalMu sync.Mutex
+	terminals  map[string]*terminalSession
+	// terminalSweep ends the goroutine that stops idle shells; terminalsClosed
+	// is the gate a drain shuts, so a shell a request is starting meanwhile is
+	// stopped by that request instead of outliving the server.
+	terminalSweep   chan struct{}
+	terminalsClosed bool
 	// bgWG counts background goroutines owned by this server (codex auth login
 	// waits, background task snapshots); Drain waits for them.
 	bgWG sync.WaitGroup
@@ -174,6 +184,7 @@ type Server struct {
 // Drain waits for all background goroutines to finish.
 // Call after closing the HTTP server and before tearing down any session directories.
 func (s *Server) Drain() {
+	s.closeTerminals()
 	if s.removeUsageObserver != nil {
 		s.removeUsageObserver()
 	}
@@ -243,6 +254,7 @@ func New(cfg *config.Config, mgr *session.Manager, log *slog.Logger, defaultCWD 
 		tgSessions:           webauth.NewSessionStore(),
 		browserSessions:      webauth.NewSessionStore(),
 		loginThrottle:        &webauth.Throttle{},
+		terminals:            make(map[string]*terminalSession),
 	}
 	s.cfgAt.Store(cfg)
 	// A Mini App launch signs one browser in once, across restarts too.
@@ -307,6 +319,7 @@ func New(cfg *config.Config, mgr *session.Manager, log *slog.Logger, defaultCWD 
 	s.mux.HandleFunc("/v1/", func(w http.ResponseWriter, r *http.Request) { http.NotFound(w, r) })
 	s.registerAuthRoutes()
 	s.registerCoddyRoutes()
+	s.registerStatisticsRoutes()
 	s.registerConfigRoutes()
 	s.registerProvidersRoutes()
 	s.registerOnboardingRoutes()
@@ -476,15 +489,20 @@ func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 	// 404 the HEAD the fallback's Allow header advertises; the body net/http
 	// discards for HEAD is the same work a GET costs.
 	type modelObj struct {
-		ID               string   `json:"id"`
-		Object           string   `json:"object"`
-		Created          int64    `json:"created"`
-		OwnedBy          string   `json:"owned_by"`
-		MaxContextTokens int      `json:"max_context_tokens,omitempty"`
-		ContextLength    int      `json:"context_length,omitempty"`
-		Multimodal       bool     `json:"multimodal,omitempty"`
+		ID               string `json:"id"`
+		Object           string `json:"object"`
+		Created          int64  `json:"created"`
+		OwnedBy          string `json:"owned_by"`
+		MaxContextTokens int    `json:"max_context_tokens,omitempty"`
+		ContextLength    int    `json:"context_length,omitempty"`
+		Multimodal       bool   `json:"multimodal,omitempty"`
+		// ReasoningLevels are the levels the provider offers for this model,
+		// ReasoningDefault the one a request without a level runs on.
 		ReasoningLevels  []string `json:"reasoning_levels,omitempty"`
 		ReasoningDefault string   `json:"reasoning_default,omitempty"`
+		// ServiceTierChoices are the tiers a request on this row may name;
+		// empty for a provider that does not take one.
+		ServiceTierChoices []string `json:"service_tier_choices,omitempty"`
 		// Default marks the row a session that selected no model runs on,
 		// so a client (the remote console) shows the model that will run.
 		Default bool `json:"default,omitempty"`
@@ -567,8 +585,10 @@ func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 				Multimodal:       ent.Multimodal,
 				ReasoningLevels:  cfg.ReasoningChoicesFor(ent),
 				ReasoningDefault: cfg.DefaultReasoningLevelFor(ent),
-				Default:          defaultModel != "" && mid == defaultModel,
-				Toolset:          ent.Toolset,
+
+				ServiceTierChoices: llm.ModelServiceTierChoices(cfg, mid),
+				Default:            defaultModel != "" && mid == defaultModel,
+				Toolset:            ent.Toolset,
 				// ProviderDisplayName: label only; OwnedBy stays the id.
 				ProviderDisplayName: providerDisplayName,
 				Limits:              limits,
@@ -593,8 +613,12 @@ type chatCompletionRequest struct {
 	// ReasoningEffort is OpenAI's reasoning_effort: a level the direct model
 	// offers, in place of its reasoning_default. A profile turn reads the level
 	// from metadata.reasoning instead.
-	ReasoningEffort *string         `json:"reasoning_effort,omitempty"`
-	Metadata        json.RawMessage `json:"metadata,omitempty"`
+	ReasoningEffort *string `json:"reasoning_effort,omitempty"`
+	// ServiceTier is OpenAI's service_tier for this one request. A direct
+	// model passes it through; a profile turn rejects it and reads the tier
+	// from metadata.service_tier, which is a session setting.
+	ServiceTier *string         `json:"service_tier,omitempty"`
+	Metadata    json.RawMessage `json:"metadata,omitempty"`
 	// StreamOptions is OpenAI's stream_options; include_usage asks for the
 	// usage chunk after the choice finishes.
 	StreamOptions *chatStreamOptions `json:"stream_options,omitempty"`
@@ -857,7 +881,7 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 			bridge = NewRelaySender(s.activeCfg(), rel, model)
 		}
 		wireBridgeSession(bridge, st)
-		promptOpts := &session.PromptRunOpts{SkipTurnLock: true, SurfaceSystemPrompt: surfacePromptFromHTTP(req.Metadata), Lang: langFromHTTP(req.Metadata)}
+		promptOpts := &session.PromptRunOpts{SkipTurnLock: true, StatisticsSource: statisticsSourceFromHTTP(req.Metadata), SurfaceSystemPrompt: surfacePromptFromHTTP(req.Metadata), Lang: langFromHTTP(req.Metadata)}
 		// A model configured with stream: false emits nothing until its whole answer is
 		// generated, so the stream has to announce it is still alive by itself.
 		stopKeepalive := bridge.StartIdleKeepalive()
@@ -953,7 +977,7 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	turnCtx, cancelTurn := context.WithCancel(ctx)
 	st.SetCancel(cancelTurn)
 	defer cancelTurn()
-	directRes, err := s.runDirectYAMLCompletion(turnCtx, st, sessionID, model, bridge, clientTools, genOpts)
+	directRes, err := s.runDirectYAMLCompletion(turnCtx, st, sessionID, model, statisticsSourceFromHTTP(req.Metadata), bridge, clientTools, genOpts)
 	if err != nil {
 		if errors.Is(err, context.Canceled) && req.Stream {
 			meta := metadataResponse(s.activeCfg(), model)
@@ -976,6 +1000,11 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 		// The level the provider was asked for, the model's default included,
 		// so a caller comparing model and level pairs can tell which ran.
 		meta["reasoning_effort"] = genOpts.ReasoningEffort
+	}
+	if directRes.ServiceTier != "" {
+		// The tier the provider reports it ran on, which can differ from the
+		// one the request named.
+		meta["service_tier"] = directRes.ServiceTier
 	}
 	if stop := directStopReason(directRes); stop != "" {
 		// The strict stream finishes its choice with this: tool_use becomes
@@ -1009,6 +1038,9 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 		"model":    model,
 		"metadata": meta,
 		"choices":  []map[string]interface{}{{"index": 0, "message": message, "finish_reason": finish}},
+	}
+	if directRes.ServiceTier != "" {
+		resp["service_tier"] = directRes.ServiceTier
 	}
 	if usage := completionUsageFromResponse(directRes).openAI(); usage != nil {
 		resp["usage"] = usage
@@ -1372,6 +1404,12 @@ func (s *Server) handleResponsesCreate(w http.ResponseWriter, r *http.Request) {
 		s.handleDirectResponses(w, r, raw)
 		return
 	}
+	var fields map[string]json.RawMessage
+	_ = json.Unmarshal(raw, &fields)
+	if _, present := fields["service_tier"]; present {
+		writeOpenAIValidationError(w, "service_tier is only supported for direct models; use metadata.service_tier for profiles", "service_tier")
+		return
+	}
 	var body struct {
 		Model       string                         `json:"model"`
 		Input       string                         `json:"input"`
@@ -1517,7 +1555,7 @@ func (s *Server) handleResponsesCreate(w http.ResponseWriter, r *http.Request) {
 			bridge = NewRelaySender(s.activeCfg(), rel, model)
 		}
 		wireBridgeSession(bridge, st)
-		promptOpts := &session.PromptRunOpts{SkipTurnLock: true, SurfaceSystemPrompt: surfacePromptFromHTTP(body.Metadata), Lang: langFromHTTP(body.Metadata)}
+		promptOpts := &session.PromptRunOpts{SkipTurnLock: true, StatisticsSource: statisticsSourceFromHTTP(body.Metadata), SurfaceSystemPrompt: surfacePromptFromHTTP(body.Metadata), Lang: langFromHTTP(body.Metadata)}
 		// A turn from the side panel of Coddy for Browser names the tab it
 		// is written from: the chat's browser tool acts there by default,
 		// for this turn alone.

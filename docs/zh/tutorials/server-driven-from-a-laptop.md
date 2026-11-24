@@ -24,7 +24,7 @@
 
    笔记本电脑上不需要有任何可达的服务，因此处于 NAT 之后或地址会变化的笔记本电脑同样可用：控制台主动拨号服务器（第 2 步），浏览器从笔记本电脑自身的 `coddy serve` 拨号（第 4 步），而加入集群的笔记本电脑会在其 `swarm.join` 条目中省略 `advertise_url` 并拨号中继，由中继沿该连接把请求送回（[集群，两种传输方式](../operate/swarm.md#两种传输方式)）。`allow_loopback` 正是让第 4 步不受笔记本电脑的地址拼写和端口影响的原因：`http://localhost:12345`、`http://127.0.0.1:12345` 和 Vite 的 `http://localhost:5173` 是三个来源，而该开关会把它们全部放行。它的安全性仅取决于本步骤所设置的令牌（[安全与信任](../operate/security.md)）。
 
-2. **从笔记本电脑的控制台驱动它。** `--remote` 接受裸 `host:port`（协议默认 http）、完整 URL，或笔记本电脑自身 `config.yaml` 中 `httpserver.remotes` 下所列远程项的名称。令牌依次取自 `--remote-token`、该远程项条目中的 `token`（如果存在），然后是 `CODDY_REMOTE_TOKEN`。
+2. **从笔记本电脑的控制台驱动它。** `--remote` 接受不带协议的 `host:port`（协议默认 http）、完整 URL，或笔记本电脑自身 `config.yaml` 中 `httpserver.remotes` 下所列远程项的名称。令牌依次取自 `--remote-token`、该远程项条目中的 `token`（如果存在），然后是 `CODDY_REMOTE_TOKEN`。
 
    ```bash
    export CODDY_REMOTE_TOKEN="a-long-random-string"

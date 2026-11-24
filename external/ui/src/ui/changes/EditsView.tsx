@@ -24,6 +24,9 @@ import {
 } from "../files/windowIcons";
 import { DiffFileSection } from "./DiffFileSection";
 import { EditsTree } from "./EditsTree";
+import { readViewedDigests, setFileViewed, viewedIn } from "./viewedFiles";
+import { viewedRevision } from "./viewedRevision";
+import { ViewedProgress } from "./ViewedProgress";
 import { readDiffViewCookie, writeDiffViewCookie } from "./diffViewPrefs";
 import type { DiffView } from "./diffViewPrefs";
 import { fetchSessionChangeFile } from "./api";
@@ -40,6 +43,9 @@ interface PatchState {
   patch?: string;
   error?: string;
   truncated?: boolean;
+  /** The raw sides, so the section can expand hidden context and count images. */
+  before?: string;
+  after?: string;
 }
 
 /**
@@ -93,7 +99,16 @@ function usePatches(
           copy.set(
             path,
             res.ok
-              ? { patch: res.data.patch, truncated: res.data.truncated }
+              ? {
+                  patch: res.data.patch,
+                  truncated: res.data.truncated,
+                  ...(res.data.before !== undefined
+                    ? { before: res.data.before }
+                    : {}),
+                  ...(res.data.after !== undefined
+                    ? { after: res.data.after }
+                    : {}),
+                }
               : { error: res.message },
           );
           return copy;
@@ -164,6 +179,9 @@ export function EditsView(props: {
   // A file picked in the tree, scrolled to once the diffs are on screen (on a
   // phone the tree gives way to them first).
   const [jump, setJump] = useState<{ path: string; seq: number } | null>(null);
+  // Bumped by a Viewed toggle: the marks live in the browser's store, so the
+  // window needs a reason to read them again.
+  const [viewedVersion, bumpViewed] = useState(0);
 
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -218,6 +236,27 @@ export function EditsView(props: {
       return file ? [file] : [];
     });
   }, [changes.files]);
+
+  // The marks are read once per render and once more after a toggle: reading
+  // them per file parsed the whole store on every render, of which a large
+  // change set has one per patch that lands.
+  const viewedDigests = useMemo(
+    () => readViewedDigests(workspacePath),
+    [workspacePath, viewedVersion],
+  );
+  const isViewed = (file: ChangedFile) =>
+    viewedIn(viewedDigests, file.path, viewedRevision(file));
+  const viewedCount = files.filter(isViewed).length;
+  const toggleViewed = (file: ChangedFile) => {
+    const revision = viewedRevision(file);
+    setFileViewed(
+      workspacePath,
+      file.path,
+      revision,
+      !viewedIn(viewedDigests, file.path, revision),
+    );
+    bumpViewed((n) => n + 1);
+  };
   // Until the reader picks or scrolls, the file at the top is the one on show.
   const onShow = files.some((f) => f.path === active)
     ? active
@@ -385,6 +424,9 @@ export function EditsView(props: {
                   {"−" + changes.totals.deletions}
                 </span>
               </span>
+              {files.length > 0 ? (
+                <ViewedProgress viewed={viewedCount} total={files.length} />
+              ) : null}
             </p>
           </div>
         </div>
@@ -545,18 +587,31 @@ export function EditsView(props: {
                     file={{
                       ...file,
                       truncated: state?.truncated ?? file.truncated,
+                      ...(state?.before !== undefined
+                        ? { before: state.before }
+                        : {}),
+                      ...(state?.after !== undefined
+                        ? { after: state.after }
+                        : {}),
                     }}
+                    sessionId={sessionId}
                     patch={state?.patch ?? ""}
-                    loading={!state}
+                    /* Only a text file waits for a patch: an image row is served
+                       raw by the detail route and has no diff to fetch, so its
+                       rendered side must not wait behind a request never made. */
+                    loading={!state && !file.image}
                     error={state?.error ?? ""}
                     collapsed={collapsed.has(file.path)}
                     view={effectiveView}
                     onToggle={() => toggleOne(file.path)}
                     registerRef={registerRef}
+                    viewed={isViewed(file)}
+                    onToggleViewed={() => toggleViewed(file)}
                     discardBusy={discard.busy}
                     onDiscard={() =>
                       void discard.discardFile(file.path, file.status)
                     }
+                    onDelete={() => void discard.deleteFile(file.path)}
                   />
                 );
               })

@@ -2591,3 +2591,41 @@ Other provider types hide the selector.
 ![Anthropic-compatible provider User-Agent selector](../assets/web-ui/provider-user-agent-anthropic-dark-1280.png)
 
 *The Anthropic-compatible provider offers its own SDK identity by default.*
+
+## Terminal window
+
+The **Terminal** button in the chat header opens a shell in a window of its own, over the conversation. One host shell belongs to each chat: it starts in that chat's workspace, closes with the window, and stops by itself once nobody has read it or written to it for 30 minutes. Tabs that show one chat share one shell.
+
+Only this process's own origin may open it. A request from another origin is refused, a session a subagent run owns stays closed, and no model, tool or prompt suggestion can write to it. The switch is **`terminal.enable`**, off by default and read per request, so a settings save applies without a restart.
+
+The shell is a pipe rather than a terminal device. A program that draws a screen, an editor or `top`, has nothing to draw on, and escape sequences are stripped. Output is bounded, and a head the server dropped is flagged truncated.
+
+## Service tier
+
+When the selected logical model's provider takes a tier, the composer shows a **Service tier** chip beside the model controls. The chip offers only the tiers that model supports: **Standard** sends `default` and **Fast** sends `priority`. A session that never chose a tier sends no tier parameter and reads **Standard**. The providers that take a tier are the official OpenAI endpoint and **`codex`**.
+
+The choice follows the session: the server keeps it and mirrors it to every client through the settings snapshot. A tier the selected model no longer offers is cleared rather than kept unused. The console offers **`/service-tier <tier|reset>`**.
+
+A single request may carry its own tier. A direct model request uses the top-level **`service_tier`**, which changes no session setting and returns the tier the provider reported. The **agent**, **plan** and **ask** profiles refuse that field and take the session setting from **`metadata.service_tier`** instead. A provider that takes no tier answers **400** with **`error.param`** naming **`service_tier`**.
+
+## Next-prompt suggestions
+
+After a turn ends, the composer asks the server what the operator might type next and shows the answer dim in the empty field. **Tab** or **Right** takes it into the draft for editing, and it is never sent on its own.
+
+The call is hidden: it re-issues the finished turn's own provider context with one request-only instruction appended, so it reads the prompt cache that turn wrote. It runs no tool, and nothing enters the transcript. It is skipped when the turn was not served from the provider's cache (on Anthropic, over 10000 uncached tokens), when the tab is hidden, and when a new turn already owns the session. A hint that keeps being ignored is offered ever more rarely, and the counters live with the machine's agent home.
+
+**`agent.prompt_suggestions`** under **Settings → ReAct loop** defaults to on, and turning it off stops generation.
+
+## Changes review
+
+The git count at the right edge of the plate over the composer opens the edits, which are git's report of the folder rather than a recording. The window carries a **Viewed** mark for each file and a progress ring with a count.
+
+The mark is bound to the digest of the patch the server reported, so a file rewritten since reads as unread again, while folding, scrolling or reloading leaves it alone. A file head also carries copy path and discard, and the window's menu carries **Side by side**, **Collapse all** / **Expand all** and **Discard all**. A diff whose file is a picture gets a rich view of the two sides. Diff line numbers live in cells as wide as the file's widest number, so every row's code starts on the same edge.
+
+## Statistics
+
+The rail carries **Statistics** between the documentation and the settings, at **`#/statistics`**, as a window that dims the chat under it. It shows headline figures over an activity calendar - tokens, model and skill usage, chats, requests, calls, reasoning levels, task duration and activity streaks - with a period and project, provider, model and source filters. A **Limits** tab lists every configured provider's account quota windows from the server's shared usage cache.
+
+**Settings → Statistics** carries the collection switch, the IANA time zone, the custom tariffs and the reset. With the collection off, nothing is recorded and the rail offers no page.
+
+Counters live in **`<home>/statistics/`**, apart from the session bundles, so deleting a chat does not delete what it cost. This port is local only: the screen asks this server for its own counters, and there is no fleet summary.

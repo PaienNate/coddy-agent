@@ -1,3 +1,4 @@
+import { type ServiceTierControl, serviceTierLabelKey } from "./serviceTier";
 import { composerAutoFocusAllowed } from "./composerFocus";
 import {
   lazy,
@@ -527,6 +528,10 @@ export function Composer(props: {
   /** The session's toolset: the chip after the permission chip and its menu.
    *  Absent while the configuration has no toolsets[] preset, and so is the
    *  chip. */
+  /** The toolset chip: the chip after the permission chip and its menu.
+   *  Absent while the configuration has no toolsets[] preset, and so is the
+   *  chip. */
+  serviceTierControl?: ServiceTierControl | undefined;
   toolsetControl?: ToolsetControl | undefined;
   /** Settings changed for the running and the next turns (--once, --count=N). */
   settingsOverrides?: TurnOverride[];
@@ -542,6 +547,14 @@ export function Composer(props: {
   /** files is non-empty only when the user attached files via the file picker. */
   onSend: (text: string, files?: File[]) => void;
   generating?: boolean;
+  /**
+   * The follow-up prompt suggestion of the finished turn: shown dim in the
+   * empty field, taken with Tab (or ArrowRight) into the draft. Cleared by
+   * the app when a turn starts or the session changes.
+   */
+  promptSuggestion?: string | null;
+  /** Fires when Tab or ArrowRight took the suggestion into the draft. */
+  onPromptSuggestionAccepted?: () => void;
   onStop?: () => void;
   /**
    * `/docs [page or words]` opens the documentation reader here instead of
@@ -604,7 +617,13 @@ export function Composer(props: {
   const permissionChipRef = useRef<HTMLButtonElement | null>(null);
   const toolsetChipRef = useRef<HTMLButtonElement | null>(null);
   const [menuOpen, setMenuOpen] = useState<
-    "mode" | "llm" | "reasoning" | "permission" | "toolset" | null
+    | "mode"
+    | "llm"
+    | "reasoning"
+    | "permission"
+    | "toolset"
+    | "service_tier"
+    | null
   >(null);
   /** Screen rect of the open trigger, so the portaled menu (frosted glass over chat) can anchor to it. */
   const [menuAnchorRect, setMenuAnchorRect] = useState<DOMRect | null>(null);
@@ -2426,7 +2445,13 @@ export function Composer(props: {
   useEscapeCloses(pickerOpen, dismissSlashAtPickers);
 
   function toggleMenu(
-    type: "mode" | "llm" | "reasoning" | "permission" | "toolset",
+    type:
+      | "mode"
+      | "llm"
+      | "reasoning"
+      | "permission"
+      | "toolset"
+      | "service_tier",
     trigger: HTMLElement,
   ) {
     if (menuOpen === type) {
@@ -3332,9 +3357,12 @@ export function Composer(props: {
                 placeholder={
                   props.generating
                     ? t("composer.placeholderQueue")
-                    : props.isEmpty
-                      ? t("composer.placeholderEmpty")
-                      : t("composer.placeholderFollowUp")
+                    : (props.promptSuggestion ??
+                      t(
+                        props.isEmpty
+                          ? "composer.placeholderEmpty"
+                          : "composer.placeholderFollowUp",
+                      ))
                 }
                 autoComplete="off"
                 value={props.value}
@@ -3585,6 +3613,26 @@ export function Composer(props: {
                     }
                     return;
                   }
+                  // The follow-up prompt suggestion of the finished turn:
+                  // Tab (and ArrowRight on the empty field) takes it into
+                  // the draft, the way the console's editor does. Open
+                  // pickers keep Tab for their own rows above.
+                  if (
+                    (ev.key === "Tab" || ev.key === "ArrowRight") &&
+                    !ev.shiftKey &&
+                    !ev.ctrlKey &&
+                    !ev.altKey &&
+                    !ev.metaKey &&
+                    !props.generating &&
+                    !props.value.trim() &&
+                    !(slashOpen || atOpen || atRangeOpen || argOpen) &&
+                    props.promptSuggestion
+                  ) {
+                    ev.preventDefault();
+                    props.onChange(props.promptSuggestion);
+                    props.onPromptSuggestionAccepted?.();
+                    return;
+                  }
                   // Tab belongs to an open picker even when it lists nothing:
                   // the draft there is a mention or a command being written.
                   if (
@@ -3783,6 +3831,22 @@ export function Composer(props: {
                     onClick={(e) => toggleMenu("reasoning", e.currentTarget)}
                   >
                     {reasoningLabel}
+                  </button>
+                </div>
+              ) : null}
+
+              {props.serviceTierControl ? (
+                <div className="mode">
+                  <button
+                    type="button"
+                    className="composer-tab mode-btn"
+                    aria-label={t("composer.serviceTier")}
+                    title={t("composer.serviceTier")}
+                    aria-haspopup="menu"
+                    aria-expanded={menuOpen === "service_tier"}
+                    onClick={(e) => toggleMenu("service_tier", e.currentTarget)}
+                  >
+                    {t(serviceTierLabelKey(props.serviceTierControl.value))}
                   </button>
                 </div>
               ) : null}
@@ -4137,6 +4201,22 @@ export function Composer(props: {
                     </div>
                   </>
                 ) : null}
+                {menuOpen === "service_tier" && props.serviceTierControl
+                  ? props.serviceTierControl.choices.map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        role="menuitem"
+                        className={`mode-item ${value === props.serviceTierControl?.value ? "is-selected" : ""}`}
+                        onClick={() => {
+                          props.serviceTierControl?.onChange(value);
+                          closeMenu();
+                        }}
+                      >
+                        {t(serviceTierLabelKey(value))}
+                      </button>
+                    ))
+                  : null}
                 {menuOpen === "reasoning"
                   ? reasoningLevels.map((lv) => (
                       <button

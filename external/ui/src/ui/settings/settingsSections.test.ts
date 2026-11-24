@@ -91,6 +91,7 @@ test("derives tabs in schema order with Appearance first and System last", () =>
     "status",
     "ssh_credentials",
     "opencode_import",
+    "statistics",
     "providers",
     "models",
     "agent",
@@ -116,12 +117,13 @@ test("System is the last tab even when its keys come first", () => {
     ...rootSchema,
     "x-coddy-property-order": ["prompts", "providers", "logger"],
   } as JsonSchema).map((s) => s.id);
-  expect(ids.slice(0, 7)).toEqual([
+  expect(ids.slice(0, 8)).toEqual([
     "appearance",
     "sessions_manager",
     "status",
     "ssh_credentials",
     "opencode_import",
+    "statistics",
     "providers",
     "logger",
   ]);
@@ -260,6 +262,7 @@ test("Appearance, Sessions, System, SSH and OpenCode are present even without a 
     "status",
     "ssh_credentials",
     "opencode_import",
+    "statistics",
   ]);
 });
 
@@ -314,7 +317,7 @@ test("the System tab follows Sessions in the head, before every tab the schema b
   const ids = sections.map((s) => s.id);
   expect(ids.slice(0, 3)).toEqual(["appearance", "sessions_manager", "status"]);
   expect(ids[0]).toBe("appearance");
-  expect(ids.indexOf("providers")).toBe(5);
+  expect(ids.indexOf("providers")).toBe(6);
   const status = sections.find((s) => s.id === "status")!;
   expect(status.kind).toBe("status");
   expect(status.label).toBe("System");

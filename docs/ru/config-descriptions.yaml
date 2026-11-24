@@ -17,6 +17,12 @@ browser.serve_remote:
 browser.remotes:
   en: "Coddy servers whose browsers the chats of this process may use, besides its own: a name of httpserver.remotes, or a server address such as a node mount of a swarm relay (https://relay:8443/swarm/nodes/home), whose token is found like --remote's. That server needs browser.serve_remote."
   ru: "Серверы Coddy, браузерами которых могут пользоваться чаты этого процесса, кроме своих: имя из httpserver.remotes или адрес сервера, например точка монтирования узла в релее роя (https://relay:8443/swarm/nodes/home). Токен для адреса ищется так же, как для --remote. На том сервере нужен browser.serve_remote."
+terminal:
+  en: "The terminal of a chat: one host shell per chat, opened from the web UI in a window of its own and served by GET, POST and DELETE /coddy/sessions/{id}/terminal. Off by default, because a shell running the host's commands from a browser is a capability to grant on purpose. Enabling it opens nothing beyond this process's own origin, and a session a subagent run owns stays closed; no model, tool or suggestion can write to it. The shell is a pipe, not a terminal device, so a program that draws a screen has nothing to draw on and escape sequences are stripped."
+  ru: "Терминал чата: один хостовый shell на чат, открываемый из веб-интерфейса в собственном окне и обслуживаемый GET, POST и DELETE /coddy/sessions/{id}/terminal. По умолчанию выключено, потому что shell, выполняющий команды хоста из браузера, - это возможность, которую выдают осознанно. Включение не открывает ничего за пределами собственного origin этого процесса, а сессия, которой владеет запуск субагента, остаётся закрытой; ни модель, ни инструмент, ни подсказка не могут в него записать. Shell - это канал, а не терминальное устройство, поэтому программе, которая рисует экран, не на чем рисовать, а escape-последовательности удаляются."
+terminal.enable:
+  en: "Run a shell for a chat, on the request of the person watching it. Needs httpserver.enable."
+  ru: "Запускать shell для чата по запросу человека, который его смотрит. Нужен httpserver.enable."
 providers:
   en: "API credentials and transport selection for upstream LLM vendors. When api_key is empty, the runtime reads the NAME_API_KEY environment variable (NAME is the provider name in uppercase with hyphens mapped to underscores); a row of type \"codex\" signs in with ChatGPT and reads no key, and a Kimi subscription reads no API key."
   ru: "Учётные данные API и выбор транспорта для внешних LLM-провайдеров. Если api_key пуст, Coddy читает переменную окружения NAME_API_KEY (NAME - имя провайдера в верхнем регистре, дефисы заменены подчёркиваниями); строка типа \"codex\" входит через ChatGPT и ключ не читает, а подписка Kimi не читает API-ключ."
@@ -194,6 +200,9 @@ agent.loop_stream_repeat_cycles:
 agent.loop_nudge_max:
   en: "How many times one turn may be nudged back on track before the loop guard stops it with a notice."
   ru: "Сколько раз один ход можно вернуть в нужное русло, прежде чем защита от зацикливания остановит его с уведомлением."
+agent.prompt_suggestions:
+  en: "Suggest the next prompt in the empty console or web composer after a turn. An extra model call forks the turn's provider context; tools are never executed and nothing enters the transcript. Tab or Right accepts the suggestion. Defaults to true; false disables generation."
+  ru: "После хода предлагает следующий промпт в пустом поле ввода. Дополнительный вызов модели создаёт fork контекста хода; инструменты не выполняются, а транскрипт не меняется. Tab или стрелка вправо принимает подсказку. По умолчанию true; false отключает генерацию."
 agent.wait_for_limit_reset:
   en: "Wait for a hit usage limit to lift and re-issue the call, instead of ending the turn with the provider's error. Applies to a top-level turn whose provider names a pause beyond the retry budget, in a Retry-After header or in the text of the 429 itself; the turn lock and the client stream stay open while it waits, so it is off by default."
   ru: "Дождаться снятия исчерпанного лимита использования и повторить вызов, вместо того чтобы завершать ход ошибкой провайдера. Действует для хода верхнего уровня, провайдер которого называет паузу длиннее бюджета повторов, в заголовке Retry-After или в тексте самого 429; пока ход ждёт, блокировка хода и поток клиента остаются открытыми, поэтому по умолчанию настройка выключена."

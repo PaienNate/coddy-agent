@@ -32,6 +32,58 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* How much of the change set has been read: a ring and a count. */
+.edits-viewed-summary {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--text) 62%, transparent);
+}
+
+.edits-viewed-summary.is-complete {
+  color: var(--accent);
+}
+
+.edits-viewed-track,
+.edits-viewed-value {
+  fill: none;
+  stroke-width: 2;
+}
+
+.edits-viewed-track {
+  stroke: color-mix(in srgb, var(--text) 18%, transparent);
+}
+
+.edits-viewed-value {
+  stroke: currentColor;
+  stroke-linecap: round;
+}
+
+.edits-viewed-summary-label {
+  color: color-mix(in srgb, var(--text) 45%, transparent);
+}
+
+/* The Viewed toggle of one file's header: a ring that fills when read. */
+.dv-viewed {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--text) 26%, transparent);
+  background: transparent;
+  color: transparent;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dv-viewed.is-viewed {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* Git's short status at the right end of a file's row: A, M or D. */
 .edits-tree-status {
   flex: none;
@@ -211,6 +263,8 @@
 
 .dv-file-stat {
   display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 7px;
   flex: 0 0 auto;
   font-size: 11.5px;
@@ -225,8 +279,159 @@
    which close the row at its right end. */
 .dv-file-actions {
   display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 2px;
   flex: 0 0 auto;
+}
+
+.dv-source-rich,
+.dv-viewed,
+.dv-context-actions {
+  display: inline-flex;
+  align-items: center;
+}
+
+.dv-source-rich {
+  gap: 2px;
+}
+
+.dv-file-menu-host {
+  position: relative;
+  display: inline-flex;
+}
+
+.dv-file-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 170px;
+  padding: 4px;
+  border: 1px solid var(--coddy-glass-panel-border);
+  border-radius: 10px;
+  background: var(--coddy-tip-bg);
+  box-shadow: var(--coddy-tip-shadow);
+}
+
+.dv-file-menu--portal {
+  position: fixed;
+  right: auto;
+  bottom: auto;
+  z-index: 100;
+}
+
+.dv-file-menu button {
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dv-file-menu button:hover:not(:disabled),
+.dv-file-menu button:focus-visible {
+  background: mix-text(8%);
+}
+
+.dv-file-menu button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.dv-file-menu .dv-file-menu-danger {
+  color: var(--coddy-danger);
+}
+
+.dv-icon-btn[aria-pressed="true"] {
+  color: var(--text);
+  background: mix-text(9%);
+}
+
+.dv-context-actions {
+  justify-content: center;
+  gap: 4px;
+  padding: 3px;
+}
+
+/* A rich diff: the two versions side by side, or the one side a new or a
+   deleted file has. Markdown renders as the page it is, an image as itself. */
+.dv-rich {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px;
+}
+
+.dv-rich-version {
+  margin: 0;
+  min-width: 0;
+  overflow: auto;
+}
+
+.dv-rich-version:only-child {
+  grid-column: 1 / -1;
+}
+
+.dv-rich-version--before .dv-image-frame {
+  border-color: var(--coddy-danger);
+}
+
+.dv-rich-version--after .dv-image-frame {
+  border-color: var(--coddy-todo-completed);
+}
+
+.dv-rich--markdown .dv-rich-version {
+  border: 0;
+}
+
+.dv-rich-version figcaption {
+  margin-bottom: 8px;
+  color: mix-text(62%);
+  font-size: 12px;
+  text-align: center;
+}
+
+.dv-rich-version--before figcaption {
+  color: var(--coddy-danger);
+}
+
+.dv-rich-version--after figcaption {
+  color: var(--coddy-todo-completed);
+}
+
+.dv-rich--image img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 320px;
+  margin: 0 auto;
+}
+
+.dv-image-frame {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 2px solid;
+  border-radius: 8px;
+}
+
+.dv-image-dimensions {
+  display: block;
+  margin-top: 6px;
+  color: mix-text(62%);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 .dv-file-body {
@@ -296,6 +501,11 @@
   background: mix-text(3%);
 }
 
+/* A gap the reader can open: the controls need the line to themselves. */
+.dv-gap:has(.dv-context-actions) {
+  height: auto;
+}
+
 /* Unified scrolls sideways the way a terminal diff does. Split cannot: a long
    line would paint over the other column, so inside a column it wraps instead.
    The pair stays one flex row, so the two sides stay level however tall it gets. */
@@ -340,4 +550,31 @@
 
 .dv-side--del .dv-num {
   color: var(--diff-del-no);
+}
+
+/* A phone has one column: two versions of a Markdown file or a picture read
+   one over the other, never squeezed side by side. */
+@media (max-width: 599px) {
+  .dv-rich {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* The review controls do not fit beside the name on a phone: the name takes
+     the row and the controls wrap under it, so the head grows instead of
+     clipping what a finger needs. */
+  .dv-file-head {
+    height: auto;
+    min-height: 33px;
+    flex-wrap: wrap;
+    padding-top: 3px;
+    padding-bottom: 3px;
+  }
+
+  .dv-file-title {
+    flex-basis: 100%;
+  }
+
+  .dv-file-stat {
+    margin-left: auto;
+  }
 }

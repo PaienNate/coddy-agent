@@ -384,6 +384,14 @@
           "default": 1,
           "minimum": 0
         },
+        "prompt_suggestions": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Suggest the next prompt in the empty console or web composer after a turn. An extra model call forks the turn's provider context; tools are never executed and nothing enters the transcript. Tab or Right accepts the suggestion. Defaults to true; false disables generation.",
+          "default": true
+        },
         "wait_for_limit_reset": {
           "type": "boolean",
           "description": "Wait for a hit usage limit to lift and re-issue the call, instead of ending the turn with the provider's error. Applies to a top-level turn whose provider names a pause beyond the retry budget, in a Retry-After header or in the text of the 429 itself; the turn lock and the client stream stay open while it waits, so it is off by default.",
@@ -1729,6 +1737,19 @@
           },
           "default": [],
           "description": "Coddy servers whose browsers the chats of this process may use, besides its own: a name of httpserver.remotes, or a server address such as a node mount of a swarm relay (https://relay:8443/swarm/nodes/home), whose token is found like --remote's. That server needs browser.serve_remote."
+        }
+      }
+    },
+    "terminal": {
+      "type": "object",
+      "title": "Terminal",
+      "description": "The terminal of a chat: one host shell per chat, opened from the web UI in a window of its own and served by GET, POST and DELETE /coddy/sessions/{id}/terminal. Off by default, because a shell running the host's commands from a browser is a capability to grant on purpose. Enabling it opens nothing beyond this process's own origin, and a session a subagent run owns stays closed; no model, tool or suggestion can write to it. The shell is a pipe, not a terminal device, so a program that draws a screen has nothing to draw on and escape sequences are stripped.",
+      "additionalProperties": false,
+      "properties": {
+        "enable": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run a shell for a chat, on the request of the person watching it. Needs httpserver.enable."
         }
       }
     },

@@ -274,6 +274,8 @@ func (s *Server) registerCoddyRoutes() {
 	s.mux.HandleFunc("GET /coddy/sessions/{id}/tool-calls", s.coddyToolCallsList)
 	s.mux.HandleFunc("GET /coddy/sessions/{id}/tool-calls/{toolCallId}", s.coddyToolCallGet)
 	s.mux.HandleFunc("GET /coddy/sessions/{id}/stats", s.coddySessionStatsGet)
+	s.mux.HandleFunc("GET /coddy/sessions/{id}/prompt-suggestion", s.coddySessionPromptSuggestionGet)
+	s.mux.HandleFunc("POST /coddy/sessions/{id}/prompt-suggestion/outcome", s.coddySessionPromptSuggestionOutcomePost)
 	s.mux.HandleFunc("PATCH /coddy/sessions/{id}", s.coddySessionPatch)
 	s.mux.HandleFunc("POST /coddy/sessions/{id}/workspace", s.coddySessionWorkspacePost)
 	s.mux.HandleFunc("POST /coddy/sessions/{id}/cancel", s.coddySessionCancelGeneration)
@@ -295,6 +297,7 @@ func (s *Server) registerCoddyRoutes() {
 	s.registerSchedulerRoutes()
 	s.registerRewindRoute()
 	s.registerChangesRoutes()
+	s.registerTerminalRoutes()
 	s.registerWorktreeRoutes()
 	s.registerWorkspaceViewerRoutes()
 	s.registerCanvasRoutes()
@@ -1984,6 +1987,7 @@ func (s *Server) coddySessionMessagesGet(w http.ResponseWriter, r *http.Request)
 		out["selectedModelId"] = strings.TrimSpace(st.GetSelectedModelID())
 		out["model"] = effectiveYAMLModel(s.activeCfg(), st)
 		out["selectedReasoning"] = st.EffectiveReasoning(s.activeCfg())
+		out["selectedServiceTier"] = st.GetSelectedServiceTier()
 		out["mode"] = string(st.GetMode())
 		// The whole snapshot, versioned: what the composer mirrors and what
 		// it names in metadata.settingsVersion when it sends.
@@ -2038,10 +2042,11 @@ func (s *Server) coddySessionPatch(w http.ResponseWriter, r *http.Request) {
 		// pinned title of its own, so a name the operator or the model wrote
 		// during that first turn is not overwritten seconds later by an answer
 		// that was already in flight.
-		TitleIfUnpinned   bool    `json:"titleIfUnpinned"`
-		MarkActivityRead  bool    `json:"markActivityRead"`
-		SelectedModelID   *string `json:"selectedModelId"`
-		SelectedReasoning *string `json:"selectedReasoning"`
+		TitleIfUnpinned     bool    `json:"titleIfUnpinned"`
+		MarkActivityRead    bool    `json:"markActivityRead"`
+		SelectedModelID     *string `json:"selectedModelId"`
+		SelectedReasoning   *string `json:"selectedReasoning"`
+		SelectedServiceTier *string `json:"selectedServiceTier"`
 		// SelectedToolset is a toolsets[] preset by name, or "default".
 		SelectedToolset *string `json:"selectedToolset"`
 		// Mode and PermissionMode are the operating mode and the permission
@@ -2072,13 +2077,12 @@ func (s *Server) coddySessionPatch(w http.ResponseWriter, r *http.Request) {
 	// surface's, so the change is validated once, logged, and mirrored by
 	// every client watching the session (event: session_settings).
 	change := session.SettingsChange{Source: "web", Turns: body.Turns}
-	clearModel := false
 	if body.SelectedModelID != nil {
 		mid := strings.TrimSpace(*body.SelectedModelID)
 		switch {
 		case mid == "":
 			// Clearing the selection goes back to the configured agent model.
-			clearModel = true
+			change.Model = &mid
 		case s.activeCfg() == nil || s.activeCfg().FindModelEntry(mid) == nil:
 			http.Error(w, errorJSON(ErrUnknownMetadataModel.Error()), http.StatusBadRequest)
 			return
@@ -2096,25 +2100,12 @@ func (s *Server) coddySessionPatch(w http.ResponseWriter, r *http.Request) {
 		}
 		change.Reasoning = &level
 	}
+	change.ServiceTier = body.SelectedServiceTier
 	change.Toolset = body.SelectedToolset
 	change.Mode = body.Mode
 	change.PermissionMode = body.PermissionMode
-	if clearModel {
-		if body.Turns > 0 {
-			http.Error(w, `{"error":{"message":"selectedModelId cannot be cleared for a number of turns"}}`, http.StatusBadRequest)
-			return
-		}
-		st.SetSelectedModelID("")
-		st.ClearTurnOverride(session.SettingModel)
-	}
-	if !change.Empty() || clearModel {
-		var snap acp.SessionSettings
-		var err error
-		if change.Empty() {
-			snap = s.mgr.PublishSessionSettings(id, st, "", "web")
-		} else {
-			snap, err = s.mgr.ApplySessionSettings(r.Context(), id, change)
-		}
+	if !change.Empty() {
+		snap, err := s.mgr.ApplySessionSettings(r.Context(), id, change)
 		if err != nil {
 			code := http.StatusBadRequest
 			if isSubagentReadOnly(err) {
@@ -2133,6 +2124,9 @@ func (s *Server) coddySessionPatch(w http.ResponseWriter, r *http.Request) {
 		}
 		if body.SelectedReasoning != nil {
 			resp["selectedReasoning"] = strings.TrimSpace(st.GetSelectedReasoning())
+		}
+		if body.SelectedServiceTier != nil {
+			resp["selectedServiceTier"] = st.GetSelectedServiceTier()
 		}
 		if body.SelectedToolset != nil {
 			resp["selectedToolset"] = st.GetSelectedToolset()

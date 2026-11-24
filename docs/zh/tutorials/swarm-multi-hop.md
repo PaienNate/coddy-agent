@@ -81,7 +81,7 @@ docker compose up -d
 docker compose logs inner
 ```
 
-内层中继的日志会显示它正在监听，随后是向 `relay` 的 `swarm: joining relay`，然后是 `node-c` 注册进它。从外层中继出发，使用外层客户端令牌：
+内层中继的日志会显示它正在侦听，随后是向 `relay` 的 `swarm: joining relay`，然后是 `node-c` 注册进它。从外层中继出发，使用外层客户端令牌：
 
 ```bash
 curl -s -H "Authorization: Bearer $T" http://127.0.0.1:12346/swarm/nodes

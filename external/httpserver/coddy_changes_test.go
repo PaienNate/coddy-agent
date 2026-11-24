@@ -3,6 +3,7 @@
 package httpserver
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -305,6 +306,56 @@ func TestSessionChangesDiscardOneFile(t *testing.T) {
 	}
 }
 
+// Delete removes a file of the change set without restoring HEAD: a tracked
+// file becomes the deletion the next read reports, and a file git does not
+// hold goes away for good.
+func TestSessionChangesDeleteOneFile(t *testing.T) {
+	e := newChangesEnv(t)
+	e.commitWorkspace(t, map[string]string{"a.txt": "old\n"})
+	writeInWorkspace(t, e.cwd, "a.txt", "new\n")
+	writeInWorkspace(t, e.cwd, "loose.txt", "x\n")
+
+	rec := e.doBody(t, http.MethodPost, "/coddy/sessions/"+e.id+"/changes/delete", `{"paths":["a.txt"]}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if body := decodeJSON(t, rec); body["object"] != "coddy.session_changes_deleted" || body["sessionId"] != e.id {
+		t.Fatalf("answer %v", body)
+	}
+	if _, err := os.Stat(filepath.Join(e.cwd, "a.txt")); !os.IsNotExist(err) {
+		t.Fatalf("a.txt must be gone from the working copy: %v", err)
+	}
+	// The next read reports the tracked file as a deletion, not as gone.
+	row := changedFiles(t, e.do(t, http.MethodGet, "/coddy/sessions/"+e.id+"/changes"))["a.txt"]
+	if row["status"] != "deleted" {
+		t.Fatalf("a tracked file must read as deleted: %v", row)
+	}
+	if got := readInWorkspace(t, e.cwd, "loose.txt"); got != "x\n" {
+		t.Fatalf("loose.txt was not named and must stay: %q", got)
+	}
+}
+
+// Delete refuses a path the change set does not hold before touching anything,
+// and an empty or malformed body is refused outright.
+func TestSessionChangesDeleteRefusesAnUnknownPath(t *testing.T) {
+	e := newChangesEnv(t)
+	e.commitWorkspace(t, map[string]string{"a.txt": "old\n"})
+	writeInWorkspace(t, e.cwd, "a.txt", "new\n")
+
+	rec := e.doBody(t, http.MethodPost, "/coddy/sessions/"+e.id+"/changes/delete", `{"paths":["missing.txt"]}`)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("an unknown path must be 409, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if got := readInWorkspace(t, e.cwd, "a.txt"); got != "new\n" {
+		t.Fatalf("a refused delete must not touch the folder: %q", got)
+	}
+	for _, body := range []string{`{}`, `{"paths":[]}`, `{"paths":null}`, `{"all":true}`, `{"paths":["a.txt"]} trailing`} {
+		if rec := e.doBody(t, http.MethodPost, "/coddy/sessions/"+e.id+"/changes/delete", body); rec.Code != http.StatusBadRequest {
+			t.Fatalf("body %q must be 400, got %d", body, rec.Code)
+		}
+	}
+}
+
 func TestSessionChangesDiscardEverything(t *testing.T) {
 	e := newChangesEnv(t)
 	e.commitWorkspace(t, map[string]string{"a.txt": "old\n"})
@@ -529,5 +580,115 @@ func TestSessionChangesDiscardRefusesAnUnclearSelection(t *testing.T) {
 	}
 	if got := readInWorkspace(t, e.cwd, "a.txt"); got != "new\n" {
 		t.Fatalf("a refused request touched a.txt: %q", got)
+	}
+}
+
+// A row carries a digest of what it stands for, so the Edits window can tell a
+// Viewed mark taken against one content from the same path rewritten.
+func TestSessionChangesCarryADigest(t *testing.T) {
+	e := newChangesEnv(t)
+	e.commitWorkspace(t, map[string]string{"a.txt": "old\n"})
+	writeInWorkspace(t, e.cwd, "a.txt", "new\n")
+
+	read := func() map[string]interface{} {
+		return changedFiles(t, e.do(t, http.MethodGet, "/coddy/sessions/"+e.id+"/changes"))["a.txt"]
+	}
+	first, _ := read()["digest"].(string)
+	if first == "" {
+		t.Fatalf("the row carries no digest: %v", read())
+	}
+	if again, _ := read()["digest"].(string); again != first {
+		t.Fatalf("the same content hashed differently: %q then %q", first, again)
+	}
+
+	// Same line counts, different content: the counts cannot be the fingerprint.
+	writeInWorkspace(t, e.cwd, "a.txt", "next\n")
+	row := read()
+	if row["additions"].(float64) != 1 || row["deletions"].(float64) != 1 {
+		t.Fatalf("this case needs equal counts: %v", row)
+	}
+	if moved, _ := row["digest"].(string); moved == first {
+		t.Fatalf("a rewrite kept the digest %q", first)
+	}
+}
+
+// A PNG carries its own signature, and the working copy is where a viewer has
+// to read it from: the row says which sides are images and how large they are,
+// and the raw form of the detail route serves the bytes themselves.
+func TestSessionChangesServeImageSidesRaw(t *testing.T) {
+	e := newChangesEnv(t)
+	before := []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + "old")
+	after := []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + "newer!")
+	e.commitWorkspace(t, map[string]string{"logo.png": string(before)})
+	writeInWorkspace(t, e.cwd, "logo.png", string(after))
+
+	row := changedFiles(t, e.do(t, http.MethodGet, "/coddy/sessions/"+e.id+"/changes"))["logo.png"]
+	if row["image"] != true || row["beforeImage"] != true || row["afterImage"] != true {
+		t.Fatalf("an image row must say so per side: %v", row)
+	}
+	// An image has no line diff, so the row reads as binary with its sizes.
+	if row["binary"] != true {
+		t.Fatalf("an image must not claim a line diff: %v", row)
+	}
+	if row["beforeSize"].(float64) != float64(len(before)) || row["afterSize"].(float64) != float64(len(after)) {
+		t.Fatalf("sizes must be the raw bytes: %v", row)
+	}
+
+	target := "/coddy/sessions/" + e.id + "/changes/file?path=logo.png&raw=1&side="
+	served := e.do(t, http.MethodGet, target+"after")
+	if served.Code != http.StatusOK {
+		t.Fatalf("raw after: status %d: %s", served.Code, served.Body.String())
+	}
+	if got := served.Header().Get("Content-Type"); got != "image/png" {
+		t.Fatalf("Content-Type %q", got)
+	}
+	if got := served.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("nosniff missing: %q", got)
+	}
+	if served.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("a working copy must not be cached: %q", served.Header().Get("Cache-Control"))
+	}
+	if !bytes.Equal(served.Body.Bytes(), after) {
+		t.Fatalf("raw bytes differ from the working copy: %q", served.Body.Bytes())
+	}
+	// No side names the before side, which is what a deleted or unchanged-sides
+	// renderer asks for.
+	if plain := e.do(t, http.MethodGet, target[:len(target)-len("side=")]); !bytes.Equal(plain.Body.Bytes(), before) {
+		t.Fatalf("raw without a side must answer the before side: %q", plain.Body.Bytes())
+	}
+	if bad := e.do(t, http.MethodGet, target+"middle"); bad.Code != http.StatusBadRequest {
+		t.Fatalf("a wrong side must be 400, got %d", bad.Code)
+	}
+}
+
+// The raw form exists for images alone: a text side has no bytes a browser
+// should be handed under a type it chose.
+func TestSessionChangesRawRefusesANonImage(t *testing.T) {
+	e := newChangesEnv(t)
+	e.commitWorkspace(t, map[string]string{"a.txt": "old\n"})
+	writeInWorkspace(t, e.cwd, "a.txt", "new\n")
+
+	rec := e.do(t, http.MethodGet, "/coddy/sessions/"+e.id+"/changes/file?path=a.txt&raw=1")
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("a text side must be 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// A deleted image has no working-copy side, so asking for one is 404 rather
+// than an empty picture.
+func TestSessionChangesRawRefusesAMissingSide(t *testing.T) {
+	e := newChangesEnv(t)
+	png := "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + "gone"
+	e.commitWorkspace(t, map[string]string{"old.png": png})
+	if err := os.Remove(filepath.Join(e.cwd, "old.png")); err != nil {
+		t.Fatal(err)
+	}
+
+	base := "/coddy/sessions/" + e.id + "/changes/file?path=old.png&raw=1&side="
+	if before := e.do(t, http.MethodGet, base+"before"); before.Code != http.StatusOK {
+		t.Fatalf("the deleted side still has its bytes: %d: %s", before.Code, before.Body.String())
+	}
+	if after := e.do(t, http.MethodGet, base+"after"); after.Code != http.StatusNotFound {
+		t.Fatalf("a side the file does not have must be 404, got %d", after.Code)
 	}
 }

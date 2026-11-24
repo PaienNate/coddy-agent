@@ -107,3 +107,20 @@ export async function discardSessionChanges(
   });
   return res ? parseJson<{ sessionId: string }>(res) : offline();
 }
+
+/**
+ * Removes the named files of the change set from the session's folder without
+ * restoring HEAD: a file git does not hold goes away, and a tracked file
+ * becomes the deletion the next read reports. Destructive and not undoable.
+ */
+export async function deleteSessionChangeFiles(
+  sessionId: string,
+  paths: string[],
+): Promise<ChangesApiResult<{ sessionId: string }>> {
+  const res = await request(`${basePath(sessionId)}/delete`, {
+    method: "POST",
+    headers: { ...headers(sessionId), "Content-Type": "application/json" },
+    body: JSON.stringify({ paths }),
+  });
+  return res ? parseJson<{ sessionId: string }>(res) : offline();
+}
