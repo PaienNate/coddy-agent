@@ -496,11 +496,12 @@ Checks a session goal (/goal) after every turn with a second model, continues un
 
 ### `terminal`
 
-The terminal of a chat: one host shell per chat, opened from the web UI in a window of its own and served by GET, POST and DELETE /coddy/sessions/{id}/terminal. Off by default, because a shell running the host's commands from a browser is a capability to grant on purpose. Enabling it opens nothing beyond this process's own origin, and a session a subagent run owns stays closed; no model, tool or suggestion can write to it. The shell is a pipe, not a terminal device, so a program that draws a screen has nothing to draw on and escape sequences are stripped.
+The terminal of a chat: one host shell per chat, opened from the web UI in a window of its own and served by GET, POST and DELETE /coddy/sessions/{id}/terminal. Off by default, because a shell running the host's commands from a browser is a capability to grant on purpose. Enabling it opens nothing beyond this process's own origin, unless allowed_origins names the pages that may use it, and a session a subagent run owns stays closed; no model, tool or suggestion can write to it. The shell is a pipe, not a terminal device, so a program that draws a screen has nothing to draw on and escape sequences are stripped.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `terminal.enable` | boolean | false | Run a shell for a chat, on the request of the person watching it. Needs httpserver.enable. |
+| `terminal.allowed_origins` | list of strings |  | Origins, besides this server's own, whose pages may drive the terminal: "http://192.168.1.20:12345", or the bare "192.168.1.20:12345". An entry is an origin, never a path, and "*" is refused: a shell is granted to a page, not to the web. |
 
 ### `toolsets`
 

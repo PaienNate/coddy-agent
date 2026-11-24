@@ -25,11 +25,18 @@ import (
 // what the disabled case asks for) over one chat in a folder of its own.
 func newTerminalEnv(t *testing.T, enable bool) (*Server, string, string) {
 	t.Helper()
+	return newTerminalEnvWith(t, config.TerminalConfig{Enable: enable})
+}
+
+// newTerminalEnvWith is newTerminalEnv with the whole terminal block, for the
+// cases that name the origins another page may drive it from.
+func newTerminalEnvWith(t *testing.T, terminal config.TerminalConfig) (*Server, string, string) {
+	t.Helper()
 	cfg := &config.Config{
 		Providers: []config.ProviderConfig{{Name: "p1", Type: "openai", APIKey: "k"}},
 		Models:    []config.ModelEntry{{Model: "p1/gpt-4o"}},
 		Agent:     config.Agent{Model: "p1/gpt-4o"},
-		Terminal:  config.TerminalConfig{Enable: enable},
+		Terminal:  terminal,
 	}
 	root := t.TempDir()
 	mgr := session.NewManager(cfg, noopSender{}, func(context.Context, *session.State, []acp.ContentBlock, acp.UpdateSender) (string, error) {

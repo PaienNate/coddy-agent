@@ -2419,6 +2419,10 @@ export const messagesRu: Record<string, string> = {
   "terminal.open": "Открыть терминал",
   "terminal.close": "Закрыть терминал",
   "terminal.restart": "Перезапустить",
+  "terminal.disabled":
+    "Этот сервер не обслуживает терминал: в его конфигурации выключен terminal.enable.",
+  "terminal.forbidden":
+    "Терминал доступен странице самого сервера и источникам, названным в terminal.allowed_origins.",
   "terminal.starting": "запуск…",
   "terminal.ready": "Терминал готов",
   "terminal.command": "Команда терминала",
