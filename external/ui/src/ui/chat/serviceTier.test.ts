@@ -3,6 +3,7 @@ import {
   pickServiceTier,
   readServiceTierCookie,
   serviceTierLabelKey,
+  sessionTierChoiceList,
   writeServiceTierCookie,
 } from "./serviceTier";
 
@@ -30,5 +31,30 @@ describe("service tier preference", () => {
     expect(serviceTierLabelKey("priority")).toBe(
       "composer.serviceTier.priority",
     );
+  });
+  // A snapshot that names no list must not blank the page: the composer handed
+  // the value straight to `.filter` (issue: white screen on a model switch).
+  it("falls back to the model's tiers when a snapshot names none", () => {
+    expect(sessionTierChoiceList(undefined, ["", "priority"])).toEqual([
+      "",
+      "priority",
+    ]);
+    expect(sessionTierChoiceList(null as never, ["default"])).toEqual([
+      "default",
+    ]);
+    expect(sessionTierChoiceList("priority" as never, [])).toEqual([]);
+  });
+  it("keeps the session's own list, empty and unclean included", () => {
+    expect(sessionTierChoiceList(["", "default"], ["priority"])).toEqual([
+      "",
+      "default",
+    ]);
+    // An empty list is the session's answer ("this model offers no tier"), not
+    // a missing one, so the model row does not take the chip back.
+    expect(sessionTierChoiceList([], ["priority"])).toEqual([]);
+    expect(sessionTierChoiceList(["", 7 as never, "priority"], [])).toEqual([
+      "",
+      "priority",
+    ]);
   });
 });
