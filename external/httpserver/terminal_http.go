@@ -88,8 +88,8 @@ func (s *Server) terminalTarget(w http.ResponseWriter, r *http.Request) (string,
 		return "", "", false
 	}
 	sid := strings.TrimSpace(r.PathValue("id"))
-	if !isSameOriginRequest(r) {
-		http.Error(w, errorJSON("the terminal is served to this server's own origin only"), http.StatusForbidden)
+	if !isSameOriginRequest(r) && !s.activeCfg().Terminal.AllowsOrigin(r.Header.Get("Origin")) {
+		http.Error(w, errorJSON("the terminal is served to this server's own origin, or to an origin terminal.allowed_origins names"), http.StatusForbidden)
 		return "", "", false
 	}
 	clone := r.Clone(r.Context())

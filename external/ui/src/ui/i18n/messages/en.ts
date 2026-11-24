@@ -2353,6 +2353,10 @@ export const messagesEn: Record<string, string> = {
   "terminal.open": "Open the terminal",
   "terminal.close": "Close terminal",
   "terminal.restart": "Restart",
+  "terminal.disabled":
+    "This server does not serve the terminal: terminal.enable is off in its configuration.",
+  "terminal.forbidden":
+    "The terminal is served to this server's own page, or to an origin terminal.allowed_origins names.",
   "terminal.starting": "starting…",
   "terminal.ready": "Terminal ready",
   "terminal.command": "Terminal command",

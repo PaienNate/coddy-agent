@@ -2172,6 +2172,9 @@ export const messagesZh: Record<string, string> = {
   "terminal.open": "打开终端",
   "terminal.close": "关闭终端",
   "terminal.restart": "重启",
+  "terminal.disabled": "该服务器未提供终端：配置中的 terminal.enable 未开启。",
+  "terminal.forbidden":
+    "终端只提供给该服务器自己的页面，以及 terminal.allowed_origins 中列出的来源。",
   "terminal.starting": "正在启动…",
   "terminal.ready": "终端已就绪",
   "terminal.command": "终端命令",

@@ -1,6 +1,7 @@
 import {
   pickServiceTier,
   readServiceTierCookie,
+  sessionTierChoiceList,
   writeServiceTierCookie,
   type ServiceTierControl,
 } from "./chat/serviceTier";
@@ -7067,7 +7068,7 @@ export function App() {
     setSessionTierChoices({
       sid: snap.sessionId,
       model: snap.model,
-      choices: snap.serviceTierChoices,
+      choices: sessionTierChoiceList(snap.serviceTierChoices, []),
     });
     setPermissionMode(snap.permissionMode);
     setConfiguredPermissionMode(snap.configuredPermissionMode);
@@ -7276,11 +7277,13 @@ export function App() {
    * browser's remembered pick for a new chat, narrowed to the tiers the
    * model's provider takes. No tier, no chip.
    */
+  const modelTierChoices =
+    modelInfos.find((m) => m.id === llmModel)?.serviceTierChoices ?? [];
   const serviceTierChoices =
     sessionTierChoices.sid === sessionId.trim() &&
     sessionTierChoices.model === llmModel
-      ? sessionTierChoices.choices
-      : (modelInfos.find((m) => m.id === llmModel)?.serviceTierChoices ?? []);
+      ? sessionTierChoiceList(sessionTierChoices.choices, modelTierChoices)
+      : modelTierChoices;
   const serviceTierMenuChoices = serviceTierChoices.filter(
     (choice) => choice !== "",
   );

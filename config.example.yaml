@@ -829,6 +829,18 @@ logger:
 #         ca_file: "/etc/coddy/internal-ca.pem"
 
 # ----------------------------------------------------------------------------
+# terminal - one host shell per chat, opened from the web UI in a window of its
+# own. Off by default: a shell running the host's commands from a browser is a
+# capability to grant on purpose. A page of another origin (the UI read from a
+# phone, or through another address) drives it only when its origin is named in
+# allowed_origins, as http://192.168.1.20:12345 or the bare 192.168.1.20:12345;
+# "*" is refused. Needs a binary built with -tags http,ui.
+# ----------------------------------------------------------------------------
+# terminal:
+#   enable: true
+#   allowed_origins: ["http://192.168.1.20:12345"]
+
+# ----------------------------------------------------------------------------
 # browser - Coddy for Browser, the extension that lets chats work in your
 # browser (Chrome, Yandex Browser, Firefox) through the browser tool. It connects to the HTTP server and shows
 # the web UI in its side panel. Needs a binary built with -tags browser;

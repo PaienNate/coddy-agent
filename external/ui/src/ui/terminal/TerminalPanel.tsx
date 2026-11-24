@@ -37,6 +37,8 @@ type TerminalSnapshot = {
 
 const HISTORY_KEY = "coddy.terminal.history.";
 const HISTORY_LIMIT = 100;
+/** How often the open window reads the snapshot of its shell while it waits. */
+const TERMINAL_POLL_MS = 450;
 
 function historyKey(sessionId: string): string {
   return `${HISTORY_KEY}${sessionId}`;
@@ -95,6 +97,8 @@ export function TerminalPanel(props: {
   );
   const [historyAt, setHistoryAt] = useState(0);
   const [error, setError] = useState("");
+  /** Why the terminal cannot be read at all, when asking again cannot help. */
+  const [problem, setProblem] = useState<"" | "disabled" | "forbidden">("");
   const [maximized, setMaximized] = useState(readTerminalMaximized);
   const [frame, setFrame] = useState<TerminalFrame>(() => {
     const { vw, vh } = viewport();
@@ -134,24 +138,52 @@ export function TerminalPanel(props: {
   const refresh = useCallback(async () => {
     const at = ++askedRef.current;
     const response = await fetch(url, { headers: scope.headers });
-    if (!response.ok) throw new Error(await response.text());
+    if (!response.ok) {
+      // The status decides whether asking again is worth anything: a server
+      // without the terminal answers 404 however often it is asked, and a page
+      // it refuses answers 403.
+      const refused = new Error(await response.text()) as Error & {
+        status?: number;
+      };
+      refused.status = response.status;
+      throw refused;
+    }
     show(at, (await response.json()) as TerminalSnapshot);
   }, [url, props.sessionId, props.workspacePath, show]);
 
   useEffect(() => {
     let live = true;
+    let timer = 0;
+    let delay = TERMINAL_POLL_MS;
     const poll = async () => {
       try {
         await refresh();
+        delay = TERMINAL_POLL_MS;
+        if (live) setProblem("");
       } catch (err) {
-        if (live) setError(err instanceof Error ? err.message : String(err));
+        if (!live) return;
+        const status = (err as { status?: number }).status ?? 0;
+        // Nothing about these can change while the window stays open, and the
+        // 450ms poll turned them into a console full of the same line.
+        if (status === 404) {
+          setError("");
+          setProblem("disabled");
+          return;
+        }
+        if (status === 403) {
+          setError("");
+          setProblem("forbidden");
+          return;
+        }
+        setError(err instanceof Error ? err.message : String(err));
+        delay = Math.min(Math.max(delay * 4, 2000), 10000);
       }
+      if (live) timer = window.setTimeout(() => void poll(), delay);
     };
     void poll();
-    const timer = window.setInterval(() => void poll(), 450);
     return () => {
       live = false;
-      window.clearInterval(timer);
+      window.clearTimeout(timer);
     };
   }, [refresh]);
 
@@ -378,6 +410,13 @@ export function TerminalPanel(props: {
         {snapshot?.output || t("terminal.ready")}
         {snapshot?.exit_error ? `\n${snapshot.exit_error}` : ""}
       </pre>
+      {problem ? (
+        <div className="terminal-error" role="status">
+          {t(
+            problem === "disabled" ? "terminal.disabled" : "terminal.forbidden",
+          )}
+        </div>
+      ) : null}
       {error ? (
         <div className="terminal-error" role="alert">
           {error}
