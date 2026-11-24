@@ -7,6 +7,20 @@ function ruleBodies(css: string, selector: string): string[] {
   return [...css.matchAll(re)].map((m) => m[1] ?? "");
 }
 
+// The row's visually hidden radio/checkbox is `position: absolute` (`.sr-only`).
+// Without a positioned ancestor its containing block is the initial one, so the
+// input escaped the transcript's scroller and the body's `overflow: hidden`: its
+// static position sat thousands of pixels down the scrolled content, which
+// inflated the document, and focusing it (a click on the row or its letter
+// bubble) scrolled the whole window into that blank tail - the page went white
+// while every element stayed in the DOM.
+test("the question row is the containing block of its hidden input", () => {
+  const css = stylesSource();
+  const bodies = ruleBodies(css, "label.question-prompt-row");
+  expect(bodies.length).toBeGreaterThan(0);
+  expect(bodies.some((body) => /position:\s*relative/.test(body))).toBe(true);
+});
+
 // The question card is a prompt in the transcript like the permission card, and
 // both rows are flush with the transcript column: on a phone the card's edges meet
 // the composer's under it on both sides. The question row used to carry a

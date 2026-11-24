@@ -152,6 +152,14 @@ label.question-prompt-row {
   display: flex;
   align-items: center;
   gap: 10px;
+  /* The row owns its visually hidden radio/checkbox (`.sr-only` is
+     `position: absolute`). Without a positioned ancestor the input's
+     containing block is the initial one, so it escaped the transcript's
+     scroller and the body's `overflow: hidden`: its static position, thousands
+     of pixels down the scrolled content, inflated the document, and focusing it
+     on a click scrolled the whole window into that blank tail - the page went
+     white while every element stayed in the DOM. */
+  position: relative;
   padding: 9px 10px;
   margin: 0;
   border-radius: 10px;
